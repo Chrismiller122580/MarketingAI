@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { settingsToData } from "@/lib/db-mappers";
+import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import type { UserSettings } from "@/lib/types";
 
 const DEFAULTS = {
@@ -14,14 +15,17 @@ const DEFAULTS = {
 };
 
 export async function GET() {
+  const userId = await requireAuthUserId();
+  if (isAuthError(userId)) return userId;
+
   try {
-    let settings = await prisma.settings.findUnique({
-      where: { id: "default" },
+    let settings = await prisma.userSettings.findUnique({
+      where: { userId },
     });
 
     if (!settings) {
-      settings = await prisma.settings.create({
-        data: { id: "default", ...DEFAULTS },
+      settings = await prisma.userSettings.create({
+        data: { userId, ...DEFAULTS },
       });
     }
 
@@ -33,13 +37,16 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const userId = await requireAuthUserId();
+  if (isAuthError(userId)) return userId;
+
   try {
     const body = await request.json();
     const patch = body.settings as Partial<UserSettings>;
 
-    const settings = await prisma.settings.upsert({
-      where: { id: "default" },
-      create: { id: "default", ...DEFAULTS, ...patch },
+    const settings = await prisma.userSettings.upsert({
+      where: { userId },
+      create: { userId, ...DEFAULTS, ...patch },
       update: {
         ...(patch.brandVoice !== undefined && {
           brandVoice: patch.brandVoice,

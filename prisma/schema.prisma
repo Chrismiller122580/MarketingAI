@@ -7,9 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String         @id @default(cuid())
+  name          String?
+  email         String         @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  sites         Site[]
+  posts         Post[]
+  packs         CampaignPack[]
+  settings      UserSettings?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
 model Site {
   id        String   @id @default(cuid())
-  domain    String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain    String
   crawledAt DateTime
   brand     Json
   pages     Json
@@ -17,10 +69,14 @@ model Site {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   posts     Post[]
+
+  @@unique([userId, domain])
 }
 
 model Post {
   id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   siteId         String?
   site           Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
   text           String    @db.Text
@@ -42,13 +98,17 @@ model Post {
 
 model CampaignPack {
   id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   posts     Json
   createdAt DateTime @default(now())
 }
 
-model Settings {
-  id               String   @id @default("default")
+model UserSettings {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   brandVoice       String   @db.Text
   targetAudience   String
   defaultPlatforms String[]

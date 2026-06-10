@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useSite } from "@/context/site-context";
 import { DomainInput } from "./domain-input";
+import { UserMenu } from "./user-menu";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/": {
@@ -65,9 +66,7 @@ export function Header() {
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
         </button>
 
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-medium text-indigo-700">
-          JD
-        </div>
+        <UserMenu />
       </div>
     </header>
   );

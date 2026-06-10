@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { packToData } from "@/lib/db-mappers";
+import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import type { SavedPost } from "@/lib/types";
 
 export async function GET() {
+  const userId = await requireAuthUserId();
+  if (isAuthError(userId)) return userId;
+
   try {
     const packs = await prisma.campaignPack.findMany({
+      where: { userId },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json({ packs: packs.map(packToData) });
@@ -16,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const userId = await requireAuthUserId();
+  if (isAuthError(userId)) return userId;
+
   try {
     const body = await request.json();
     const name = body.name as string;
@@ -26,7 +34,7 @@ export async function POST(request: Request) {
     }
 
     const pack = await prisma.campaignPack.create({
-      data: { name, posts },
+      data: { userId, name, posts },
     });
 
     return NextResponse.json({ pack: packToData(pack) });
@@ -37,8 +45,11 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE() {
+  const userId = await requireAuthUserId();
+  if (isAuthError(userId)) return userId;
+
   try {
-    await prisma.campaignPack.deleteMany();
+    await prisma.campaignPack.deleteMany({ where: { userId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Database error";

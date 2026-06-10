@@ -1,16 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { postToSaved } from "@/lib/db-mappers";
+import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { publishPost as publishToSocial } from "@/lib/social/publishers";
 import type { PublishResult } from "@/lib/types";
+
+async function getOwnedPost(id: string, userId: string) {
+  return prisma.post.findFirst({ where: { id, userId } });
+}
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const userId = await requireAuthUserId();
+  if (isAuthError(userId)) return userId;
+
   try {
     const { id } = await params;
-    const body = await request.json();
+    const existing = await getOwnedPost(id, userId);
+    if (!existing) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
 
+    const body = await request.json();
     const updated = await prisma.post.update({
       where: { id },
       data: {
@@ -35,8 +48,16 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const userId = await requireAuthUserId();
+  if (isAuthError(userId)) return userId;
+
   try {
     const { id } = await params;
+    const existing = await getOwnedPost(id, userId);
+    if (!existing) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
     await prisma.post.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -49,23 +70,17 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const userId = await requireAuthUserId();
+  if (isAuthError(userId)) return userId;
+
   try {
     const { id } = await params;
-    const post = await prisma.post.findUnique({ where: { id } });
+    const post = await getOwnedPost(id, userId);
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    const publishResponse = await fetch(
-      new URL("/api/publish", request.url).toString(),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ post: postToSaved(post) }),
-      },
-    );
-
-    const result = (await publishResponse.json()) as PublishResult;
+    const result = await publishToSocial(postToSaved(post));
 
     const updated = await prisma.post.update({
       where: { id },
