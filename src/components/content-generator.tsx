@@ -6,7 +6,8 @@ import { useSettings } from "@/context/settings-context";
 import { usePosts } from "@/context/posts-context";
 import { PostPreview } from "./post-preview";
 import { BrandInsights } from "./brand-insights";
-import type { ContentType, GeneratedPost, Platform } from "@/lib/types";
+import { PublishPanel } from "./publish-panel";
+import type { ContentType, GeneratedPost, Platform, SavedPost } from "@/lib/types";
 
 const contentTypes: ContentType[] = [
   "Social Post",
@@ -28,6 +29,7 @@ export function ContentGenerator() {
   const { site } = useSite();
   const { settings } = useSettings();
   const { savePost } = usePosts();
+  const [savedPost, setSavedPost] = useState<SavedPost | null>(null);
   const [prompt, setPrompt] = useState("");
   const [contentType, setContentType] = useState<ContentType>("Social Post");
   const [platform, setPlatform] = useState<Platform>("instagram");
@@ -36,6 +38,7 @@ export function ContentGenerator() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [preferAiImage, setPreferAiImage] = useState(settings.preferAiImages);
 
   async function handleGenerate() {
     if (!site) return;
@@ -55,6 +58,7 @@ export function ContentGenerator() {
           platform,
           prompt: prompt.trim(),
           sourcePageUrl: selectedPage === "all" ? undefined : selectedPage,
+          preferAiImage,
         }),
       });
 
@@ -71,7 +75,8 @@ export function ContentGenerator() {
 
   function handleSave() {
     if (!post) return;
-    savePost(post);
+    const saved = savePost(post);
+    setSavedPost(saved);
     setSaved(true);
   }
 
@@ -172,6 +177,20 @@ export function ContentGenerator() {
             </>
           )}
 
+          {site && (
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={preferAiImage}
+                onChange={(e) => setPreferAiImage(e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600"
+              />
+              <span className="text-sm text-slate-700">
+                Generate AI image (DALL-E / Grok) instead of site photo
+              </span>
+            </label>
+          )}
+
           <div>
             <label
               htmlFor="prompt"
@@ -206,6 +225,15 @@ export function ContentGenerator() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <PostPreview post={post} />
           <BrandInsights post={post} />
+        </div>
+      )}
+
+      {savedPost && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">
+            Publish
+          </h3>
+          <PublishPanel post={savedPost} />
         </div>
       )}
 

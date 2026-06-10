@@ -1,3 +1,4 @@
+import { generateAiImage } from "./ai-image";
 import { pickBestImage, buildBrandedImageUrl } from "./image-matcher";
 import type {
   BatchGenerateRequest,
@@ -25,6 +26,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   defaultPlatforms: ["instagram", "linkedin", "twitter"],
   includeHashtags: true,
   emojiStyle: "light",
+  preferAiImages: false,
 };
 
 function getSettings(request: GenerateRequest): UserSettings {
@@ -190,10 +192,58 @@ function buildInsights(
     `Keywords: ${site.brand.keywords.slice(0, 5).join(", ")}.`,
     imageSource === "site"
       ? "Used highest-scoring image from crawled pages."
-      : "Generated branded visual — no suitable site image found.",
+      : imageSource === "ai"
+        ? "Generated unique AI visual tailored to your brand and page."
+        : "Generated branded visual — no suitable site image found.",
     `Optimized for ${platform} (${PLATFORM_LIMITS[platform]} chars).`,
   ];
   return insights;
+}
+
+async function resolveImage(
+  site: SiteData,
+  page: SitePage,
+  platform: Platform,
+  context: string,
+  preferAi: boolean,
+): Promise<GeneratedPost["image"]> {
+  if (preferAi) {
+    const ai = await generateAiImage(site, page, platform);
+    if (ai) {
+      try {
+        const res = await fetch(ai.url);
+        if (res.ok) {
+          const buf = await res.arrayBuffer();
+          const b64 = Buffer.from(buf).toString("base64");
+          const ct = res.headers.get("content-type") ?? "image/png";
+          return {
+            url: `data:${ct};base64,${b64}`,
+            source: "ai",
+            alt: `${site.brand.name} — ${page.title}`,
+            originalUrl: ai.url,
+          };
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
+  const siteImage = pickBestImage(site, context, page, platform);
+  if (siteImage) {
+    return {
+      url: `/api/image?url=${encodeURIComponent(siteImage.url)}`,
+      source: "site",
+      alt: siteImage.alt || page.title,
+      originalUrl: siteImage.url,
+    };
+  }
+
+  return {
+    url: buildBrandedImageUrl(site, page.title, platform, page.path),
+    source: "branded",
+    alt: `${site.brand.name} — ${page.title}`,
+  };
 }
 
 export async function generateSmartPost(
@@ -206,23 +256,9 @@ export async function generateSmartPost(
   const hashtags = buildHashtags(site, page, prompt, settings);
 
   const context = `${page.title} ${page.description} ${prompt}`;
-  const siteImage = pickBestImage(site, context, page, platform);
-
-  let image: GeneratedPost["image"];
-  if (siteImage) {
-    image = {
-      url: `/api/image?url=${encodeURIComponent(siteImage.url)}`,
-      source: "site",
-      alt: siteImage.alt || page.title,
-      originalUrl: siteImage.url,
-    };
-  } else {
-    image = {
-      url: buildBrandedImageUrl(site, page.title, platform, page.path),
-      source: "branded",
-      alt: `${site.brand.name} — ${page.title}`,
-    };
-  }
+  const preferAi =
+    request.preferAiImage ?? settings.preferAiImages ?? false;
+  const image = await resolveImage(site, page, platform, context, preferAi);
 
   const aiEnhanced = await tryAiEnhancement(request, text, page, settings);
   const finalText = aiEnhanced ?? text;
@@ -266,6 +302,7 @@ export async function generateCampaignPack(
         prompt,
         sourcePageUrl: page.url,
         settings,
+        preferAiImage: request.preferAiImage ?? settings?.preferAiImages,
       });
 
       const dayOffset = posts.length;

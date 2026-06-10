@@ -1,16 +1,114 @@
 "use client";
 
+import { useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+  useDroppable,
+  useDraggable,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { usePosts } from "@/context/posts-context";
+import type { SavedPost } from "@/lib/types";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function ContentCalendar() {
-  const { posts } = usePosts();
+const PLATFORM_COLORS: Record<string, string> = {
+  instagram: "bg-pink-100 text-pink-700 border-pink-200",
+  twitter: "bg-sky-100 text-sky-700 border-sky-200",
+  linkedin: "bg-blue-100 text-blue-700 border-blue-200",
+  facebook: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  pinterest: "bg-rose-100 text-rose-700 border-rose-200",
+};
 
-  const scheduled = posts.filter((p) => p.scheduledFor);
+function DraggablePost({ post }: { post: SavedPost }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({ id: post.id, data: { post } });
+
+  const style = transform
+    ? { transform: CSS.Translate.toString(transform) }
+    : undefined;
+
+  const color =
+    PLATFORM_COLORS[post.platform] ?? "bg-slate-100 text-slate-700 border-slate-200";
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`cursor-grab rounded border px-2 py-1.5 text-[11px] font-medium active:cursor-grabbing ${color} ${isDragging ? "opacity-40" : ""}`}
+    >
+      <span className="capitalize">{post.platform}</span>
+      <p className="mt-0.5 line-clamp-1 font-normal opacity-80">
+        {post.text.slice(0, 40)}…
+      </p>
+      {post.publishStatus === "published" && (
+        <span className="text-[9px] text-emerald-600">✓ published</span>
+      )}
+    </div>
+  );
+}
+
+function DroppableDay({
+  dayKey,
+  label,
+  dateNum,
+  posts,
+  isToday,
+}: {
+  dayKey: string;
+  label: string;
+  dateNum: number;
+  posts: SavedPost[];
+  isToday: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: dayKey });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`min-h-[140px] bg-white p-2 transition ${
+        isOver ? "bg-indigo-50 ring-2 ring-inset ring-indigo-300" : ""
+      }`}
+    >
+      <div className="mb-2 text-center">
+        <p className="text-xs font-medium text-slate-400">{label}</p>
+        <p
+          className={`text-sm font-semibold ${isToday ? "text-indigo-600" : "text-slate-900"}`}
+        >
+          {dateNum}
+        </p>
+      </div>
+      <div className="space-y-1.5">
+        {posts.map((post) => (
+          <DraggablePost key={post.id} post={post} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ContentCalendar() {
+  const { posts, schedulePost } = usePosts();
+  const [activePost, setActivePost] = useState<SavedPost | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
   const today = new Date();
   const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay());
+  startOfWeek.setDate(today.getDate() - today.getDay() + weekOffset * 7);
+
+  const todayKey = today.toISOString().split("T")[0];
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(startOfWeek);
@@ -18,18 +116,39 @@ export function ContentCalendar() {
     const key = date.toISOString().split("T")[0];
     return {
       label: DAY_LABELS[i],
-      date: date.getDate(),
+      dateNum: date.getDate(),
       key,
-      posts: scheduled.filter((p) => p.scheduledFor === key),
+      isToday: key === todayKey,
+      posts: posts.filter((p) => p.scheduledFor === key),
     };
   });
+
+  const unscheduled = posts.filter((p) => !p.scheduledFor);
+
+  function handleDragStart(event: DragStartEvent) {
+    const post = posts.find((p) => p.id === event.active.id);
+    if (post) setActivePost(post);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActivePost(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const dayKey = over.id as string;
+    if (dayKey.startsWith("20")) {
+      schedulePost(active.id as string, dayKey);
+    } else if (dayKey === "unscheduled") {
+      schedulePost(active.id as string, undefined);
+    }
+  }
 
   if (posts.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-        <p className="text-sm font-medium text-slate-700">No scheduled content</p>
+        <p className="text-sm font-medium text-slate-700">No posts yet</p>
         <p className="mt-1 text-sm text-slate-500">
-          Generate a campaign pack to auto-schedule posts across the week.
+          Generate content, then drag posts onto the calendar to schedule.
         </p>
       </div>
     );
@@ -37,32 +156,90 @@ export function ContentCalendar() {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 className="text-base font-semibold text-slate-900">
-          Content calendar
-        </h2>
-        <p className="text-sm text-slate-500">
-          {scheduled.length} scheduled · {posts.length} total posts in library
-        </p>
+      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">
+            Content calendar
+          </h2>
+          <p className="text-sm text-slate-500">
+            Drag posts to schedule · {posts.filter((p) => p.scheduledFor).length}{" "}
+            scheduled
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setWeekOffset((w) => w - 1)}
+            className="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
+          >
+            ←
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekOffset(0)}
+            className="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekOffset((w) => w + 1)}
+            className="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
+          >
+            →
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-slate-200 p-px">
-        {weekDays.map((day) => (
-          <div key={day.key} className="min-h-[120px] bg-white p-2">
-            <div className="mb-2 text-center">
-              <p className="text-xs font-medium text-slate-400">{day.label}</p>
-              <p className="text-sm font-semibold text-slate-900">{day.date}</p>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {unscheduled.length > 0 && (
+          <UnscheduledPool posts={unscheduled} />
+        )}
+
+        <div className="grid grid-cols-7 gap-px bg-slate-200 p-px">
+          {weekDays.map((day) => (
+            <DroppableDay
+              key={day.key}
+              dayKey={day.key}
+              label={day.label}
+              dateNum={day.dateNum}
+              posts={day.posts}
+              isToday={day.isToday}
+            />
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activePost ? (
+            <div className="rounded border border-indigo-300 bg-indigo-50 px-2 py-1.5 text-[11px] font-medium text-indigo-700 shadow-lg">
+              {activePost.platform}
             </div>
-            <div className="space-y-1">
-              {day.posts.map((post) => (
-                <div
-                  key={post.id}
-                  className="rounded bg-indigo-50 px-1.5 py-1 text-[10px] font-medium text-indigo-700"
-                >
-                  {post.platform}
-                </div>
-              ))}
-            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
+  );
+}
+
+function UnscheduledPool({ posts }: { posts: SavedPost[] }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "unscheduled" });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`border-b border-slate-200 px-6 py-3 ${isOver ? "bg-amber-50" : "bg-slate-50"}`}
+    >
+      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+        Unscheduled ({posts.length}) — drag to a day
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {posts.map((post) => (
+          <div key={post.id} className="w-36">
+            <DraggablePost post={post} />
           </div>
         ))}
       </div>

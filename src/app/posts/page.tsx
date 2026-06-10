@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/app-shell";
-import { PostsLibrary } from "@/components/posts-library";
 import { ContentCalendar } from "@/components/content-calendar";
+import { PostsLibrary } from "@/components/posts-library";
 
 export default function PostsPage() {
   return (

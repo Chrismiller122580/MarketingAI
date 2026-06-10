@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   defaultPlatforms: ["instagram", "linkedin", "twitter"],
   includeHashtags: true,
   emojiStyle: "light",
+  preferAiImages: false,
 };
 
 type SettingsContextValue = {

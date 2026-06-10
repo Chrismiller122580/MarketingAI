@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { usePosts } from "@/context/posts-context";
+import { PublishPanel } from "./publish-panel";
 import type { SavedPost } from "@/lib/types";
 
 function PostCard({
@@ -11,6 +12,13 @@ function PostCard({
   post: SavedPost;
   onDelete: () => void;
 }) {
+  const statusColors: Record<string, string> = {
+    draft: "bg-slate-100 text-slate-600",
+    scheduled: "bg-amber-50 text-amber-700",
+    published: "bg-emerald-50 text-emerald-700",
+    failed: "bg-rose-50 text-rose-700",
+  };
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="relative aspect-video bg-slate-100">
@@ -21,6 +29,11 @@ function PostCard({
           unoptimized
           className="object-cover"
         />
+        <span
+          className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColors[post.publishStatus ?? "draft"]}`}
+        >
+          {post.publishStatus ?? "draft"}
+        </span>
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between">
@@ -28,11 +41,11 @@ function PostCard({
             {post.platform}
           </span>
           <span className="text-xs text-slate-400">
-            {new Date(post.createdAt).toLocaleDateString()}
+            {post.scheduledFor ?? new Date(post.createdAt).toLocaleDateString()}
           </span>
         </div>
-        <p className="mt-2 line-clamp-4 text-sm text-slate-700">{post.text}</p>
-        <div className="mt-3 flex gap-2">
+        <p className="mt-2 line-clamp-3 text-sm text-slate-700">{post.text}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => navigator.clipboard.writeText(post.text)}
@@ -56,28 +69,59 @@ function PostCard({
             Delete
           </button>
         </div>
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <PublishPanel post={post} />
+        </div>
       </div>
     </div>
   );
 }
 
 export function PostsLibrary() {
-  const { posts, packs, deletePost, deletePack, clearAll } = usePosts();
+  const { posts, packs, deletePost, deletePack, clearAll, publishPost } =
+    usePosts();
+
+  async function publishAllScheduled() {
+    const scheduled = posts.filter(
+      (p) => p.scheduledFor && p.publishStatus !== "published",
+    );
+    for (const post of scheduled) {
+      await publishPost(post.id);
+    }
+  }
 
   if (posts.length === 0 && packs.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
         <p className="text-lg font-medium text-slate-700">No saved posts yet</p>
         <p className="mt-2 text-sm text-slate-500">
-          Generate content in the studio or create a campaign pack — then save
-          posts here.
+          Generate content in the studio or create a campaign pack.
         </p>
       </div>
     );
   }
 
+  const scheduledCount = posts.filter(
+    (p) => p.scheduledFor && p.publishStatus !== "published",
+  ).length;
+
   return (
     <div className="space-y-8">
+      {scheduledCount > 0 && (
+        <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50 px-6 py-4">
+          <p className="text-sm text-indigo-800">
+            <strong>{scheduledCount}</strong> posts ready to publish
+          </p>
+          <button
+            type="button"
+            onClick={publishAllScheduled}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Publish all scheduled
+          </button>
+        </div>
+      )}
+
       {packs.length > 0 && (
         <div>
           <h2 className="mb-4 text-base font-semibold text-slate-900">

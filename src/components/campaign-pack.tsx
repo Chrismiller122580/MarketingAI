@@ -42,6 +42,7 @@ export function CampaignPack() {
           prompt: prompt.trim(),
           platforms: settings.defaultPlatforms,
           maxPosts,
+          preferAiImage: settings.preferAiImages,
         }),
       });
 

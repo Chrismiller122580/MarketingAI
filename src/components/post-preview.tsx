@@ -36,10 +36,16 @@ export function PostPreview({ post }: { post: GeneratedPost }) {
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
             post.image.source === "site"
               ? "bg-emerald-50 text-emerald-700"
-              : "bg-violet-50 text-violet-700"
+              : post.image.source === "ai"
+                ? "bg-violet-50 text-violet-700"
+                : "bg-slate-100 text-slate-600"
           }`}
         >
-          {post.image.source === "site" ? "Site image" : "AI branded visual"}
+          {post.image.source === "site"
+            ? "Site image"
+            : post.image.source === "ai"
+              ? "AI generated"
+              : "Branded visual"}
         </span>
       </div>
 

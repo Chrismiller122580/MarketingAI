@@ -8,7 +8,12 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { CampaignPack, GeneratedPost, SavedPost } from "@/lib/types";
+import type {
+  CampaignPack,
+  GeneratedPost,
+  PublishResult,
+  SavedPost,
+} from "@/lib/types";
 
 const POSTS_KEY = "marketing-ai-posts";
 const PACKS_KEY = "marketing-ai-packs";
@@ -18,7 +23,9 @@ type PostsContextValue = {
   packs: CampaignPack[];
   savePost: (post: GeneratedPost) => SavedPost;
   deletePost: (id: string) => void;
-  schedulePost: (id: string, date: string) => void;
+  schedulePost: (id: string, date: string | undefined) => void;
+  markPublished: (id: string, result: PublishResult) => void;
+  publishPost: (id: string) => Promise<PublishResult>;
   savePack: (name: string, posts: SavedPost[]) => CampaignPack;
   deletePack: (id: string) => void;
   clearAll: () => void;
@@ -75,6 +82,7 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
         ...post,
         id: post.id ?? makeId(),
         createdAt: post.createdAt ?? new Date().toISOString(),
+        publishStatus: post.publishStatus ?? "draft",
       };
       persistPosts([saved, ...posts.filter((p) => p.id !== saved.id)]);
       return saved;
@@ -90,12 +98,63 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const schedulePost = useCallback(
-    (id: string, date: string) => {
+    (id: string, date: string | undefined) => {
       persistPosts(
-        posts.map((p) => (p.id === id ? { ...p, scheduledFor: date } : p)),
+        posts.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                scheduledFor: date,
+                publishStatus: date ? ("scheduled" as const) : ("draft" as const),
+              }
+            : p,
+        ),
       );
     },
     [posts, persistPosts],
+  );
+
+  const markPublished = useCallback(
+    (id: string, result: PublishResult) => {
+      persistPosts(
+        posts.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                publishStatus: result.success ? ("published" as const) : ("failed" as const),
+                publishedAt: result.publishedAt ?? new Date().toISOString(),
+                publishUrl: result.url,
+              }
+            : p,
+        ),
+      );
+    },
+    [posts, persistPosts],
+  );
+
+  const publishPostById = useCallback(
+    async (id: string): Promise<PublishResult> => {
+      const post = posts.find((p) => p.id === id);
+      if (!post) {
+        return {
+          success: false,
+          platform: "twitter",
+          method: "api",
+          message: "Post not found",
+        };
+      }
+
+      const response = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ post }),
+      });
+
+      const result = (await response.json()) as PublishResult;
+      markPublished(id, result);
+      return result;
+    },
+    [posts, markPublished],
   );
 
   const savePack = useCallback(
@@ -131,6 +190,8 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
       savePost,
       deletePost,
       schedulePost,
+      markPublished,
+      publishPost: publishPostById,
       savePack,
       deletePack,
       clearAll,
@@ -141,6 +202,8 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
       savePost,
       deletePost,
       schedulePost,
+      markPublished,
+      publishPostById,
       savePack,
       deletePack,
       clearAll,

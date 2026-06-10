@@ -115,6 +115,19 @@ export function SettingsForm() {
               Include hashtags in social posts
             </span>
           </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={settings.preferAiImages}
+              onChange={(e) =>
+                updateSettings({ preferAiImages: e.target.checked })
+              }
+              className="rounded border-slate-300 text-indigo-600"
+            />
+            <span className="text-sm text-slate-700">
+              Prefer AI-generated images (requires API key)
+            </span>
+          </label>
         </div>
       </div>
 

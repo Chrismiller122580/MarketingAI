@@ -51,12 +51,15 @@ export type ContentType =
   | "Blog Intro"
   | "Product Description";
 
+export type PublishStatus = "draft" | "scheduled" | "published" | "failed";
+
 export type UserSettings = {
   brandVoice: string;
   targetAudience: string;
   defaultPlatforms: Platform[];
   includeHashtags: boolean;
   emojiStyle: "none" | "light" | "heavy";
+  preferAiImages: boolean;
 };
 
 export type GeneratedPost = {
@@ -77,6 +80,9 @@ export type GeneratedPost = {
   sourcePage?: string;
   characterCount: number;
   scheduledFor?: string;
+  publishStatus?: PublishStatus;
+  publishedAt?: string;
+  publishUrl?: string;
 };
 
 export type SavedPost = GeneratedPost & {
@@ -98,6 +104,7 @@ export type GenerateRequest = {
   prompt?: string;
   sourcePageUrl?: string;
   settings?: UserSettings;
+  preferAiImage?: boolean;
 };
 
 export type BatchGenerateRequest = {
@@ -106,4 +113,26 @@ export type BatchGenerateRequest = {
   prompt?: string;
   platforms?: Platform[];
   maxPosts?: number;
+  preferAiImage?: boolean;
+};
+
+export type PublishRequest = {
+  post: SavedPost;
+  scheduleAt?: string;
+};
+
+export type PublishResult = {
+  success: boolean;
+  platform: Platform;
+  method: "api" | "share_link" | "scheduled";
+  message: string;
+  url?: string;
+  publishedAt?: string;
+};
+
+export type SocialConnectionStatus = {
+  platform: Platform;
+  connected: boolean;
+  method: "api" | "manual";
+  label: string;
 };
