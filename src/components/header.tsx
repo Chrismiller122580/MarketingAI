@@ -30,6 +30,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Settings",
     subtitle: "Configure brand voice, audience, and platforms.",
   },
+  "/admin": {
+    title: "Admin",
+    subtitle: "Platform overview and user management.",
+  },
 };
 
 export function Header() {

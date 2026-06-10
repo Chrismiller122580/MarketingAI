@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: "◈" },
@@ -14,6 +15,12 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "admin";
+
+  const items = isAdmin
+    ? [...navItems, { href: "/admin", label: "Admin", icon: "★" }]
+    : navItems;
 
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
@@ -27,7 +34,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-4">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive =
             item.href === "/"
               ? pathname === "/"
@@ -52,16 +59,10 @@ export function Sidebar() {
 
       <div className="border-t border-slate-200 p-4">
         <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 p-4 text-white">
-          <p className="text-sm font-medium">Upgrade to Pro</p>
+          <p className="text-sm font-medium">AI Marketing Suite</p>
           <p className="mt-1 text-xs text-indigo-100">
-            Unlock advanced AI models and unlimited campaigns.
+            Crawl, generate, schedule, and publish — all in one place.
           </p>
-          <button
-            type="button"
-            className="mt-3 w-full rounded-md bg-white/20 px-3 py-1.5 text-xs font-medium backdrop-blur transition hover:bg-white/30"
-          >
-            Learn more
-          </button>
         </div>
       </div>
     </aside>
