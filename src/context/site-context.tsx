@@ -10,8 +10,6 @@ import {
 } from "react";
 import type { CrawlStatus, SiteData } from "@/lib/types";
 
-const STORAGE_KEY = "marketing-ai-site-v2";
-
 type SiteContextValue = {
   domainInput: string;
   setDomainInput: (value: string) => void;
@@ -19,7 +17,8 @@ type SiteContextValue = {
   status: CrawlStatus;
   error: string | null;
   crawlSite: () => Promise<void>;
-  clearSite: () => void;
+  clearSite: () => Promise<void>;
+  loading: boolean;
 };
 
 const SiteContext = createContext<SiteContextValue | null>(null);
@@ -34,31 +33,32 @@ function isValidSiteData(data: unknown): data is SiteData {
   );
 }
 
-function loadStoredSite(): SiteData | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return isValidSiteData(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
 export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [domainInput, setDomainInput] = useState("");
   const [site, setSite] = useState<SiteData | null>(null);
   const [status, setStatus] = useState<CrawlStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = loadStoredSite();
-    if (stored) {
-      setSite(stored);
-      setDomainInput(stored.domain.replace(/^https?:\/\//, ""));
-    }
+    fetch("/api/db/site")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.site && isValidSiteData(data.site)) {
+          setSite(data.site);
+          setDomainInput(data.site.domain.replace(/^https?:\/\//, ""));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const persistSite = useCallback(async (siteData: SiteData) => {
+    await fetch("/api/db/site", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ site: siteData }),
+    });
   }, []);
 
   const crawlSite = useCallback(async () => {
@@ -79,30 +79,24 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to crawl domain");
-      }
-
-      if (!isValidSiteData(data)) {
-        throw new Error("Invalid crawl response");
-      }
+      if (!response.ok) throw new Error(data.error ?? "Failed to crawl domain");
+      if (!isValidSiteData(data)) throw new Error("Invalid crawl response");
 
       setSite(data);
       setStatus("success");
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      await persistSite(data);
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Failed to crawl domain");
     }
-  }, [domainInput]);
+  }, [domainInput, persistSite]);
 
-  const clearSite = useCallback(() => {
+  const clearSite = useCallback(async () => {
     setSite(null);
     setDomainInput("");
     setStatus("idle");
     setError(null);
-    localStorage.removeItem(STORAGE_KEY);
+    await fetch("/api/db/site", { method: "DELETE" });
   }, []);
 
   const value = useMemo(
@@ -114,8 +108,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       error,
       crawlSite,
       clearSite,
+      loading,
     }),
-    [domainInput, site, status, error, crawlSite, clearSite],
+    [domainInput, site, status, error, crawlSite, clearSite, loading],
   );
 
   return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>;

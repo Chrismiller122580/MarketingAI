@@ -10,8 +10,6 @@ import {
 } from "react";
 import type { Platform, UserSettings } from "@/lib/types";
 
-const STORAGE_KEY = "marketing-ai-settings";
-
 const DEFAULT_SETTINGS: UserSettings = {
   brandVoice:
     "Professional yet approachable. Focus on clarity and value. Avoid jargon.",
@@ -24,46 +22,54 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 type SettingsContextValue = {
   settings: UserSettings;
-  updateSettings: (patch: Partial<UserSettings>) => void;
-  resetSettings: () => void;
+  loading: boolean;
+  updateSettings: (patch: Partial<UserSettings>) => Promise<void>;
+  resetSettings: () => Promise<void>;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
-function loadSettings(): UserSettings {
-  if (typeof window === "undefined") return DEFAULT_SETTINGS;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setSettings(loadSettings());
+    fetch("/api/db/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.settings) {
+          setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const updateSettings = useCallback((patch: Partial<UserSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
+  const persist = useCallback(async (next: UserSettings) => {
+    await fetch("/api/db/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: next }),
     });
   }, []);
 
-  const resetSettings = useCallback(() => {
+  const updateSettings = useCallback(
+    async (patch: Partial<UserSettings>) => {
+      const next = { ...settings, ...patch };
+      setSettings(next);
+      await persist(next);
+    },
+    [settings, persist],
+  );
+
+  const resetSettings = useCallback(async () => {
     setSettings(DEFAULT_SETTINGS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
-  }, []);
+    await persist(DEFAULT_SETTINGS);
+  }, [persist]);
 
   const value = useMemo(
-    () => ({ settings, updateSettings, resetSettings }),
-    [settings, updateSettings, resetSettings],
+    () => ({ settings, loading, updateSettings, resetSettings }),
+    [settings, loading, updateSettings, resetSettings],
   );
 
   return (

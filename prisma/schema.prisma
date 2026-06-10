@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  domain    String   @unique
+  crawledAt DateTime
+  brand     Json
+  pages     Json
+  images    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  posts     Post[]
+}
+
+model Post {
+  id             String    @id @default(cuid())
+  siteId         String?
+  site           Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  text           String    @db.Text
+  hashtags       String[]
+  cta            String
+  platform       String
+  contentType    String
+  image          Json
+  insights       String[]
+  sourcePage     String?
+  characterCount Int
+  scheduledFor   String?
+  publishStatus  String    @default("draft")
+  publishedAt    DateTime?
+  publishUrl     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model CampaignPack {
+  id        String   @id @default(cuid())
+  name      String
+  posts     Json
+  createdAt DateTime @default(now())
+}
+
+model Settings {
+  id               String   @id @default("default")
+  brandVoice       String   @db.Text
+  targetAudience   String
+  defaultPlatforms String[]
+  includeHashtags  Boolean  @default(true)
+  emojiStyle       String   @default("light")
+  preferAiImages   Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
+}

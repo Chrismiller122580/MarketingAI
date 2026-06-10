@@ -73,9 +73,9 @@ export function ContentGenerator() {
     }
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!post) return;
-    const saved = savePost(post);
+    const saved = await savePost(post);
     setSavedPost(saved);
     setSaved(true);
   }

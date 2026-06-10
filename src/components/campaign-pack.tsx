@@ -56,11 +56,11 @@ export function CampaignPack() {
     }
   }
 
-  function handleSavePack() {
+  async function handleSavePack() {
     if (!posts.length || !site) return;
     const name = `${site.brand.name} Campaign — ${new Date().toLocaleDateString()}`;
-    const saved = posts.map((p) => savePost(p));
-    savePack(name, saved);
+    const saved = await Promise.all(posts.map((p) => savePost(p)));
+    await savePack(name, saved);
     setSaved(true);
   }
 

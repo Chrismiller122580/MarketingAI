@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useSite } from "./site-context";
 import type {
   CampaignPack,
   GeneratedPost,
@@ -15,198 +16,158 @@ import type {
   SavedPost,
 } from "@/lib/types";
 
-const POSTS_KEY = "marketing-ai-posts";
-const PACKS_KEY = "marketing-ai-packs";
-
 type PostsContextValue = {
   posts: SavedPost[];
   packs: CampaignPack[];
-  savePost: (post: GeneratedPost) => SavedPost;
-  deletePost: (id: string) => void;
-  schedulePost: (id: string, date: string | undefined) => void;
-  markPublished: (id: string, result: PublishResult) => void;
+  loading: boolean;
+  savePost: (post: GeneratedPost) => Promise<SavedPost>;
+  deletePost: (id: string) => Promise<void>;
+  schedulePost: (id: string, date: string | undefined) => Promise<void>;
   publishPost: (id: string) => Promise<PublishResult>;
-  savePack: (name: string, posts: SavedPost[]) => CampaignPack;
-  deletePack: (id: string) => void;
-  clearAll: () => void;
+  savePack: (name: string, posts: SavedPost[]) => Promise<CampaignPack>;
+  deletePack: (id: string) => Promise<void>;
+  clearAll: () => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const PostsContext = createContext<PostsContextValue | null>(null);
 
-function loadPosts(): SavedPost[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(POSTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function loadPacks(): CampaignPack[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(PACKS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function makeId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 export function PostsProvider({ children }: { children: React.ReactNode }) {
+  const { site } = useSite();
   const [posts, setPosts] = useState<SavedPost[]>([]);
   const [packs, setPacks] = useState<CampaignPack[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [postsRes, packsRes] = await Promise.all([
+        fetch("/api/db/posts"),
+        fetch("/api/db/packs"),
+      ]);
+      const postsData = await postsRes.json();
+      const packsData = await packsRes.json();
+      if (postsData.posts) setPosts(postsData.posts);
+      if (packsData.packs) setPacks(packsData.packs);
+    } catch {
+      /* keep existing state */
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setPosts(loadPosts());
-    setPacks(loadPacks());
-  }, []);
-
-  const persistPosts = useCallback((next: SavedPost[]) => {
-    setPosts(next);
-    localStorage.setItem(POSTS_KEY, JSON.stringify(next));
-  }, []);
-
-  const persistPacks = useCallback((next: CampaignPack[]) => {
-    setPacks(next);
-    localStorage.setItem(PACKS_KEY, JSON.stringify(next));
-  }, []);
+    refresh();
+  }, [refresh]);
 
   const savePost = useCallback(
-    (post: GeneratedPost): SavedPost => {
-      const saved: SavedPost = {
-        ...post,
-        id: post.id ?? makeId(),
-        createdAt: post.createdAt ?? new Date().toISOString(),
-        publishStatus: post.publishStatus ?? "draft",
-      };
-      persistPosts([saved, ...posts.filter((p) => p.id !== saved.id)]);
-      return saved;
+    async (post: GeneratedPost): Promise<SavedPost> => {
+      const response = await fetch("/api/db/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          post,
+          siteDomain: site?.domain,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to save post");
+      setPosts((prev) => [data.post, ...prev.filter((p) => p.id !== data.post.id)]);
+      return data.post;
     },
-    [posts, persistPosts],
+    [site?.domain],
   );
 
-  const deletePost = useCallback(
-    (id: string) => {
-      persistPosts(posts.filter((p) => p.id !== id));
-    },
-    [posts, persistPosts],
-  );
+  const deletePost = useCallback(async (id: string) => {
+    await fetch(`/api/db/posts/${id}`, { method: "DELETE" });
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  }, []);
 
   const schedulePost = useCallback(
-    (id: string, date: string | undefined) => {
-      persistPosts(
-        posts.map((p) =>
-          p.id === id
-            ? {
-                ...p,
-                scheduledFor: date,
-                publishStatus: date ? ("scheduled" as const) : ("draft" as const),
-              }
-            : p,
-        ),
-      );
+    async (id: string, date: string | undefined) => {
+      const response = await fetch(`/api/db/posts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledFor: date ?? null }),
+      });
+      const data = await response.json();
+      if (data.post) {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === id ? data.post : p)),
+        );
+      }
     },
-    [posts, persistPosts],
-  );
-
-  const markPublished = useCallback(
-    (id: string, result: PublishResult) => {
-      persistPosts(
-        posts.map((p) =>
-          p.id === id
-            ? {
-                ...p,
-                publishStatus: result.success ? ("published" as const) : ("failed" as const),
-                publishedAt: result.publishedAt ?? new Date().toISOString(),
-                publishUrl: result.url,
-              }
-            : p,
-        ),
-      );
-    },
-    [posts, persistPosts],
+    [],
   );
 
   const publishPostById = useCallback(
     async (id: string): Promise<PublishResult> => {
-      const post = posts.find((p) => p.id === id);
-      if (!post) {
-        return {
-          success: false,
-          platform: "twitter",
-          method: "api",
-          message: "Post not found",
-        };
+      const response = await fetch(`/api/db/posts/${id}`, { method: "POST" });
+      const data = await response.json();
+      if (data.post) {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === id ? data.post : p)),
+        );
       }
-
-      const response = await fetch("/api/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ post }),
-      });
-
-      const result = (await response.json()) as PublishResult;
-      markPublished(id, result);
-      return result;
+      return data.result ?? data;
     },
-    [posts, markPublished],
+    [],
   );
 
   const savePack = useCallback(
-    (name: string, packPosts: SavedPost[]): CampaignPack => {
-      const pack: CampaignPack = {
-        id: makeId(),
-        name,
-        createdAt: new Date().toISOString(),
-        posts: packPosts,
-      };
-      persistPacks([pack, ...packs]);
-      return pack;
+    async (name: string, packPosts: SavedPost[]): Promise<CampaignPack> => {
+      const response = await fetch("/api/db/packs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, posts: packPosts }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to save pack");
+      setPacks((prev) => [data.pack, ...prev]);
+      return data.pack;
     },
-    [packs, persistPacks],
+    [],
   );
 
-  const deletePack = useCallback(
-    (id: string) => {
-      persistPacks(packs.filter((p) => p.id !== id));
-    },
-    [packs, persistPacks],
-  );
+  const deletePack = useCallback(async (id: string) => {
+    await fetch(`/api/db/packs/${id}`, { method: "DELETE" });
+    setPacks((prev) => prev.filter((p) => p.id !== id));
+  }, []);
 
-  const clearAll = useCallback(() => {
-    persistPosts([]);
-    persistPacks([]);
-  }, [persistPosts, persistPacks]);
+  const clearAll = useCallback(async () => {
+    await Promise.all([
+      fetch("/api/db/posts", { method: "DELETE" }),
+      fetch("/api/db/packs", { method: "DELETE" }),
+    ]);
+    setPosts([]);
+    setPacks([]);
+  }, []);
 
   const value = useMemo(
     () => ({
       posts,
       packs,
+      loading,
       savePost,
       deletePost,
       schedulePost,
-      markPublished,
       publishPost: publishPostById,
       savePack,
       deletePack,
       clearAll,
+      refresh,
     }),
     [
       posts,
       packs,
+      loading,
       savePost,
       deletePost,
       schedulePost,
-      markPublished,
       publishPostById,
       savePack,
       deletePack,
       clearAll,
+      refresh,
     ],
   );
 
