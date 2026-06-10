@@ -51,7 +51,17 @@ export type ContentType =
   | "Blog Intro"
   | "Product Description";
 
+export type UserSettings = {
+  brandVoice: string;
+  targetAudience: string;
+  defaultPlatforms: Platform[];
+  includeHashtags: boolean;
+  emojiStyle: "none" | "light" | "heavy";
+};
+
 export type GeneratedPost = {
+  id?: string;
+  createdAt?: string;
   text: string;
   hashtags: string[];
   cta: string;
@@ -66,6 +76,19 @@ export type GeneratedPost = {
   insights: string[];
   sourcePage?: string;
   characterCount: number;
+  scheduledFor?: string;
+};
+
+export type SavedPost = GeneratedPost & {
+  id: string;
+  createdAt: string;
+};
+
+export type CampaignPack = {
+  id: string;
+  name: string;
+  createdAt: string;
+  posts: SavedPost[];
 };
 
 export type GenerateRequest = {
@@ -74,4 +97,13 @@ export type GenerateRequest = {
   platform: Platform;
   prompt?: string;
   sourcePageUrl?: string;
+  settings?: UserSettings;
+};
+
+export type BatchGenerateRequest = {
+  site: SiteData;
+  settings?: UserSettings;
+  prompt?: string;
+  platforms?: Platform[];
+  maxPosts?: number;
 };

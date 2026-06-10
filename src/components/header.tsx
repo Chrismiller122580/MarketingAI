@@ -21,9 +21,13 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Analytics",
     subtitle: "Overview of your crawled site content.",
   },
+  "/posts": {
+    title: "Post Library",
+    subtitle: "Saved posts, campaign packs, and your content calendar.",
+  },
   "/settings": {
     title: "Settings",
-    subtitle: "Configure your profile and site domain.",
+    subtitle: "Configure brand voice, audience, and platforms.",
   },
 };
 

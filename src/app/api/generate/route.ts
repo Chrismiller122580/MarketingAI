@@ -19,6 +19,7 @@ export async function POST(request: Request) {
       platform: body.platform ?? "instagram",
       prompt: body.prompt ?? "",
       sourcePageUrl: body.sourcePageUrl,
+      settings: body.settings,
     };
 
     const post = await generateSmartPost(generateRequest);

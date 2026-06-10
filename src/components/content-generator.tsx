@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useSite } from "@/context/site-context";
+import { useSettings } from "@/context/settings-context";
+import { usePosts } from "@/context/posts-context";
 import { PostPreview } from "./post-preview";
 import { BrandInsights } from "./brand-insights";
 import type { ContentType, GeneratedPost, Platform } from "@/lib/types";
@@ -24,6 +26,8 @@ const platforms: { value: Platform; label: string }[] = [
 
 export function ContentGenerator() {
   const { site } = useSite();
+  const { settings } = useSettings();
+  const { savePost } = usePosts();
   const [prompt, setPrompt] = useState("");
   const [contentType, setContentType] = useState<ContentType>("Social Post");
   const [platform, setPlatform] = useState<Platform>("instagram");
@@ -31,12 +35,14 @@ export function ContentGenerator() {
   const [post, setPost] = useState<GeneratedPost | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   async function handleGenerate() {
     if (!site) return;
 
     setLoading(true);
     setError(null);
+    setSaved(false);
 
     try {
       const response = await fetch("/api/generate", {
@@ -44,6 +50,7 @@ export function ContentGenerator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           site,
+          settings,
           contentType,
           platform,
           prompt: prompt.trim(),
@@ -62,6 +69,12 @@ export function ContentGenerator() {
     }
   }
 
+  function handleSave() {
+    if (!post) return;
+    savePost(post);
+    setSaved(true);
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -73,10 +86,6 @@ export function ContentGenerator() {
             {site
               ? `Smart copy + images from ${site.pages.length} pages and ${site.images.length} images`
               : "Crawl a domain to unlock intelligent content generation"}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            Images auto-matched from your site, or branded visuals generated per
-            platform. Add XAI_API_KEY for enhanced AI copy.
           </p>
         </div>
 
@@ -208,6 +217,13 @@ export function ContentGenerator() {
             className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
           >
             Copy caption
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            {saved ? "Saved ✓" : "Save to library"}
           </button>
           <a
             href={post.image.url}

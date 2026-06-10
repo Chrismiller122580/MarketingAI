@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import { analyzeBrand } from "./brand-analyzer";
 import { dedupeImages, extractImages } from "./image-extractor";
+import { fetchSitemapUrls } from "./sitemap";
 import type { SiteData, SitePage } from "./types";
 
 const MAX_PAGES = 25;
@@ -139,8 +140,12 @@ export async function crawlDomain(domainInput: string): Promise<SiteData> {
   const origin = normalizeDomain(domainInput);
   const startUrl = new URL("/", origin).href;
 
+  const sitemapUrls = await fetchSitemapUrls(origin);
   const visited = new Set<string>();
-  const queue = [startUrl];
+  const queue = [
+    startUrl,
+    ...sitemapUrls.filter((u) => u !== startUrl).slice(0, MAX_PAGES - 1),
+  ];
   const pages: SitePage[] = [];
   let themeColor: string | undefined;
 

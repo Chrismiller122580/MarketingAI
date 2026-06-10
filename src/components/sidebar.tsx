@@ -7,6 +7,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: "◈" },
   { href: "/campaigns", label: "Campaigns", icon: "◎" },
   { href: "/content", label: "Content Studio", icon: "✦" },
+  { href: "/posts", label: "Post Library", icon: "▤" },
   { href: "/analytics", label: "Analytics", icon: "▣" },
   { href: "/settings", label: "Settings", icon: "⚙" },
 ];
