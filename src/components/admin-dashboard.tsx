@@ -1,6 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+
+type AdminUser = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  createdAt: string;
+  _count: { posts: number; sites: number };
+};
 
 type AdminStats = {
   totals: {
@@ -10,22 +20,19 @@ type AdminStats = {
     packs: number;
     published: number;
   };
-  recentUsers: {
-    id: string;
-    name: string | null;
-    email: string;
-    role: string;
-    createdAt: string;
-    _count: { posts: number; sites: number };
-  }[];
+  recentUsers: AdminUser[];
 };
 
 export function AdminDashboard() {
+  const { data: session } = useSession();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadStats = useCallback(() => {
+    setLoading(true);
+    setError(null);
     fetch("/api/admin/stats")
       .then((r) => r.json())
       .then((data) => {
@@ -37,6 +44,38 @@ export function AdminDashboard() {
       )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  async function updateRole(userId: string, role: string) {
+    setUpdatingId(userId);
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Update failed");
+
+      setStats((prev) =>
+        prev
+          ? {
+              ...prev,
+              recentUsers: prev.recentUsers.map((user) =>
+                user.id === userId ? { ...user, ...data.user } : user,
+              ),
+            }
+          : prev,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -96,10 +135,15 @@ export function AdminDashboard() {
                 <th className="px-6 py-3">Sites</th>
                 <th className="px-6 py-3">Posts</th>
                 <th className="px-6 py-3">Joined</th>
+                <th className="px-6 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {stats.recentUsers.map((user) => (
+              {stats.recentUsers.map((user) => {
+                const isSelf = user.id === session?.user?.id;
+                const isUpdating = updatingId === user.id;
+
+                return (
                 <tr key={user.id} className="hover:bg-slate-50/80">
                   <td className="px-6 py-4">
                     <p className="font-medium text-slate-900">
@@ -127,8 +171,24 @@ export function AdminDashboard() {
                   <td className="px-6 py-4 text-slate-500">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
+                  <td className="px-6 py-4">
+                    {isSelf ? (
+                      <span className="text-xs text-slate-400">You</span>
+                    ) : (
+                      <select
+                        value={user.role}
+                        disabled={isUpdating}
+                        onChange={(e) => updateRole(user.id, e.target.value)}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 disabled:opacity-50"
+                      >
+                        <option value="user">user</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    )}
+                  </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
