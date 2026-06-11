@@ -15,7 +15,7 @@ export default async function AdminPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Admin</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Platform overview and user activity
+            Platform overview, client management, subscriptions &amp; user libraries
           </p>
         </div>
         <AdminDashboard />

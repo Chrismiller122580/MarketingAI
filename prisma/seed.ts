@@ -28,12 +28,16 @@ async function main() {
       name,
       email,
       role: "admin",
+      plan: "enterprise",
+      subscriptionStatus: "active",
       passwordHash,
       settings: { create: DEFAULT_SETTINGS },
     },
     update: {
       name,
       role: "admin",
+      plan: "enterprise",
+      subscriptionStatus: "active",
       passwordHash,
     },
   });

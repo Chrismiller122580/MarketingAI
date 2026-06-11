@@ -23,6 +23,8 @@ export async function GET() {
         name: true,
         email: true,
         role: true,
+        plan: true,
+        subscriptionStatus: true,
         createdAt: true,
         _count: { select: { posts: true, sites: true } },
       },

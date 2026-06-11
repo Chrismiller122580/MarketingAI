@@ -59,8 +59,10 @@ export async function PATCH(
         name: true,
         email: true,
         role: true,
+        plan: true,
+        subscriptionStatus: true,
         createdAt: true,
-        _count: { select: { posts: true, sites: true } },
+        _count: { select: { posts: true, sites: true, packs: true } },
       },
     });
 

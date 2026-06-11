@@ -8,21 +8,25 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  name          String?
-  email         String         @unique
-  role          String         @default("user")
-  emailVerified DateTime?
-  passwordHash  String?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  sites         Site[]
-  posts         Post[]
-  packs         CampaignPack[]
-  settings      UserSettings?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  name               String?
+  email              String         @unique
+  role               String         @default("user")
+  plan               String         @default("free")
+  subscriptionStatus String?
+  subscriptionEndsAt DateTime?
+  emailVerified      DateTime?
+  passwordHash       String?
+  image              String?
+  accounts           Account[]
+  sessions           Session[]
+  sites              Site[]
+  posts              Post[]
+  packs              CampaignPack[]
+  settings           UserSettings?
+  payments           Payment[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 }
 
 model Account {
@@ -117,4 +121,19 @@ model UserSettings {
   emojiStyle       String   @default("light")
   preferAiImages   Boolean  @default(false)
   updatedAt        DateTime @updatedAt
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        String
+  amount      Decimal   @db.Decimal(10, 2)
+  currency    String    @default("USDC")
+  network     String    @default("base")
+  txHash      String?
+  reference   String    @unique
+  status      String    @default("pending") // pending, confirmed, rejected
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
 }

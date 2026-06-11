@@ -6,6 +6,9 @@ declare module "next-auth" {
     user: {
       id: string;
       role: string;
+      plan?: string;
+      subscriptionStatus?: string | null;
+      subscriptionEndsAt?: string | null;
       name?: string | null;
       email?: string | null;
       image?: string | null;
@@ -15,6 +18,9 @@ declare module "next-auth" {
   interface User {
     id: string;
     role?: string;
+    plan?: string;
+    subscriptionStatus?: string | null;
+    subscriptionEndsAt?: Date | null;
   }
 }
 

@@ -14,7 +14,7 @@ AI-powered marketing workspace that crawls your website, extracts brand voice an
 - **Content calendar** — Drag-and-drop scheduling across platforms
 - **Social publishing** — Direct API publishing or share-link fallback per platform
 - **Analytics overview** — Content pipeline stats, platform breakdown, site index metrics
-- **Admin dashboard** — Platform stats, user management, role promotion/demotion
+- **Admin dashboard** — Full clients directory with search, subscription/plan management (free/pro/enterprise + status), role controls, and the ability to view any user's complete Post Library + crawled sites
 - **User auth** — Email/password signup and login with per-user data isolation
 
 ## Tech Stack
@@ -27,6 +27,7 @@ AI-powered marketing workspace that crawls your website, extracts brand voice an
 | Auth | NextAuth.js v5 (Auth.js) — credentials, JWT sessions |
 | Crawling | cheerio |
 | Calendar | @dnd-kit |
+| Mobile | Full PWA (installable on Android & iOS), responsive drawer nav, safe-area support, touch drag & drop |
 
 ## Getting Started
 
@@ -73,6 +74,28 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) for the landing page, or [http://localhost:3000/dashboard](http://localhost:3000/dashboard) after signing in.
+
+## Crypto Billing
+
+Users can upgrade from the **Settings → Billing** panel using USDC (recommended on Base for low fees).
+
+- Pricing is configured via env vars (`CRYPTO_PRICE_PRO`, `CRYPTO_PRICE_ENTERPRISE`) and displayed in the UI.
+- Users generate a unique reference + send the exact amount to your `NEXT_PUBLIC_CRYPTO_RECEIVER_ADDRESS`.
+- After sending, they submit the tx hash.
+- Admins review in **Admin → Crypto Payments** section, verify on Basescan/Etherscan, then "Approve + Upgrade" (this updates the user's plan + sets 30-day subscription).
+
+Manual plan changes are still possible in the Clients table for support scenarios.
+
+## Mobile & PWA — Android and Apple Devices
+
+crawlspark.ai is a Progressive Web App. Users on Android (Chrome/Edge) and iOS (Safari 16.4+) can install it to their home screen for a native-app-like experience:
+
+- **Android**: Open in Chrome → menu (⋮) → "Install app" or "Add to Home screen". Or tap the **Install app** button inside the workspace header.
+- **iPhone / iPad**: Open in Safari → Share (□↑) → "Add to Home Screen". Runs in standalone mode with full offline shell caching for the UI.
+
+The dashboard uses a slide-in navigation drawer on phones, safe area insets for notches, and touch-optimized drag-and-drop on the calendar. All core workflows (crawl, generate, schedule, publish) work great on small screens.
+
+In standalone mode the app uses `display: standalone` and your brand icon + theme color.
 
 ## Default Admin Account
 

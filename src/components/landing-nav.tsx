@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ThemeToggle } from "./theme-toggle";
+import { PwaInstallButton } from "./pwa-install-button";
 
 export function LandingNav() {
   const { data: session, status } = useSession();
@@ -20,7 +21,7 @@ export function LandingNav() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 dark:text-slate-400 md:flex">
+        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-400 md:flex">
           <a href="#features" className="transition hover:text-slate-900 dark:hover:text-slate-100">
             Features
           </a>
@@ -34,6 +35,7 @@ export function LandingNav() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
+          <PwaInstallButton className="hidden sm:inline-flex" />
           {isLoggedIn ? (
             <Link
               href="/dashboard"

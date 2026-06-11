@@ -5,17 +5,19 @@ import { SettingsProvider } from "@/context/settings-context";
 import { PostsProvider } from "@/context/posts-context";
 import { AuthSessionProvider } from "./session-provider";
 import { ThemeProvider } from "./theme-provider";
+import { PwaManager } from "./pwa-manager";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
-    <AuthSessionProvider>
-      <SiteProvider>
-        <SettingsProvider>
-          <PostsProvider>{children}</PostsProvider>
-        </SettingsProvider>
-      </SiteProvider>
-    </AuthSessionProvider>
+      <PwaManager />
+      <AuthSessionProvider>
+        <SiteProvider>
+          <SettingsProvider>
+            <PostsProvider>{children}</PostsProvider>
+          </SettingsProvider>
+        </SiteProvider>
+      </AuthSessionProvider>
     </ThemeProvider>
   );
 }
