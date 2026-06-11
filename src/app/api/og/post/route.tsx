@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
               fontWeight: 500,
             }}
           >
-            MarketingAI
+            crawlspark.ai
           </span>
         </div>
       </div>

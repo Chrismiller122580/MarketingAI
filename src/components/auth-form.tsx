@@ -63,7 +63,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">
-          M
+          C
         </div>
         <h1 className="text-2xl font-bold text-slate-900">
           {isSignup ? "Create your account" : "Welcome back"}
@@ -71,7 +71,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <p className="mt-2 text-sm text-slate-500">
           {isSignup
             ? "Start generating AI-powered marketing content"
-            : "Sign in to your MarketingAI workspace"}
+            : "Sign in to your crawlspark.ai workspace"}
         </p>
       </div>
 

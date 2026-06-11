@@ -15,9 +15,9 @@ const DEFAULT_SETTINGS = {
 
 async function main() {
   const email = (
-    process.env.ADMIN_EMAIL ?? "admin@marketingai.app"
+    process.env.ADMIN_EMAIL ?? "admin@crawlspark.ai"
   ).toLowerCase();
-  const password = process.env.ADMIN_PASSWORD ?? "MarketingAI2026!";
+  const password = process.env.ADMIN_PASSWORD ?? "CrawlSpark2026!";
   const name = process.env.ADMIN_NAME ?? "Admin";
 
   const passwordHash = await bcrypt.hash(password, 12);

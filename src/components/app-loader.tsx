@@ -17,10 +17,10 @@ export function AppLoader({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white animate-pulse">
-            M
+            C
           </div>
           <p className="text-sm font-medium text-slate-700">
-            Loading MarketingAI…
+            Loading crawlspark.ai…
           </p>
         </div>
       </div>

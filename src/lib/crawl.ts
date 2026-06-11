@@ -117,7 +117,7 @@ async function fetchPage(url: string): Promise<string> {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "MarketingAI-Crawler/1.0",
+        "User-Agent": "CrawlSpark-Crawler/1.0",
         Accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",

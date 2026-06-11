@@ -24,7 +24,7 @@ export function SiteImagesPanel() {
           No images found on this site
         </p>
         <p className="mt-1 text-sm text-amber-700">
-          MarketingAI will generate branded visuals automatically for your posts.
+          crawlspark.ai will generate branded visuals automatically for your posts.
         </p>
       </div>
     );

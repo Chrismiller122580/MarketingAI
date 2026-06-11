@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MarketingAI",
-  description: "AI-powered marketing dashboard and content studio",
+  title: "crawlspark.ai",
+  description: "Crawl your site, spark your content — AI marketing grounded in your website",
 };
 
 export default function RootLayout({

@@ -13,7 +13,7 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
       <div className="border-b border-slate-200 px-6 py-4">
         <h2 className="text-base font-semibold text-slate-900">AI insights</h2>
         <p className="text-sm text-slate-500">
-          How MarketingAI analyzed your site
+          How crawlspark.ai analyzed your site
         </p>
       </div>
 

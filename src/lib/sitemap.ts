@@ -10,7 +10,7 @@ export async function fetchSitemapUrls(origin: string): Promise<string[]> {
   for (const sitemapUrl of candidates) {
     try {
       const response = await fetch(sitemapUrl, {
-        headers: { "User-Agent": "MarketingAI-Crawler/1.0" },
+        headers: { "User-Agent": "CrawlSpark-Crawler/1.0" },
         redirect: "follow",
       });
       if (!response.ok) continue;
@@ -41,7 +41,7 @@ export async function fetchSitemapUrls(origin: string): Promise<string[]> {
 async function fetchNestedSitemap(url: string): Promise<string[]> {
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": "MarketingAI-Crawler/1.0" },
+      headers: { "User-Agent": "CrawlSpark-Crawler/1.0" },
     });
     if (!response.ok) return [];
     const xml = await response.text();

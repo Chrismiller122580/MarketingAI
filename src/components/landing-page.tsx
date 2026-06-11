@@ -84,7 +84,7 @@ export function LandingPage() {
             <div className="mx-auto max-w-3xl text-center">
               <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-sm font-medium text-indigo-700">
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                AI marketing, grounded in your website
+                Crawl your site. Spark your content.
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl md:text-6xl">
                 Turn your site into a{" "}
@@ -122,7 +122,7 @@ export function LandingPage() {
                       <span className="h-3 w-3 rounded-full bg-emerald-400" />
                     </div>
                     <div className="mx-auto rounded-md bg-slate-100 px-4 py-1 text-xs text-slate-500">
-                      app.marketingai.app/dashboard
+                      app.crawlspark.ai/dashboard
                     </div>
                   </div>
                   <div className="grid gap-4 p-6 md:grid-cols-3">
@@ -306,12 +306,12 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-xs font-bold text-white">
-              M
+              C
             </div>
-            <span className="font-semibold text-slate-900">MarketingAI</span>
+            <span className="font-semibold text-slate-900">crawlspark.ai</span>
           </div>
           <p className="text-sm text-slate-500">
-            © {new Date().getFullYear()} MarketingAI. All rights reserved.
+            © {new Date().getFullYear()} crawlspark.ai. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm text-slate-500">
             <Link href="/login" className="hover:text-slate-900">

@@ -26,10 +26,10 @@ export function Sidebar() {
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="flex h-16 items-center gap-2 border-b border-slate-200 px-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
-          M
+          C
         </div>
         <span className="text-lg font-semibold tracking-tight text-slate-900">
-          MarketingAI
+          crawlspark.ai
         </span>
       </div>
 
@@ -59,9 +59,9 @@ export function Sidebar() {
 
       <div className="border-t border-slate-200 p-4">
         <div className="rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 p-4 text-white">
-          <p className="text-sm font-medium">AI Marketing Suite</p>
+          <p className="text-sm font-medium">Crawl your site</p>
           <p className="mt-1 text-xs text-indigo-100">
-            Crawl, generate, schedule, and publish — all in one place.
+            Spark your content — generate, schedule, and publish.
           </p>
         </div>
       </div>

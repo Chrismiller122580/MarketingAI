@@ -1,4 +1,4 @@
-# MarketingAI
+# crawlspark.ai
 
 AI-powered marketing workspace that crawls your website, extracts brand voice and content, and generates platform-ready posts with images — then schedules and publishes them from one dashboard.
 
@@ -80,8 +80,8 @@ Created by `npm run db:seed` (override via env vars):
 
 | Field | Default |
 |-------|---------|
-| Email | `admin@marketingai.app` |
-| Password | `MarketingAI2026!` |
+| Email | `admin@crawlspark.ai` |
+| Password | `CrawlSpark2026!` |
 
 Customize with `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_NAME` in `.env`.
 
@@ -95,7 +95,7 @@ See [`.env.example`](.env.example) for the full list.
 |----------|-------------|
 | `DATABASE_URL` | Neon PostgreSQL connection string (use pooled URL on Vercel) |
 | `AUTH_SECRET` | Secret for signing JWTs — `openssl rand -base64 32` |
-| `AUTH_URL` | Canonical app URL (e.g. `https://your-app.vercel.app`) |
+| `AUTH_URL` | Canonical app URL (e.g. `https://crawlspark.ai`) |
 
 ### Optional — AI generation
 
@@ -122,7 +122,7 @@ Without social tokens, publishing falls back to share-ready links.
 2. Add environment variables in **Project → Settings → Environment Variables**:
    - `DATABASE_URL`
    - `AUTH_SECRET`
-   - `AUTH_URL` (your production Vercel URL)
+   - `AUTH_URL` (your production URL, e.g. `https://crawlspark.ai`)
 3. Deploy. The `vercel-build` script runs `prisma db push`, seeds the admin account, and builds the app.
 
 ```bash

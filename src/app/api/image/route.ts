@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     }
 
     const response = await fetch(imageUrl, {
-      headers: { "User-Agent": "MarketingAI/1.0" },
+      headers: { "User-Agent": "CrawlSpark/1.0" },
       redirect: "follow",
     });
 
