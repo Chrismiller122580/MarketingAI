@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { IntegrationGuide } from "@/lib/integrations";
 import type { SocialConnectionStatus } from "@/lib/types";
 
 type StatusResponse = {
@@ -8,15 +9,74 @@ type StatusResponse = {
   connectedCount: number;
   aiImageAvailable: boolean;
   aiCopyAvailable: boolean;
+  aiCopyProvider: "openai" | "xai" | null;
+  aiImageProvider: "openai" | "xai" | null;
+  guides: IntegrationGuide[];
 };
 
-const ENV_GUIDE: Record<string, string[]> = {
-  twitter: ["TWITTER_BEARER_TOKEN"],
-  linkedin: ["LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR_URN"],
-  facebook: ["FACEBOOK_PAGE_ACCESS_TOKEN", "FACEBOOK_PAGE_ID"],
-  instagram: ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_ACCOUNT_ID"],
-  pinterest: ["PINTEREST_ACCESS_TOKEN", "PINTEREST_BOARD_ID"],
-};
+function providerLabel(provider: "openai" | "xai" | null) {
+  if (provider === "openai") return "OpenAI";
+  if (provider === "xai") return "xAI (Grok)";
+  return "Not configured";
+}
+
+function GuideCard({ guide, connected }: { guide: IntegrationGuide; connected: boolean }) {
+  const [open, setOpen] = useState(!connected);
+
+  return (
+    <div className="rounded-lg border border-slate-100 dark:border-slate-800">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+              connected ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
+            }`}
+          />
+          <div>
+            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+              {guide.name}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {guide.envVars.join(" · ")}
+            </p>
+          </div>
+        </div>
+        <span
+          className={`shrink-0 text-xs font-medium ${
+            connected ? "text-emerald-600" : "text-slate-400 dark:text-slate-500"
+          }`}
+        >
+          {connected ? "Connected" : "Setup required"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-800">
+          <p className="text-sm text-slate-600 dark:text-slate-300">{guide.summary}</p>
+          <ol className="mt-3 list-decimal space-y-2 pl-4 text-sm text-slate-600 dark:text-slate-300">
+            {guide.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          {guide.docsUrl && (
+            <a
+              href={guide.docsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-block text-xs font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400"
+            >
+              Official docs →
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SocialConnections() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
@@ -31,85 +91,127 @@ export function SocialConnections() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
         <p className="text-sm text-slate-500 dark:text-slate-400">Checking connections…</p>
       </div>
     );
   }
 
+  const socialGuides =
+    status?.guides.filter((g) => g.category === "social") ?? [];
+  const aiGuides = status?.guides.filter((g) => g.category === "ai") ?? [];
+
+  const socialConnected = (platform: string) =>
+    status?.connections.find((c) => c.platform === platform)?.connected ?? false;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          Integrations overview
+        </h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Add API keys as environment variables in Vercel (or <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">.env</code> locally), then redeploy.
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              {status?.connectedCount ?? 0}/{status?.connections.length ?? 5}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Social APIs</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              {status?.aiCopyAvailable ? "✓" : "—"}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">AI copy</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              {status?.aiImageAvailable ? "✓" : "—"}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">AI images</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              {status?.aiCopyProvider ? providerLabel(status.aiCopyProvider) : "—"}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Copy provider</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          AI setup
+        </h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Set <strong>one or both</strong> — copy: {providerLabel(status?.aiCopyProvider ?? null)},
+          images: {providerLabel(status?.aiImageProvider ?? null)}
+        </p>
+        <div className="mt-4 space-y-2">
+          {aiGuides.map((guide) => (
+            <GuideCard
+              key={guide.id}
+              guide={guide}
+              connected={
+                guide.id === "openai"
+                  ? status?.aiCopyProvider === "openai" ||
+                    status?.aiImageProvider === "openai"
+                  : status?.aiCopyProvider === "xai" ||
+                    status?.aiImageProvider === "xai"
+              }
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           Social publishing
         </h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {status?.connectedCount ?? 0} of{" "}
-          {status?.connections.length ?? 5} platforms connected via API.
-          Unconnected platforms use share links.
+          Unconnected platforms fall back to share links when you publish.
         </p>
-
-        <div className="mt-4 space-y-3">
-          {status?.connections.map((conn) => (
-            <div
-              key={conn.platform}
-              className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800 px-4 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    conn.connected ? "bg-emerald-500" : "bg-slate-300"
-                  }`}
-                />
-                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {conn.label}
-                </span>
-              </div>
-              <span
-                className={`text-xs font-medium ${
-                  conn.connected ? "text-emerald-600" : "text-slate-400 dark:text-slate-500"
-                }`}
-              >
-                {conn.connected ? "API connected" : "Share link fallback"}
-              </span>
-            </div>
+        <div className="mt-4 space-y-2">
+          {socialGuides.map((guide) => (
+            <GuideCard
+              key={guide.id}
+              guide={guide}
+              connected={socialConnected(guide.id)}
+            />
           ))}
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">AI features</h2>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-4 text-center">
-            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              {status?.aiCopyAvailable ? "✓" : "—"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">AI copy (XAI/OpenAI)</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-4 text-center">
-            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              {status?.aiImageAvailable ? "✓" : "—"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">AI images (DALL-E/Grok)</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-6">
-        <h3 className="text-sm font-semibold text-amber-900">
-          Connect platforms (Vercel env vars)
+      <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-6 dark:border-amber-900/50 dark:bg-amber-950/20">
+        <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+          Vercel quick checklist
         </h3>
-        <div className="mt-3 space-y-2 text-xs text-amber-800">
-          {Object.entries(ENV_GUIDE).map(([platform, vars]) => (
-            <div key={platform}>
-              <span className="font-medium capitalize">{platform}:</span>{" "}
-              {vars.join(", ")}
-            </div>
-          ))}
-          <p className="mt-2 text-amber-600">
-            Also: OPENAI_API_KEY or XAI_API_KEY for AI copy + images
-          </p>
-        </div>
+        <ol className="mt-3 list-decimal space-y-1.5 pl-4 text-sm text-amber-800 dark:text-amber-300/90">
+          <li>Open Vercel → your project → Settings → Environment Variables</li>
+          <li>Add each variable below for Production (and Preview if needed)</li>
+          <li>Deployments → ⋯ → Redeploy (env vars only apply to new deploys)</li>
+          <li>Return here and refresh — connected items show green</li>
+        </ol>
+        <pre className="mt-4 overflow-x-auto rounded-lg bg-white/80 p-4 text-xs text-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+{`OPENAI_API_KEY=sk-...
+XAI_API_KEY=xai-...
+
+TWITTER_ACCESS_TOKEN=          # OAuth 2.0 user token (tweet.write)
+LINKEDIN_ACCESS_TOKEN=
+LINKEDIN_AUTHOR_URN=urn:li:person:...
+
+FACEBOOK_PAGE_ACCESS_TOKEN=
+FACEBOOK_PAGE_ID=
+
+INSTAGRAM_ACCESS_TOKEN=
+INSTAGRAM_ACCOUNT_ID=
+
+PINTEREST_ACCESS_TOKEN=
+PINTEREST_BOARD_ID=`}
+        </pre>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { getTwitterToken } from "../integrations";
 import type { Platform, PublishResult, SavedPost } from "../types";
 
 type PublishContext = {
@@ -21,7 +22,7 @@ function shareLinks(post: SavedPost): string {
 }
 
 async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
-  const token = process.env.TWITTER_BEARER_TOKEN;
+  const token = getTwitterToken();
   if (!token) {
     return {
       success: true,
@@ -303,7 +304,7 @@ export function getConnectionStatus(): import("../types").SocialConnectionStatus
   return [
     {
       platform: "twitter",
-      connected: !!process.env.TWITTER_BEARER_TOKEN,
+      connected: !!getTwitterToken(),
       method: "api",
       label: "X / Twitter",
     },

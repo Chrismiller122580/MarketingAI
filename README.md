@@ -87,7 +87,7 @@ Customize with `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_NAME` in `.env`.
 
 ## Environment Variables
 
-See [`.env.example`](.env.example) for the full list.
+See [`.env.example`](.env.example) for the full list. Step-by-step setup for AI and social APIs: **[INTEGRATIONS.md](INTEGRATIONS.md)**.
 
 ### Required
 
