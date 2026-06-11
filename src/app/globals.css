@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Crawl — depth, web, discovery */
   --crawl-50: #f0fdfa;
@@ -20,6 +22,28 @@
 
   --background: #f8fafc;
   --foreground: #0f172a;
+}
+
+.dark {
+  --crawl-50: #042f2e;
+  --crawl-100: #134e4a;
+  --crawl-600: #2dd4bf;
+  --crawl-700: #5eead4;
+  --crawl-800: #99f6e4;
+  --crawl-900: #ccfbf1;
+
+  --spark-50: #451a03;
+  --spark-100: #78350f;
+  --spark-200: #b45309;
+  --spark-400: #fbbf24;
+  --spark-500: #f59e0b;
+  --spark-600: #fbbf24;
+  --spark-700: #fcd34d;
+
+  --background: #020617;
+  --foreground: #f1f5f9;
+
+  color-scheme: dark;
 }
 
 @theme inline {

@@ -110,26 +110,26 @@ export function AdminDashboard() {
         {cards.map((card) => (
           <div
             key={card.label}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm"
           >
-            <p className="text-sm text-slate-500">{card.label}</p>
-            <p className="mt-1 text-3xl font-bold text-slate-900">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{card.label}</p>
+            <p className="mt-1 text-3xl font-bold text-slate-900 dark:text-slate-100">
               {card.value}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-slate-900">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             Recent users
           </h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-xs uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <th className="px-6 py-3">User</th>
                 <th className="px-6 py-3">Role</th>
                 <th className="px-6 py-3">Sites</th>
@@ -138,48 +138,48 @@ export function AdminDashboard() {
                 <th className="px-6 py-3">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {stats.recentUsers.map((user) => {
                 const isSelf = user.id === session?.user?.id;
                 const isUpdating = updatingId === user.id;
 
                 return (
-                <tr key={user.id} className="hover:bg-slate-50/80">
+                <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/80">
                   <td className="px-6 py-4">
-                    <p className="font-medium text-slate-900">
+                    <p className="font-medium text-slate-900 dark:text-slate-100">
                       {user.name ?? "—"}
                     </p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
                   </td>
                   <td className="px-6 py-4">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                         user.role === "admin"
                           ? "bg-amber-100 text-amber-700"
-                          : "bg-slate-100 text-slate-600"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                       }`}
                     >
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-600">
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                     {user._count.sites}
                   </td>
-                  <td className="px-6 py-4 text-slate-600">
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                     {user._count.posts}
                   </td>
-                  <td className="px-6 py-4 text-slate-500">
+                  <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4">
                     {isSelf ? (
-                      <span className="text-xs text-slate-400">You</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">You</span>
                     ) : (
                       <select
                         value={user.role}
                         disabled={isUpdating}
                         onChange={(e) => updateRole(user.id, e.target.value)}
-                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 disabled:opacity-50"
+                        className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-700 dark:text-slate-300 disabled:opacity-50"
                       >
                         <option value="user">user</option>
                         <option value="admin">admin</option>

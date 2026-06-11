@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useSite } from "@/context/site-context";
 import { DomainInput } from "./domain-input";
 import { UserMenu } from "./user-menu";
+import { ThemeToggle } from "./theme-toggle";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
@@ -42,10 +43,10 @@ export function Header() {
   const page = pageTitles[pathname] ?? pageTitles["/dashboard"];
 
   return (
-    <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-8 py-3">
+    <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-8 py-3 dark:border-slate-800 dark:bg-slate-900">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">{page.title}</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{page.title}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           {site ? (
             <>
               Active site:{" "}
@@ -64,11 +65,13 @@ export function Header() {
 
         <button
           type="button"
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+          className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <span className="text-sm">🔔</span>
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
         </button>
+
+        <ThemeToggle />
 
         <UserMenu />
       </div>

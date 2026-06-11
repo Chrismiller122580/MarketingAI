@@ -35,7 +35,7 @@ function DraggablePost({ post }: { post: SavedPost }) {
     : undefined;
 
   const color =
-    PLATFORM_COLORS[post.platform] ?? "bg-slate-100 text-slate-700 border-slate-200";
+    PLATFORM_COLORS[post.platform] ?? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800";
 
   return (
     <div
@@ -74,14 +74,14 @@ function DroppableDay({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[140px] bg-white p-2 transition ${
+      className={`min-h-[140px] bg-white dark:bg-slate-900 p-2 transition ${
         isOver ? "bg-amber-50 ring-2 ring-inset ring-amber-300" : ""
       }`}
     >
       <div className="mb-2 text-center">
-        <p className="text-xs font-medium text-slate-400">{label}</p>
+        <p className="text-xs font-medium text-slate-400 dark:text-slate-500">{label}</p>
         <p
-          className={`text-sm font-semibold ${isToday ? "text-amber-600" : "text-slate-900"}`}
+          className={`text-sm font-semibold ${isToday ? "text-amber-600" : "text-slate-900 dark:text-slate-100"}`}
         >
           {dateNum}
         </p>
@@ -145,9 +145,9 @@ export function ContentCalendar() {
 
   if (posts.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-        <p className="text-sm font-medium text-slate-700">No posts yet</p>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white dark:bg-slate-900 p-8 text-center">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No posts yet</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Generate content, then drag posts onto the calendar to schedule.
         </p>
       </div>
@@ -155,13 +155,13 @@ export function ContentCalendar() {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             Content calendar
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Drag posts to schedule · {posts.filter((p) => p.scheduledFor).length}{" "}
             scheduled
           </p>
@@ -170,21 +170,21 @@ export function ContentCalendar() {
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w - 1)}
-            className="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             ←
           </button>
           <button
             type="button"
             onClick={() => setWeekOffset(0)}
-            className="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             Today
           </button>
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w + 1)}
-            className="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             →
           </button>
@@ -231,9 +231,9 @@ function UnscheduledPool({ posts }: { posts: SavedPost[] }) {
   return (
     <div
       ref={setNodeRef}
-      className={`border-b border-slate-200 px-6 py-3 ${isOver ? "bg-amber-50" : "bg-slate-50"}`}
+      className={`border-b border-slate-200 dark:border-slate-800 px-6 py-3 ${isOver ? "bg-amber-50" : "bg-slate-50 dark:bg-slate-950"}`}
     >
-      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
         Unscheduled ({posts.length}) — drag to a day
       </p>
       <div className="flex flex-wrap gap-2">

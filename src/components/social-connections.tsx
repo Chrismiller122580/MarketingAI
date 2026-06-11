@@ -31,19 +31,19 @@ export function SocialConnections() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <p className="text-sm text-slate-500">Checking connections…</p>
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Checking connections…</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           Social publishing
         </h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {status?.connectedCount ?? 0} of{" "}
           {status?.connections.length ?? 5} platforms connected via API.
           Unconnected platforms use share links.
@@ -53,7 +53,7 @@ export function SocialConnections() {
           {status?.connections.map((conn) => (
             <div
               key={conn.platform}
-              className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3"
+              className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-slate-800 px-4 py-3"
             >
               <div className="flex items-center gap-3">
                 <span
@@ -61,13 +61,13 @@ export function SocialConnections() {
                     conn.connected ? "bg-emerald-500" : "bg-slate-300"
                   }`}
                 />
-                <span className="text-sm font-medium text-slate-900">
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                   {conn.label}
                 </span>
               </div>
               <span
                 className={`text-xs font-medium ${
-                  conn.connected ? "text-emerald-600" : "text-slate-400"
+                  conn.connected ? "text-emerald-600" : "text-slate-400 dark:text-slate-500"
                 }`}
               >
                 {conn.connected ? "API connected" : "Share link fallback"}
@@ -77,20 +77,20 @@ export function SocialConnections() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">AI features</h2>
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">AI features</h2>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-slate-50 p-4 text-center">
-            <p className="text-lg font-bold text-slate-900">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-4 text-center">
+            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {status?.aiCopyAvailable ? "✓" : "—"}
             </p>
-            <p className="text-xs text-slate-500">AI copy (XAI/OpenAI)</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">AI copy (XAI/OpenAI)</p>
           </div>
-          <div className="rounded-lg bg-slate-50 p-4 text-center">
-            <p className="text-lg font-bold text-slate-900">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-4 text-center">
+            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {status?.aiImageAvailable ? "✓" : "—"}
             </p>
-            <p className="text-xs text-slate-500">AI images (DALL-E/Grok)</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">AI images (DALL-E/Grok)</p>
           </div>
         </div>
       </div>

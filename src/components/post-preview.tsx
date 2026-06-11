@@ -21,15 +21,15 @@ const aspectClasses: Record<Platform, string> = {
 
 export function PostPreview({ post }: { post: GeneratedPost }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-crawl-700 to-spark-500" />
           <div>
-            <p className="text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {platformLabels[post.platform]}
             </p>
-            <p className="text-xs text-slate-500">{post.contentType}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{post.contentType}</p>
           </div>
         </div>
         <span
@@ -38,7 +38,7 @@ export function PostPreview({ post }: { post: GeneratedPost }) {
               ? "bg-emerald-50 text-emerald-700"
               : post.image.source === "ai"
                 ? "bg-teal-50 text-teal-700"
-                : "bg-slate-100 text-slate-600"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
           }`}
         >
           {post.image.source === "site"
@@ -49,7 +49,7 @@ export function PostPreview({ post }: { post: GeneratedPost }) {
         </span>
       </div>
 
-      <div className={`relative w-full overflow-hidden bg-slate-100 ${aspectClasses[post.platform]}`}>
+      <div className={`relative w-full overflow-hidden bg-slate-100 dark:bg-slate-800 ${aspectClasses[post.platform]}`}>
         <Image
           src={post.image.url}
           alt={post.image.alt}
@@ -60,7 +60,7 @@ export function PostPreview({ post }: { post: GeneratedPost }) {
       </div>
 
       <div className="space-y-3 p-4">
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800 dark:text-slate-200">
           {post.text}
         </p>
 
@@ -75,7 +75,7 @@ export function PostPreview({ post }: { post: GeneratedPost }) {
           ))}
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
+        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3 text-xs text-slate-500 dark:text-slate-400">
           <span>{post.characterCount} characters</span>
           {post.sourcePage && <span>Source: {post.sourcePage}</span>}
         </div>

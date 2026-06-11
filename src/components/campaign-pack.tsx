@@ -77,12 +77,12 @@ export function CampaignPack() {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 className="text-base font-semibold text-slate-900">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+      <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           Campaign Pack Generator
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Generate a full week of posts across platforms — each with matched
           images and scheduled dates.
         </p>
@@ -97,13 +97,13 @@ export function CampaignPack() {
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Posts to generate
                 </label>
                 <select
                   value={maxPosts}
                   onChange={(e) => setMaxPosts(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm"
                 >
                   {[3, 6, 9, 12, 15].map((n) => (
                     <option key={n} value={n}>
@@ -113,23 +113,23 @@ export function CampaignPack() {
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Platforms
                 </label>
-                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                <p className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
                   {settings.defaultPlatforms
                     .map(
                       (p) =>
                         ALL_PLATFORMS.find((ap) => ap.value === p)?.label ?? p,
                     )
                     .join(", ")}{" "}
-                  <span className="text-slate-400">(change in Settings)</span>
+                  <span className="text-slate-400 dark:text-slate-500">(change in Settings)</span>
                 </p>
               </div>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Campaign theme (optional)
               </label>
               <input
@@ -137,7 +137,7 @@ export function CampaignPack() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="e.g. product launch, summer sale, thought leadership"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm"
               />
             </div>
 
@@ -169,7 +169,7 @@ export function CampaignPack() {
               <button
                 type="button"
                 onClick={exportJson}
-                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                className="rounded-lg bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 ring-1 ring-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 Export JSON
               </button>
@@ -179,9 +179,9 @@ export function CampaignPack() {
               {posts.map((post) => (
                 <div
                   key={post.id}
-                  className="overflow-hidden rounded-lg border border-slate-200"
+                  className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"
                 >
-                  <div className="relative aspect-video bg-slate-100">
+                  <div className="relative aspect-video bg-slate-100 dark:bg-slate-800">
                     <Image
                       src={post.image.url}
                       alt={post.image.alt}
@@ -196,12 +196,12 @@ export function CampaignPack() {
                         {post.platform}
                       </span>
                       {post.scheduledFor && (
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-slate-400 dark:text-slate-500">
                           {post.scheduledFor}
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 line-clamp-3 text-xs text-slate-600">
+                    <p className="mt-1 line-clamp-3 text-xs text-slate-600 dark:text-slate-300">
                       {post.text}
                     </p>
                   </div>

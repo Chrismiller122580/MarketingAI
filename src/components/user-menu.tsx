@@ -15,7 +15,7 @@ export function UserMenu() {
   return (
     <div className="flex items-center gap-2">
       <div className="hidden text-right sm:block">
-        <p className="text-sm font-medium text-slate-900">
+        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
           {name}
           {session?.user?.role === "admin" && (
             <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
@@ -23,7 +23,7 @@ export function UserMenu() {
             </span>
           )}
         </p>
-        <p className="text-xs text-slate-400">{session?.user?.email}</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">{session?.user?.email}</p>
       </div>
       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-medium text-amber-700">
         {initials}
@@ -31,7 +31,7 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => signOut({ callbackUrl: "/login" })}
-        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+        className="rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800"
       >
         Sign out
       </button>

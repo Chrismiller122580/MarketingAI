@@ -8,9 +8,9 @@ export function SiteImagesPanel() {
 
   if (!site) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-        <p className="text-sm font-medium text-slate-700">No images indexed</p>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white dark:bg-slate-900 p-8 text-center">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No images indexed</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Crawl a domain to extract images for your posts.
         </p>
       </div>
@@ -31,12 +31,12 @@ export function SiteImagesPanel() {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 className="text-base font-semibold text-slate-900">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+      <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           Site images ({site.images.length})
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Extracted from crawled pages — auto-matched to posts
         </p>
       </div>
@@ -45,9 +45,9 @@ export function SiteImagesPanel() {
         {site.images.slice(0, 12).map((img) => (
           <div
             key={img.url}
-            className="group overflow-hidden rounded-lg border border-slate-200"
+            className="group overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"
           >
-            <div className="relative aspect-square bg-slate-100">
+            <div className="relative aspect-square bg-slate-100 dark:bg-slate-800">
               <Image
                 src={`/api/image?url=${encodeURIComponent(img.url)}`}
                 alt={img.alt || "Site image"}
@@ -57,11 +57,11 @@ export function SiteImagesPanel() {
               />
             </div>
             <div className="p-2">
-              <p className="truncate text-xs font-medium text-slate-700">
+              <p className="truncate text-xs font-medium text-slate-700 dark:text-slate-300">
                 {img.alt || "Untitled"}
               </p>
-              <p className="truncate text-xs text-slate-400">{img.pagePath}</p>
-              <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+              <p className="truncate text-xs text-slate-400 dark:text-slate-500">{img.pagePath}</p>
+              <span className="mt-1 inline-block rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                 {img.source} · score {img.score}
               </span>
             </div>

@@ -82,12 +82,12 @@ export function ContentGenerator() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-slate-900">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+        <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             AI Content Studio
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {site
               ? `Smart copy + images from ${site.pages.length} pages and ${site.images.length} images`
               : "Crawl a domain to unlock intelligent content generation"}
@@ -108,7 +108,7 @@ export function ContentGenerator() {
                 <div>
                   <label
                     htmlFor="platform"
-                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                    className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                   >
                     Platform
                   </label>
@@ -116,7 +116,7 @@ export function ContentGenerator() {
                     id="platform"
                     value={platform}
                     onChange={(e) => setPlatform(e.target.value as Platform)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
                   >
                     {platforms.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -129,7 +129,7 @@ export function ContentGenerator() {
                 <div>
                   <label
                     htmlFor="content-type"
-                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                    className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                   >
                     Content type
                   </label>
@@ -139,7 +139,7 @@ export function ContentGenerator() {
                     onChange={(e) =>
                       setContentType(e.target.value as ContentType)
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
                   >
                     {contentTypes.map((type) => (
                       <option key={type} value={type}>
@@ -153,7 +153,7 @@ export function ContentGenerator() {
               <div>
                 <label
                   htmlFor="source-page"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                  className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
                 >
                   Source page
                 </label>
@@ -161,7 +161,7 @@ export function ContentGenerator() {
                   id="source-page"
                   value={selectedPage}
                   onChange={(e) => setSelectedPage(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
                 >
                   <option value="all">Best matching page (AI picks)</option>
                   {site.pages.map((page) => (
@@ -185,7 +185,7 @@ export function ContentGenerator() {
                 onChange={(e) => setPreferAiImage(e.target.checked)}
                 className="rounded border-slate-300 text-amber-600"
               />
-              <span className="text-sm text-slate-700">
+              <span className="text-sm text-slate-700 dark:text-slate-300">
                 Generate AI image (DALL-E / Grok) instead of site photo
               </span>
             </label>
@@ -194,7 +194,7 @@ export function ContentGenerator() {
           <div>
             <label
               htmlFor="prompt"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Campaign brief (optional)
             </label>
@@ -204,7 +204,7 @@ export function ContentGenerator() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Target audience, promotion, seasonal angle, tone tweaks..."
-              className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              className="w-full resize-none rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
             />
           </div>
 
@@ -229,8 +229,8 @@ export function ContentGenerator() {
       )}
 
       {savedPost && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
             Publish
           </h3>
           <PublishPanel post={savedPost} />
@@ -242,7 +242,7 @@ export function ContentGenerator() {
           <button
             type="button"
             onClick={() => navigator.clipboard.writeText(post.text)}
-            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+            className="rounded-lg bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             Copy caption
           </button>
@@ -258,7 +258,7 @@ export function ContentGenerator() {
             download={`${site?.brand.name ?? "post"}-${post.platform}.png`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+            className="rounded-lg bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             Download image
           </a>

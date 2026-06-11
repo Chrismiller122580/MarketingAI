@@ -16,41 +16,41 @@ export function AnalyticsOverview() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           Content pipeline
         </h2>
         <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-2xl font-bold text-slate-900">{posts.length}</p>
-            <p className="text-xs text-slate-500">Total posts</p>
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-4">
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{posts.length}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Total posts</p>
           </div>
           <div className="rounded-lg bg-amber-50 p-4">
             <p className="text-2xl font-bold text-amber-700">{scheduled}</p>
-            <p className="text-xs text-slate-500">Scheduled</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Scheduled</p>
           </div>
           <div className="rounded-lg bg-emerald-50 p-4">
             <p className="text-2xl font-bold text-emerald-700">{published}</p>
-            <p className="text-xs text-slate-500">Published</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Published</p>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           Posts by platform
         </h2>
         {Object.keys(byPlatform).length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">No posts yet</p>
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No posts yet</p>
         ) : (
           <div className="mt-4 space-y-3">
             {Object.entries(byPlatform).map(([platform, count]) => (
               <div key={platform}>
                 <div className="mb-1 flex justify-between text-sm">
-                  <span className="capitalize text-slate-700">{platform}</span>
-                  <span className="font-medium text-slate-900">{count}</span>
+                  <span className="capitalize text-slate-700 dark:text-slate-300">{platform}</span>
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{count}</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-crawl-600 to-spark-500"
                     style={{
@@ -65,8 +65,8 @@ export function AnalyticsOverview() {
       </div>
 
       {site && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <h2 className="text-base font-semibold text-slate-900">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm lg:col-span-2">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             Site content index
           </h2>
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -74,25 +74,25 @@ export function AnalyticsOverview() {
               <p className="text-2xl font-bold text-crawl-700">
                 {site.pages.length}
               </p>
-              <p className="text-xs text-slate-500">Pages</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Pages</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-crawl-700">
                 {site.images.length}
               </p>
-              <p className="text-xs text-slate-500">Images</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Images</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-spark-600">
                 {site.brand.keywords.length}
               </p>
-              <p className="text-xs text-slate-500">Keywords</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Keywords</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-spark-600">
                 {site.brand.topics.length}
               </p>
-              <p className="text-xs text-slate-500">Topics</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Topics</p>
             </div>
           </div>
         </div>

@@ -22,7 +22,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           value={domainInput}
           onChange={(e) => setDomainInput(e.target.value)}
           placeholder="example.com"
-          className="h-9 w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-100"
+          className="h-9 w-48 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-amber-300 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-100"
         />
         <button
           type="submit"
@@ -36,11 +36,11 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">Site domain</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Site domain</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Crawl your site to extract pages, images, brand voice, and keywords
             for AI-powered posts.
           </p>
@@ -49,7 +49,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           <button
             type="button"
             onClick={clearSite}
-            className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700"
+            className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300"
           >
             Clear
           </button>
@@ -64,7 +64,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
         }}
       >
         <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 dark:text-slate-500">
             https://
           </span>
           <input
@@ -72,7 +72,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
             value={domainInput}
             onChange={(e) => setDomainInput(e.target.value)}
             placeholder="yourcompany.com"
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-[4.5rem] pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+            className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-[4.5rem] pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
           />
         </div>
         <button

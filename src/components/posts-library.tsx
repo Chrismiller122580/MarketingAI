@@ -13,15 +13,15 @@ function PostCard({
   onDelete: () => void;
 }) {
   const statusColors: Record<string, string> = {
-    draft: "bg-slate-100 text-slate-600",
+    draft: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300",
     scheduled: "bg-amber-50 text-amber-700",
     published: "bg-emerald-50 text-emerald-700",
     failed: "bg-rose-50 text-rose-700",
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="relative aspect-video bg-slate-100">
+    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+      <div className="relative aspect-video bg-slate-100 dark:bg-slate-800">
         <Image
           src={post.image.url}
           alt={post.image.alt}
@@ -40,11 +40,11 @@ function PostCard({
           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium capitalize text-amber-700">
             {post.platform}
           </span>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-400 dark:text-slate-500">
             {post.scheduledFor ?? new Date(post.createdAt).toLocaleDateString()}
           </span>
         </div>
-        <p className="mt-2 line-clamp-3 text-sm text-slate-700">{post.text}</p>
+        <p className="mt-2 line-clamp-3 text-sm text-slate-700 dark:text-slate-300">{post.text}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
@@ -69,7 +69,7 @@ function PostCard({
             Delete
           </button>
         </div>
-        <div className="mt-4 border-t border-slate-100 pt-4">
+        <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
           <PublishPanel post={post} />
         </div>
       </div>
@@ -92,9 +92,9 @@ export function PostsLibrary() {
 
   if (posts.length === 0 && packs.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
-        <p className="text-lg font-medium text-slate-700">No saved posts yet</p>
-        <p className="mt-2 text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white dark:bg-slate-900 p-12 text-center">
+        <p className="text-lg font-medium text-slate-700 dark:text-slate-300">No saved posts yet</p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           Generate content in the studio or create a campaign pack.
         </p>
       </div>
@@ -124,18 +124,18 @@ export function PostsLibrary() {
 
       {packs.length > 0 && (
         <div>
-          <h2 className="mb-4 text-base font-semibold text-slate-900">
+          <h2 className="mb-4 text-base font-semibold text-slate-900 dark:text-slate-100">
             Campaign packs ({packs.length})
           </h2>
           <div className="space-y-3">
             {packs.map((pack) => (
               <div
                 key={pack.id}
-                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-6 py-4"
+                className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-4"
               >
                 <div>
-                  <p className="font-medium text-slate-900">{pack.name}</p>
-                  <p className="text-sm text-slate-500">
+                  <p className="font-medium text-slate-900 dark:text-slate-100">{pack.name}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     {pack.posts.length} posts ·{" "}
                     {new Date(pack.createdAt).toLocaleDateString()}
                   </p>
@@ -156,13 +156,13 @@ export function PostsLibrary() {
       {posts.length > 0 && (
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               All posts ({posts.length})
             </h2>
             <button
               type="button"
               onClick={clearAll}
-              className="text-sm text-slate-500 hover:text-slate-700"
+              className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300"
             >
               Clear all
             </button>

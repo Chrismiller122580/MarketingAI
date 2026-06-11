@@ -4,7 +4,7 @@ import { useSite } from "@/context/site-context";
 
 const statusStyles: Record<string, string> = {
   Active: "bg-emerald-50 text-emerald-700",
-  Draft: "bg-slate-100 text-slate-600",
+  Draft: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300",
   Scheduled: "bg-amber-50 text-amber-700",
 };
 
@@ -34,13 +34,13 @@ export function CampaignsTable() {
     : placeholderCampaigns;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {site ? "Page-based campaigns" : "Recent Campaigns"}
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {site
               ? "Campaign ideas generated from crawled site pages"
               : "Crawl a domain to populate campaigns from site content"}
@@ -51,7 +51,7 @@ export function CampaignsTable() {
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-xs font-medium uppercase tracking-wider text-slate-500">
+            <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
               <th className="px-6 py-3">Campaign</th>
               <th className="px-6 py-3">Status</th>
               <th className="px-6 py-3">Channel</th>
@@ -60,13 +60,13 @@ export function CampaignsTable() {
               <th className="px-6 py-3">Source page</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {campaigns.map((campaign) => (
               <tr
                 key={campaign.name}
-                className="transition hover:bg-slate-50/80"
+                className="transition hover:bg-slate-50 dark:hover:bg-slate-800/80"
               >
-                <td className="px-6 py-4 font-medium text-slate-900">
+                <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">
                   {campaign.name}
                 </td>
                 <td className="px-6 py-4">
@@ -76,12 +76,12 @@ export function CampaignsTable() {
                     {campaign.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-slate-600">{campaign.channel}</td>
-                <td className="px-6 py-4 text-slate-600">{campaign.reach}</td>
-                <td className="px-6 py-4 text-slate-600">
+                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{campaign.channel}</td>
+                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{campaign.reach}</td>
+                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                   {campaign.engagement}
                 </td>
-                <td className="px-6 py-4 text-slate-600">{campaign.source}</td>
+                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{campaign.source}</td>
               </tr>
             ))}
           </tbody>

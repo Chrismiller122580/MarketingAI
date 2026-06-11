@@ -23,12 +23,12 @@ export function Sidebar() {
     : navItems;
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div className="flex h-16 items-center gap-2 border-b border-slate-200 px-6">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <div className="flex h-16 items-center gap-2 border-b border-slate-200 dark:border-slate-800 px-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-crawl-700 to-spark-500 text-sm font-bold text-white">
           C
         </div>
-        <span className="text-lg font-semibold tracking-tight text-slate-900">
+        <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
           crawlspark.ai
         </span>
       </div>
@@ -46,8 +46,8 @@ export function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-amber-50 text-amber-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
               }`}
             >
               <span className="text-base">{item.icon}</span>
@@ -57,7 +57,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-slate-200 p-4">
+      <div className="border-t border-slate-200 dark:border-slate-800 p-4">
         <div className="rounded-lg bg-gradient-to-br from-crawl-800 to-spark-500 p-4 text-white">
           <p className="text-sm font-medium">Crawl your site</p>
           <p className="mt-1 text-xs text-spark-100">

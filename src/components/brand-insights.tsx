@@ -9,10 +9,10 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
   if (!site) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 className="text-base font-semibold text-slate-900">AI insights</h2>
-        <p className="text-sm text-slate-500">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+      <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">AI insights</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           How crawlspark.ai analyzed your site
         </p>
       </div>
@@ -24,20 +24,20 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
             style={{ backgroundColor: site.brand.themeColor }}
           />
           <div>
-            <p className="font-medium text-slate-900">{site.brand.name}</p>
-            <p className="text-sm text-slate-500">{site.brand.tagline}</p>
+            <p className="font-medium text-slate-900 dark:text-slate-100">{site.brand.name}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{site.brand.tagline}</p>
           </div>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Detected tone
           </p>
-          <p className="mt-1 text-sm text-slate-700">{site.brand.tone}</p>
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{site.brand.tone}</p>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Brand keywords
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -53,23 +53,23 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
         </div>
 
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-lg font-bold text-slate-900">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {site.pages.length}
             </p>
-            <p className="text-xs text-slate-500">Pages</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Pages</p>
           </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-lg font-bold text-slate-900">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {site.images.length}
             </p>
-            <p className="text-xs text-slate-500">Images</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Images</p>
           </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-lg font-bold text-slate-900">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-950 p-3">
+            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
               {site.brand.topics.length}
             </p>
-            <p className="text-xs text-slate-500">Topics</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Topics</p>
           </div>
         </div>
 
@@ -82,7 +82,7 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
               {post.insights.map((insight) => (
                 <li
                   key={insight}
-                  className="flex gap-2 text-sm text-slate-700"
+                  className="flex gap-2 text-sm text-slate-700 dark:text-slate-300"
                 >
                   <span className="text-amber-400">→</span>
                   {insight}

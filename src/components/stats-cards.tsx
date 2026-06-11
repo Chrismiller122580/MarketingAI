@@ -71,10 +71,10 @@ export function StatsCards() {
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm"
         >
-          <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-          <p className="mt-2 truncate text-3xl font-bold tracking-tight text-slate-900">
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
+          <p className="mt-2 truncate text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
             {stat.value}
           </p>
           <span

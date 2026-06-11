@@ -65,10 +65,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-crawl-700 to-spark-500 text-lg font-bold text-white">
           C
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
           {isSignup ? "Create your account" : "Welcome back"}
         </h1>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           {isSignup
             ? "Start generating AI-powered marketing content"
             : "Sign in to your crawlspark.ai workspace"}
@@ -77,14 +77,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm"
       >
         <div className="space-y-4">
           {isSignup && (
             <div>
               <label
                 htmlFor="name"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
+                className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Full name
               </label>
@@ -95,7 +95,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 onChange={(e) => setName(e.target.value)}
                 required
                 autoComplete="name"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
                 placeholder="Jane Doe"
               />
             </div>
@@ -104,7 +104,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <div>
             <label
               htmlFor="email"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Email
             </label>
@@ -115,7 +115,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
               placeholder="you@company.com"
             />
           </div>
@@ -123,7 +123,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <div>
             <label
               htmlFor="password"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Password
             </label>
@@ -135,11 +135,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
               required
               minLength={8}
               autoComplete={isSignup ? "new-password" : "current-password"}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
               placeholder="••••••••"
             />
             {isSignup && (
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 At least 8 characters
               </p>
             )}
@@ -165,7 +165,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
+      <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
         {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
         <Link
           href={isSignup ? "/login" : "/signup"}

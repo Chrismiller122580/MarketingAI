@@ -65,7 +65,7 @@ export function PublishPanel({ post }: { post: SavedPost }) {
       )}
 
       {post.scheduledFor && post.publishStatus !== "published" && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Scheduled for {post.scheduledFor}
         </p>
       )}
