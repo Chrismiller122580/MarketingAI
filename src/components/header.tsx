@@ -6,7 +6,7 @@ import { DomainInput } from "./domain-input";
 import { UserMenu } from "./user-menu";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
-  "/": {
+  "/dashboard": {
     title: "Dashboard",
     subtitle: "Welcome back. Here's your marketing overview.",
   },
@@ -39,7 +39,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
 export function Header() {
   const pathname = usePathname();
   const { site } = useSite();
-  const page = pageTitles[pathname] ?? pageTitles["/"];
+  const page = pageTitles[pathname] ?? pageTitles["/dashboard"];
 
   return (
     <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-8 py-3">

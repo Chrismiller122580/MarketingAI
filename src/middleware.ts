@@ -6,11 +6,12 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const isLanding = pathname === "/";
   const isPublicApi =
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/og/");
 
-  if (isPublicApi) return NextResponse.next();
+  if (isPublicApi || isLanding) return NextResponse.next();
 
   if (!isLoggedIn && !isAuthPage) {
     if (pathname.startsWith("/api/")) {
@@ -22,7 +23,7 @@ export default auth((req) => {
   }
 
   if (isLoggedIn && isAuthPage) {
-    return NextResponse.redirect(new URL("/", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 
   return NextResponse.next();

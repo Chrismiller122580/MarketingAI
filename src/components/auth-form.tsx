@@ -10,7 +10,7 @@ type Mode = "login" | "signup";
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

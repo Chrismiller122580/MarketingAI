@@ -1,18 +1,12 @@
-import { AppShell } from "@/components/app-shell";
-import { DomainInput } from "@/components/domain-input";
-import { QuickActions } from "@/components/quick-actions";
-import { StatsCards } from "@/components/stats-cards";
-import { ContentCalendar } from "@/components/content-calendar";
+import type { Metadata } from "next";
+import { LandingPage } from "@/components/landing-page";
+
+export const metadata: Metadata = {
+  title: "MarketingAI — AI marketing grounded in your website",
+  description:
+    "Crawl your domain, generate on-brand posts with images, build campaign packs, and schedule publishing — all in one workspace.",
+};
 
 export default function Home() {
-  return (
-    <AppShell>
-      <div className="space-y-8">
-        <DomainInput />
-        <QuickActions />
-        <StatsCards />
-        <ContentCalendar />
-      </div>
-    </AppShell>
-  );
+  return <LandingPage />;
 }

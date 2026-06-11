@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: "◈" },
+  { href: "/dashboard", label: "Dashboard", icon: "◈" },
   { href: "/campaigns", label: "Campaigns", icon: "◎" },
   { href: "/content", label: "Content Studio", icon: "✦" },
   { href: "/posts", label: "Post Library", icon: "▤" },
@@ -36,8 +36,8 @@ export function Sidebar() {
       <nav className="flex flex-1 flex-col gap-1 p-4">
         {items.map((item) => {
           const isActive =
-            item.href === "/"
-              ? pathname === "/"
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
               : pathname.startsWith(item.href);
 
           return (
