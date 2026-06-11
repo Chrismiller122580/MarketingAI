@@ -49,7 +49,7 @@ export function Header() {
           {site ? (
             <>
               Active site:{" "}
-              <span className="font-medium text-indigo-600">{site.domain}</span>
+              <span className="font-medium text-amber-600">{site.domain}</span>
               {" · "}
               {site.pages.length} pages indexed
             </>

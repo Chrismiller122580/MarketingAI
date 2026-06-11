@@ -116,7 +116,7 @@ export function ContentGenerator() {
                     id="platform"
                     value={platform}
                     onChange={(e) => setPlatform(e.target.value as Platform)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
                   >
                     {platforms.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -139,7 +139,7 @@ export function ContentGenerator() {
                     onChange={(e) =>
                       setContentType(e.target.value as ContentType)
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
                   >
                     {contentTypes.map((type) => (
                       <option key={type} value={type}>
@@ -161,7 +161,7 @@ export function ContentGenerator() {
                   id="source-page"
                   value={selectedPage}
                   onChange={(e) => setSelectedPage(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
                 >
                   <option value="all">Best matching page (AI picks)</option>
                   {site.pages.map((page) => (
@@ -183,7 +183,7 @@ export function ContentGenerator() {
                 type="checkbox"
                 checked={preferAiImage}
                 onChange={(e) => setPreferAiImage(e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600"
+                className="rounded border-slate-300 text-amber-600"
               />
               <span className="text-sm text-slate-700">
                 Generate AI image (DALL-E / Grok) instead of site photo
@@ -204,7 +204,7 @@ export function ContentGenerator() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Target audience, promotion, seasonal angle, tone tweaks..."
-              className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
             />
           </div>
 
@@ -214,7 +214,7 @@ export function ContentGenerator() {
             type="button"
             onClick={handleGenerate}
             disabled={!site || loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Generating post + image…" : "Generate post with image"}
           </button>
@@ -266,7 +266,7 @@ export function ContentGenerator() {
             type="button"
             onClick={handleGenerate}
             disabled={loading}
-            className="rounded-lg bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+            className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100"
           >
             Regenerate
           </button>

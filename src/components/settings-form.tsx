@@ -25,7 +25,7 @@ export function SettingsForm() {
           rows={4}
           value={settings.brandVoice}
           onChange={(e) => updateSettings({ brandVoice: e.target.value })}
-          className="mt-4 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className="mt-4 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
         />
       </div>
 
@@ -40,7 +40,7 @@ export function SettingsForm() {
           type="text"
           value={settings.targetAudience}
           onChange={(e) => updateSettings({ targetAudience: e.target.value })}
-          className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className="mt-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
         />
       </div>
 
@@ -68,7 +68,7 @@ export function SettingsForm() {
                 }
                 className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                   active
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-amber-600 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
@@ -109,7 +109,7 @@ export function SettingsForm() {
               onChange={(e) =>
                 updateSettings({ includeHashtags: e.target.checked })
               }
-              className="rounded border-slate-300 text-indigo-600"
+              className="rounded border-slate-300 text-amber-600"
             />
             <span className="text-sm text-slate-700">
               Include hashtags in social posts
@@ -122,7 +122,7 @@ export function SettingsForm() {
               onChange={(e) =>
                 updateSettings({ preferAiImages: e.target.checked })
               }
-              className="rounded border-slate-300 text-indigo-600"
+              className="rounded border-slate-300 text-amber-600"
             />
             <span className="text-sm text-slate-700">
               Prefer AI-generated images (requires API key)

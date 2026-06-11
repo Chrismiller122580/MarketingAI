@@ -95,18 +95,18 @@ export function SocialConnections() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-6">
-        <h3 className="text-sm font-semibold text-indigo-900">
+      <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-6">
+        <h3 className="text-sm font-semibold text-amber-900">
           Connect platforms (Vercel env vars)
         </h3>
-        <div className="mt-3 space-y-2 text-xs text-indigo-800">
+        <div className="mt-3 space-y-2 text-xs text-amber-800">
           {Object.entries(ENV_GUIDE).map(([platform, vars]) => (
             <div key={platform}>
               <span className="font-medium capitalize">{platform}:</span>{" "}
               {vars.join(", ")}
             </div>
           ))}
-          <p className="mt-2 text-indigo-600">
+          <p className="mt-2 text-amber-600">
             Also: OPENAI_API_KEY or XAI_API_KEY for AI copy + images
           </p>
         </div>

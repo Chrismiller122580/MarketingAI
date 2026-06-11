@@ -25,7 +25,7 @@ export function UserMenu() {
         </p>
         <p className="text-xs text-slate-400">{session?.user?.email}</p>
       </div>
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-medium text-indigo-700">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-sm font-medium text-amber-700">
         {initials}
       </div>
       <button

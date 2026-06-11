@@ -22,7 +22,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   instagram: "bg-pink-100 text-pink-700 border-pink-200",
   twitter: "bg-sky-100 text-sky-700 border-sky-200",
   linkedin: "bg-blue-100 text-blue-700 border-blue-200",
-  facebook: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  facebook: "bg-crawl-100 text-crawl-700 border-crawl-100",
   pinterest: "bg-rose-100 text-rose-700 border-rose-200",
 };
 
@@ -75,13 +75,13 @@ function DroppableDay({
     <div
       ref={setNodeRef}
       className={`min-h-[140px] bg-white p-2 transition ${
-        isOver ? "bg-indigo-50 ring-2 ring-inset ring-indigo-300" : ""
+        isOver ? "bg-amber-50 ring-2 ring-inset ring-amber-300" : ""
       }`}
     >
       <div className="mb-2 text-center">
         <p className="text-xs font-medium text-slate-400">{label}</p>
         <p
-          className={`text-sm font-semibold ${isToday ? "text-indigo-600" : "text-slate-900"}`}
+          className={`text-sm font-semibold ${isToday ? "text-amber-600" : "text-slate-900"}`}
         >
           {dateNum}
         </p>
@@ -215,7 +215,7 @@ export function ContentCalendar() {
 
         <DragOverlay>
           {activePost ? (
-            <div className="rounded border border-indigo-300 bg-indigo-50 px-2 py-1.5 text-[11px] font-medium text-indigo-700 shadow-lg">
+            <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-700 shadow-lg">
               {activePost.platform}
             </div>
           ) : null}

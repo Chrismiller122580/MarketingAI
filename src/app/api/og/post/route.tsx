@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const title = searchParams.get("title") ?? "Your Post";
   const brand = searchParams.get("brand") ?? "Brand";
   const tagline = searchParams.get("tagline") ?? "";
-  const color = `#${(searchParams.get("color") ?? "4f46e5").replace("#", "")}`;
+  const color = `#${(searchParams.get("color") ?? "d97706").replace("#", "")}`;
   const platform = searchParams.get("platform") ?? "instagram";
   const domain = searchParams.get("domain") ?? "";
   const path = searchParams.get("path") ?? "";
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: `linear-gradient(135deg, ${color} 0%, #1e1b4b 50%, #0f172a 100%)`,
+          background: `linear-gradient(135deg, ${color} 0%, #134e4a 50%, #0f172a 100%)`,
           padding: 64,
           fontFamily: "system-ui, sans-serif",
         }}

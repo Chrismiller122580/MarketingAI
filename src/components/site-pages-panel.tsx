@@ -47,13 +47,13 @@ export function SitePagesPanel() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-medium text-slate-900">{page.title}</p>
-                    <p className="mt-0.5 text-xs text-indigo-600">{page.path}</p>
+                    <p className="mt-0.5 text-xs text-amber-600">{page.path}</p>
                   </div>
                   <a
                     href={page.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                    className="shrink-0 text-xs font-medium text-amber-600 hover:text-amber-700"
                   >
                     View →
                   </a>

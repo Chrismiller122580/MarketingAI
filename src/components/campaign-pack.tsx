@@ -147,7 +147,7 @@ export function CampaignPack() {
               type="button"
               onClick={handleGenerate}
               disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
             >
               {loading
                 ? `Generating ${maxPosts} posts…`
@@ -192,7 +192,7 @@ export function CampaignPack() {
                   </div>
                   <div className="p-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium capitalize text-indigo-600">
+                      <span className="text-xs font-medium capitalize text-amber-600">
                         {post.platform}
                       </span>
                       {post.scheduledFor && (

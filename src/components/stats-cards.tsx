@@ -3,10 +3,10 @@
 import { useSite } from "@/context/site-context";
 
 const colorMap: Record<string, string> = {
-  indigo: "bg-indigo-50 text-indigo-700 border-indigo-100",
+  crawl: "bg-teal-50 text-teal-700 border-teal-100",
+  spark: "bg-amber-50 text-amber-700 border-amber-100",
   emerald: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  violet: "bg-violet-50 text-violet-700 border-violet-100",
-  amber: "bg-amber-50 text-amber-700 border-amber-100",
+  teal: "bg-teal-50 text-teal-700 border-teal-100",
 };
 
 export function StatsCards() {
@@ -18,25 +18,25 @@ export function StatsCards() {
           label: "Brand",
           value: site.brand.name,
           change: site.brand.tone,
-          color: "indigo",
+          color: "spark",
         },
         {
           label: "Pages Indexed",
           value: String(site.pages.length),
           change: "Full-site crawl",
-          color: "emerald",
+          color: "crawl",
         },
         {
           label: "Images Found",
           value: String(site.images.length),
           change: "Auto-matched to posts",
-          color: "violet",
+          color: "teal",
         },
         {
           label: "Keywords",
           value: String(site.brand.keywords.length),
           change: site.brand.keywords.slice(0, 3).join(", ") || "Analyzing…",
-          color: "amber",
+          color: "spark",
         },
       ]
     : [
@@ -44,25 +44,25 @@ export function StatsCards() {
           label: "Brand",
           value: "—",
           change: "Add a domain to start",
-          color: "indigo",
+          color: "spark",
         },
         {
           label: "Pages Indexed",
           value: "0",
           change: "No site loaded",
-          color: "emerald",
+          color: "crawl",
         },
         {
           label: "Images Found",
           value: "0",
           change: "For post visuals",
-          color: "violet",
+          color: "teal",
         },
         {
           label: "Keywords",
           value: "0",
           change: "AI brand analysis",
-          color: "amber",
+          color: "spark",
         },
       ];
 

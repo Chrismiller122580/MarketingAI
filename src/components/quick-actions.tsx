@@ -10,25 +10,25 @@ export function QuickActions() {
 
   if (!site) {
     return (
-      <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 p-8">
+      <div className="rounded-xl border border-crawl-100 bg-gradient-to-br from-crawl-50 to-spark-50 p-8">
         <h2 className="text-xl font-semibold text-slate-900">
           Get started in 3 steps
         </h2>
         <ol className="mt-4 space-y-3 text-sm text-slate-700">
           <li className="flex gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">
               1
             </span>
             Enter your website domain above
           </li>
           <li className="flex gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">
               2
             </span>
             AI crawls pages, images, and brand voice
           </li>
           <li className="flex gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">
               3
             </span>
             Generate posts with images or a full campaign pack
@@ -42,7 +42,7 @@ export function QuickActions() {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <Link
         href="/content"
-        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200 hover:shadow-md"
+        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md"
       >
         <p className="text-2xl">✦</p>
         <p className="mt-2 font-semibold text-slate-900">Create a post</p>
@@ -52,7 +52,7 @@ export function QuickActions() {
       </Link>
       <Link
         href="/campaigns"
-        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200 hover:shadow-md"
+        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md"
       >
         <p className="text-2xl">◎</p>
         <p className="mt-2 font-semibold text-slate-900">Campaign pack</p>
@@ -62,7 +62,7 @@ export function QuickActions() {
       </Link>
       <Link
         href="/posts"
-        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200 hover:shadow-md"
+        className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md"
       >
         <p className="text-2xl">▤</p>
         <p className="mt-2 font-semibold text-slate-900">Post library</p>

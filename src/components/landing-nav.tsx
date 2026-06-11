@@ -11,7 +11,7 @@ export function LandingNav() {
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-crawl-700 to-spark-500 text-sm font-bold text-white">
             C
           </div>
           <span className="text-lg font-semibold tracking-tight text-slate-900">
@@ -35,7 +35,7 @@ export function LandingNav() {
           {isLoggedIn ? (
             <Link
               href="/dashboard"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700"
             >
               Go to dashboard
             </Link>
@@ -49,7 +49,7 @@ export function LandingNav() {
               </Link>
               <Link
                 href="/signup"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700"
               >
                 Get started
               </Link>

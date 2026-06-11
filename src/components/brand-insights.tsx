@@ -44,7 +44,7 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
             {site.brand.keywords.map((kw) => (
               <span
                 key={kw}
-                className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700"
+                className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700"
               >
                 {kw}
               </span>
@@ -74,8 +74,8 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
         </div>
 
         {post && (
-          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-indigo-600">
+          <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-amber-600">
               Generation reasoning
             </p>
             <ul className="mt-2 space-y-1.5">
@@ -84,7 +84,7 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
                   key={insight}
                   className="flex gap-2 text-sm text-slate-700"
                 >
-                  <span className="text-indigo-400">→</span>
+                  <span className="text-amber-400">→</span>
                   {insight}
                 </li>
               ))}

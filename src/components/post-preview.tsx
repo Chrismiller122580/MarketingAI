@@ -24,7 +24,7 @@ export function PostPreview({ post }: { post: GeneratedPost }) {
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600" />
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-crawl-700 to-spark-500" />
           <div>
             <p className="text-sm font-semibold text-slate-900">
               {platformLabels[post.platform]}
@@ -37,7 +37,7 @@ export function PostPreview({ post }: { post: GeneratedPost }) {
             post.image.source === "site"
               ? "bg-emerald-50 text-emerald-700"
               : post.image.source === "ai"
-                ? "bg-violet-50 text-violet-700"
+                ? "bg-teal-50 text-teal-700"
                 : "bg-slate-100 text-slate-600"
           }`}
         >
@@ -68,7 +68,7 @@ export function PostPreview({ post }: { post: GeneratedPost }) {
           {post.hashtags.map((tag) => (
             <span
               key={tag}
-              className="text-xs font-medium text-indigo-600"
+              className="text-xs font-medium text-amber-600"
             >
               {tag}
             </span>

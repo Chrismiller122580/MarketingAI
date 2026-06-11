@@ -37,7 +37,7 @@ function PostCard({
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between">
-          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium capitalize text-indigo-700">
+          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium capitalize text-amber-700">
             {post.platform}
           </span>
           <span className="text-xs text-slate-400">
@@ -49,7 +49,7 @@ function PostCard({
           <button
             type="button"
             onClick={() => navigator.clipboard.writeText(post.text)}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            className="text-xs font-medium text-amber-600 hover:text-amber-700"
           >
             Copy
           </button>
@@ -57,7 +57,7 @@ function PostCard({
             href={post.image.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            className="text-xs font-medium text-amber-600 hover:text-amber-700"
           >
             Image
           </a>
@@ -108,14 +108,14 @@ export function PostsLibrary() {
   return (
     <div className="space-y-8">
       {scheduledCount > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50 px-6 py-4">
-          <p className="text-sm text-indigo-800">
+        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-6 py-4">
+          <p className="text-sm text-amber-800">
             <strong>{scheduledCount}</strong> posts ready to publish
           </p>
           <button
             type="button"
             onClick={publishAllScheduled}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
           >
             Publish all scheduled
           </button>

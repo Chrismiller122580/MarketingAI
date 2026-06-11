@@ -22,12 +22,12 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           value={domainInput}
           onChange={(e) => setDomainInput(e.target.value)}
           placeholder="example.com"
-          className="h-9 w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className="h-9 w-48 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-100"
         />
         <button
           type="submit"
           disabled={isLoading}
-          className="h-9 rounded-lg bg-indigo-600 px-3 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          className="h-9 rounded-lg bg-amber-600 px-3 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-50"
         >
           {isLoading ? "…" : "Crawl"}
         </button>
@@ -72,13 +72,13 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
             value={domainInput}
             onChange={(e) => setDomainInput(e.target.value)}
             placeholder="yourcompany.com"
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-[4.5rem] pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-[4.5rem] pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
           />
         </div>
         <button
           type="submit"
           disabled={isLoading || !domainInput.trim()}
-          className="h-11 shrink-0 rounded-lg bg-indigo-600 px-6 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-11 shrink-0 rounded-lg bg-amber-600 px-6 text-sm font-medium text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading ? "Analyzing site…" : site ? "Re-crawl site" : "Crawl site"}
         </button>

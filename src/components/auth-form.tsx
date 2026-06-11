@@ -62,7 +62,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-crawl-700 to-spark-500 text-lg font-bold text-white">
           C
         </div>
         <h1 className="text-2xl font-bold text-slate-900">
@@ -95,7 +95,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 onChange={(e) => setName(e.target.value)}
                 required
                 autoComplete="name"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
                 placeholder="Jane Doe"
               />
             </div>
@@ -115,7 +115,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
               placeholder="you@company.com"
             />
           </div>
@@ -135,7 +135,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               required
               minLength={8}
               autoComplete={isSignup ? "new-password" : "current-password"}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
               placeholder="••••••••"
             />
             {isSignup && (
@@ -155,7 +155,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <button
           type="submit"
           disabled={loading}
-          className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          className="mt-6 w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-50"
         >
           {loading
             ? "Please wait…"
@@ -169,7 +169,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
         <Link
           href={isSignup ? "/login" : "/signup"}
-          className="font-medium text-indigo-600 hover:text-indigo-700"
+          className="font-medium text-amber-600 hover:text-amber-700"
         >
           {isSignup ? "Sign in" : "Sign up"}
         </Link>

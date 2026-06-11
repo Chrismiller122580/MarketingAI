@@ -52,7 +52,7 @@ export function AnalyticsOverview() {
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-indigo-500"
+                    className="h-full rounded-full bg-gradient-to-r from-crawl-600 to-spark-500"
                     style={{
                       width: `${Math.round((count / posts.length) * 100)}%`,
                     }}
@@ -71,25 +71,25 @@ export function AnalyticsOverview() {
           </h2>
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className="text-2xl font-bold text-crawl-700">
                 {site.pages.length}
               </p>
               <p className="text-xs text-slate-500">Pages</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className="text-2xl font-bold text-crawl-700">
                 {site.images.length}
               </p>
               <p className="text-xs text-slate-500">Images</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className="text-2xl font-bold text-spark-600">
                 {site.brand.keywords.length}
               </p>
               <p className="text-xs text-slate-500">Keywords</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className="text-2xl font-bold text-spark-600">
                 {site.brand.topics.length}
               </p>
               <p className="text-xs text-slate-500">Topics</p>

@@ -1,6 +1,23 @@
 @import "tailwindcss";
 
 :root {
+  /* Crawl — depth, web, discovery */
+  --crawl-50: #f0fdfa;
+  --crawl-100: #ccfbf1;
+  --crawl-600: #0d9488;
+  --crawl-700: #0f766e;
+  --crawl-800: #115e59;
+  --crawl-900: #134e4a;
+
+  /* Spark — energy, ignition, output */
+  --spark-50: #fffbeb;
+  --spark-100: #fef3c7;
+  --spark-200: #fde68a;
+  --spark-400: #fbbf24;
+  --spark-500: #f59e0b;
+  --spark-600: #d97706;
+  --spark-700: #b45309;
+
   --background: #f8fafc;
   --foreground: #0f172a;
 }
@@ -8,6 +25,19 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-crawl-50: var(--crawl-50);
+  --color-crawl-100: var(--crawl-100);
+  --color-crawl-600: var(--crawl-600);
+  --color-crawl-700: var(--crawl-700);
+  --color-crawl-800: var(--crawl-800);
+  --color-crawl-900: var(--crawl-900);
+  --color-spark-50: var(--spark-50);
+  --color-spark-100: var(--spark-100);
+  --color-spark-200: var(--spark-200);
+  --color-spark-400: var(--spark-400);
+  --color-spark-500: var(--spark-500);
+  --color-spark-600: var(--spark-600);
+  --color-spark-700: var(--spark-700);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
