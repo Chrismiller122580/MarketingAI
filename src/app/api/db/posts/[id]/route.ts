@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { postToSaved } from "@/lib/db-mappers";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { auth } from "@/auth";
 import { publishPost as publishToSocial } from "@/lib/social/publishers";
 import type { PublishResult } from "@/lib/types";
 
@@ -80,7 +81,14 @@ export async function POST(
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    const result = await publishToSocial(postToSaved(post));
+    // Try to get per-user Twitter token from the current session (if user signed in with X)
+    const session = await auth();
+    const twitterAccessToken = (session?.user as any)?.twitterAccessToken;
+
+    const result = await publishToSocial({
+      ...postToSaved(post),
+      twitterAccessToken,
+    } as any);
 
     const updated = await prisma.post.update({
       where: { id },

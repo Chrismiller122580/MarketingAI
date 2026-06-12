@@ -350,6 +350,15 @@ export function LandingPage() {
             © {new Date().getFullYear()} crawlspark.ai. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm text-slate-500 dark:text-slate-400">
+            <Link href="/domains" className="hover:text-slate-900 dark:text-slate-100">
+              Domains
+            </Link>
+            <Link href="/privacy" className="hover:text-slate-900 dark:text-slate-100">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-slate-900 dark:text-slate-100">
+              Terms
+            </Link>
             <Link href="/login" className="hover:text-slate-900 dark:text-slate-100">
               Sign in
             </Link>

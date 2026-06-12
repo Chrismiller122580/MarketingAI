@@ -41,15 +41,16 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     id: "twitter",
     category: "social",
     name: "X / Twitter",
-    envVars: ["TWITTER_ACCESS_TOKEN"],
+    envVars: ["TWITTER_ACCESS_TOKEN", "TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET"],
     summary:
-      "Direct posting to X. Requires an OAuth 2.0 user access token with tweet.write scope.",
+      "Direct posting to X. Supports manual user token OR full OAuth 2.0 with Client ID/Secret for 'Connect with X'.",
     steps: [
-      "Create a project at developer.x.com with OAuth 2.0 User authentication.",
+      "In Twitter Developer Portal, create a Project + App with OAuth 2.0 User authentication.",
       "Enable scopes: tweet.read, tweet.write, users.read, offline.access.",
-      "Complete the OAuth flow and obtain a user access token (not app-only bearer).",
-      "Set TWITTER_ACCESS_TOKEN in Vercel (or TWITTER_BEARER_TOKEN as alias).",
-      "Redeploy. Settings should show “API connected” for X / Twitter.",
+      "Copy your App's Client ID and Client Secret and set TWITTER_CLIENT_ID + TWITTER_CLIENT_SECRET.",
+      "Option A (simple): Generate a user access token manually and set TWITTER_ACCESS_TOKEN.",
+      "Option B (recommended): Users can connect their own X account via Sign in with X (requires the Client credentials above).",
+      "Redeploy. Settings will show connection status.",
     ],
     docsUrl: "https://developer.x.com/en/docs/authentication/oauth-2-0",
   },
@@ -119,6 +120,10 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
 
 export function getTwitterToken(): string | undefined {
   return process.env.TWITTER_ACCESS_TOKEN ?? process.env.TWITTER_BEARER_TOKEN;
+}
+
+export function hasTwitterOAuthCredentials(): boolean {
+  return !!(process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET);
 }
 
 export function getAiProvider(): "openai" | "xai" | null {

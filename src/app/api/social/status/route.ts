@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getAiImageProvider,
   getAiProvider,
+  hasTwitterOAuthCredentials,
   INTEGRATION_GUIDES,
 } from "@/lib/integrations";
 import { getConnectionStatus } from "@/lib/social/publishers";
@@ -19,6 +20,7 @@ export async function GET() {
     aiImageAvailable: !!imageProvider,
     aiCopyProvider: copyProvider,
     aiImageProvider: imageProvider,
+    twitterOAuthEnabled: hasTwitterOAuthCredentials(),
     guides: INTEGRATION_GUIDES,
   });
 }

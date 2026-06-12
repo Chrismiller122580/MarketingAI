@@ -44,6 +44,13 @@ export function UserMenu() {
       >
         Sign out
       </button>
+      <div className="hidden text-[10px] text-slate-400 sm:block">
+        <Link href="/domains" className="hover:text-slate-500">Domains</Link>
+        {" · "}
+        <Link href="/privacy" className="hover:text-slate-500">Privacy</Link>
+        {" · "}
+        <Link href="/terms" className="hover:text-slate-500">Terms</Link>
+      </div>
     </div>
   );
 }

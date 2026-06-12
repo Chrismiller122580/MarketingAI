@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { BillingPanel } from "@/components/billing-panel";
 
@@ -24,6 +25,12 @@ export default function BillingPage() {
             <li>Your current plan and end date are shown above. Renew before expiry to keep access.</li>
           </ul>
           <p className="mt-3 text-xs">Questions? Contact support from your account or the admin team.</p>
+        </div>
+
+        <div className="text-center text-xs text-slate-500 dark:text-slate-400">
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+          {" · "}
+          <Link href="/terms" className="hover:underline">Terms of Service</Link>
         </div>
       </div>
     </AppShell>

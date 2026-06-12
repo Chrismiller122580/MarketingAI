@@ -119,6 +119,7 @@ export type BatchGenerateRequest = {
 export type PublishRequest = {
   post: SavedPost;
   scheduleAt?: string;
+  twitterAccessToken?: string; // optional per-user token
 };
 
 export type PublishResult = {

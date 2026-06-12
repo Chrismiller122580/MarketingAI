@@ -22,7 +22,8 @@ function shareLinks(post: SavedPost): string {
 }
 
 async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
-  const token = getTwitterToken();
+  // Prefer per-user OAuth token (from "Connect with X") over global env token
+  const token = (ctx as any).twitterAccessToken || getTwitterToken();
   if (!token) {
     return {
       success: true,

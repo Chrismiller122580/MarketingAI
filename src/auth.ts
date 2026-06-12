@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Twitter from "next-auth/providers/twitter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 
@@ -47,15 +48,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    Twitter({
+      clientId: process.env.TWITTER_CLIENT_ID,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: "tweet.read tweet.write users.read offline.access",
+        },
+      },
+    }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user?.id) token.id = user.id;
       if (user?.role) token.role = user.role as string;
+
       // Propagate subscription fields
       if ((user as any)?.plan) token.plan = (user as any).plan;
       if ((user as any)?.subscriptionStatus !== undefined) token.subscriptionStatus = (user as any).subscriptionStatus;
       if ((user as any)?.subscriptionEndsAt !== undefined) token.subscriptionEndsAt = (user as any).subscriptionEndsAt;
+
+      // Store Twitter OAuth token when user connects via X
+      if (account?.provider === "twitter") {
+        token.twitterAccessToken = account.access_token;
+        token.twitterRefreshToken = account.refresh_token;
+      }
+
       return token;
     },
     session({ session, token }) {
@@ -65,6 +83,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).plan = (token.plan as string) ?? "free";
         (session.user as any).subscriptionStatus = (token.subscriptionStatus as string) ?? null;
         (session.user as any).subscriptionEndsAt = token.subscriptionEndsAt as string | null | undefined;
+
+        // Expose Twitter token on session for publishing
+        (session.user as any).twitterAccessToken = token.twitterAccessToken as string | undefined;
       }
       return session;
     },

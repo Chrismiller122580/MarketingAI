@@ -9,6 +9,7 @@ declare module "next-auth" {
       plan?: string;
       subscriptionStatus?: string | null;
       subscriptionEndsAt?: string | null;
+      twitterAccessToken?: string;
       name?: string | null;
       email?: string | null;
       image?: string | null;
