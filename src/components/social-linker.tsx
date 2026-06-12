@@ -11,7 +11,7 @@ import { useSite } from "@/context/site-context";
  */
 export function SocialLinker() {
   const { data: session, status } = useSession();
-  const { site, loadSiteSocialConnections, loadSavedSitesList } = useSite();
+  const { site, loadSiteSocialConnections } = useSite();
 
   useEffect(() => {
     const pendingDomain = localStorage.getItem("pendingSocialConnectSite");
@@ -52,10 +52,9 @@ export function SocialLinker() {
         localStorage.removeItem("pendingSocialConnectSite");
         // Refresh the social connections for the current site
         loadSiteSocialConnections();
-        loadSavedSitesList();
       });
     }
-  }, [status, session, site, loadSiteSocialConnections, loadSavedSitesList]);
+  }, [status, session, site, loadSiteSocialConnections]);
 
   return null;
 }
