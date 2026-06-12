@@ -1,4 +1,4 @@
-import { getTwitterToken } from "../integrations";
+import { getTwitterToken, isTwitterBearerOnly } from "../integrations";
 import type { Platform, PublishResult, SavedPost } from "../types";
 
 type PublishContext = {
@@ -27,14 +27,21 @@ function shareLinks(post: SavedPost): string {
 }
 
 async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
-  // Prefer per-site token (connected per domain/client) over global env
-  const token = ctx.twitterAccessToken || getTwitterToken();
-  if (!token) {
+  // Prefer per-site token (connected per domain/client via OAuth) over global env
+  const perSiteToken = ctx.twitterAccessToken;
+  const globalToken = getTwitterToken();
+  const token = perSiteToken || globalToken;
+
+  const bearerOnlyGlobal = isTwitterBearerOnly() && !perSiteToken;
+
+  if (!token || bearerOnlyGlobal) {
     return {
       success: true,
       platform: "twitter",
       method: "share_link",
-      message: "Twitter API not configured — use share link to post manually.",
+      message: bearerOnlyGlobal
+        ? "Global X/Twitter uses app-only Bearer Token (cannot post on behalf of accounts). Use per-site 'Connect with X' or set TWITTER_ACCESS_TOKEN (user token with tweet.write)."
+        : "Twitter API not configured — use share link to post manually.",
       url: shareLinks(ctx.post),
     };
   }
@@ -308,12 +315,20 @@ export async function publishPost(
 }
 
 export function getConnectionStatus(): import("../types").SocialConnectionStatus[] {
+  const hasUserToken = !!process.env.TWITTER_ACCESS_TOKEN;
+  const hasBearer = !!process.env.TWITTER_BEARER_TOKEN;
+  const hasAnyTwitter = hasUserToken || hasBearer;
+
   return [
     {
       platform: "twitter",
-      connected: !!getTwitterToken(),
-      method: "api",
-      label: "X / Twitter",
+      connected: hasAnyTwitter,
+      method: hasAnyTwitter ? "api" : "manual",
+      label: hasUserToken
+        ? "X / Twitter"
+        : hasBearer
+          ? "X / Twitter (app-only bearer — limited)"
+          : "X / Twitter",
     },
     {
       platform: "linkedin",

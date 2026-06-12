@@ -79,7 +79,10 @@ Direct posting requires an **OAuth 2.0 user access token** with `tweet.write` sc
 4. Complete the OAuth authorization flow to get a user access token
 5. Set `TWITTER_ACCESS_TOKEN` in Vercel
 
-`TWITTER_BEARER_TOKEN` is supported as a legacy alias but app-only bearer tokens cannot post tweets.
+`TWITTER_BEARER_TOKEN` (the long `AAAAAAAAAAAAAAAA...` app-only token) is supported as a **limited global fallback**.
+
+- If only a bearer token is configured (no `TWITTER_ACCESS_TOKEN` and no per-site OAuth token for the post), the app will **automatically fall back to share links** with a clear message instead of attempting a write that would 403.
+- For real posting capability, use a proper user access token or (preferred) per-client "Connect with X" OAuth.
 
 ### LinkedIn (`LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_AUTHOR_URN`)
 
@@ -135,7 +138,7 @@ Instagram publishing may require completing steps in Meta Business Suite dependi
 | Issue | Fix |
 |-------|-----|
 | Settings still shows "Not configured" after adding keys | Redeploy on Vercel — env vars don't update running deployments |
-| Twitter returns 403 | Use OAuth 2.0 **user** token with `tweet.write`, not app-only bearer |
+| Twitter returns 403 | Use OAuth 2.0 **user** token with `tweet.write` (or per-site Connect with X). App-only bearer is now auto-fallen back to share links. |
 | LinkedIn returns 401 | Token expired — regenerate; check `w_member_social` scope |
 | AI copy uses templates only | No `OPENAI_API_KEY` or `XAI_API_KEY` set — app falls back to rule-based generation |
 | AI images unavailable | Set `OPENAI_API_KEY` (DALL·E) or `XAI_API_KEY` |

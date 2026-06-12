@@ -13,6 +13,8 @@ type StatusResponse = {
   aiCopyAvailable: boolean;
   aiCopyProvider: "openai" | "xai" | null;
   aiImageProvider: "openai" | "xai" | null;
+  twitterOAuthEnabled?: boolean;
+  twitterBearerOnly?: boolean;
   guides: IntegrationGuide[];
 };
 
@@ -52,7 +54,7 @@ function GuideCard({ guide, connected }: { guide: IntegrationGuide; connected: b
             connected ? "text-emerald-600" : "text-slate-400 dark:text-slate-500"
           }`}
         >
-          {connected ? "Connected" : "Setup required"}
+          {connected ? "Active" : "Not active"}
         </span>
       </button>
 
@@ -249,6 +251,11 @@ export function SocialConnections() {
         {/* Detailed global setup — admin only */}
         {isAdmin && (
           <div className="mt-4 space-y-2">
+            {status?.twitterBearerOnly && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300">
+                X/Twitter global: using app-only Bearer Token only (posting disabled for global fallback; per-site OAuth or TWITTER_ACCESS_TOKEN recommended for writes).
+              </div>
+            )}
             {socialGuides.map((guide) => (
               <GuideCard
                 key={guide.id}
@@ -265,19 +272,60 @@ export function SocialConnections() {
           <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
             Vercel quick checklist
           </h3>
-        <ol className="mt-3 list-decimal space-y-1.5 pl-4 text-sm text-amber-800 dark:text-amber-300/90">
-          <li>Open Vercel → your project → Settings → Environment Variables</li>
-          <li>Add each variable below for Production (and Preview if needed)</li>
-          <li>Deployments → ⋯ → Redeploy (env vars only apply to new deploys)</li>
-          <li>Return here and refresh — connected items show green</li>
-        </ol>
-        <pre className="mt-4 overflow-x-auto rounded-lg bg-white/80 p-4 text-xs text-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
-{`OPENAI_API_KEY=sk-...
-XAI_API_KEY=xai-...
+          <ol className="mt-3 list-decimal space-y-1.5 pl-4 text-sm text-amber-800 dark:text-amber-300/90">
+            <li>Open Vercel → your project → Settings → Environment Variables</li>
+            <li>Add each variable below for Production (and Preview if needed)</li>
+            <li>Deployments → ⋯ → Redeploy (env vars only apply to new deploys)</li>
+            <li>Return here and refresh — see live Active / Not active status below</li>
+          </ol>
 
-TWITTER_ACCESS_TOKEN=          # OAuth 2.0 user token (tweet.write)
+          {/* Dynamically wired live status tile for global env connections */}
+          <div className="mt-4 rounded-lg border border-amber-200/70 bg-white/70 p-3 text-xs dark:border-amber-900/60 dark:bg-slate-950/50">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+              Live global status
+            </div>
+            <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+              {/* AI providers */}
+              <div className="flex items-center justify-between">
+                <span className="text-slate-700 dark:text-slate-300">OPENAI_API_KEY</span>
+                <span className={(status?.aiCopyAvailable || status?.aiImageAvailable) ? "font-medium text-emerald-600" : "text-slate-400 dark:text-slate-500"}>
+                  {(status?.aiCopyAvailable || status?.aiImageAvailable) ? "Active" : "Not active"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-700 dark:text-slate-300">XAI_API_KEY</span>
+                <span className={(status?.aiCopyProvider === "xai" || status?.aiImageProvider === "xai") ? "font-medium text-emerald-600" : "text-slate-400 dark:text-slate-500"}>
+                  {(status?.aiCopyProvider === "xai" || status?.aiImageProvider === "xai") ? "Active" : "Not active"}
+                </span>
+              </div>
+
+              {/* Social — uses the live connections data (already handles bearer-only labels) */}
+              {status?.connections?.map((c) => (
+                <div key={c.platform} className="flex items-center justify-between">
+                  <span className="text-slate-700 dark:text-slate-300">{c.label}</span>
+                  <span className={c.connected ? "font-medium text-emerald-600" : "text-slate-400 dark:text-slate-500"}>
+                    {c.connected ? "Active" : "Not active"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {status?.twitterBearerOnly && (
+              <div className="mt-2 rounded bg-amber-100/70 px-2 py-1 text-[10px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                Twitter global is Active via bearer token only (app-only = limited posting). Prefer per-site “Connect with X” or set TWITTER_ACCESS_TOKEN.
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 text-[10px] font-medium text-amber-700 dark:text-amber-400/90">Template to paste (var names only):</div>
+          <pre className="mt-1 overflow-x-auto rounded-lg bg-white/80 p-3 text-xs text-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+{`OPENAI_API_KEY=
+XAI_API_KEY=
+
+TWITTER_ACCESS_TOKEN=   # best for global direct posts
+TWITTER_BEARER_TOKEN=   # limited fallback
+
 LINKEDIN_ACCESS_TOKEN=
-LINKEDIN_AUTHOR_URN=urn:li:person:...
+LINKEDIN_AUTHOR_URN=
 
 FACEBOOK_PAGE_ACCESS_TOKEN=
 FACEBOOK_PAGE_ID=
@@ -287,8 +335,8 @@ INSTAGRAM_ACCOUNT_ID=
 
 PINTEREST_ACCESS_TOKEN=
 PINTEREST_BOARD_ID=`}
-        </pre>
-      </div>
+          </pre>
+        </div>
       )}
     </div>
   );

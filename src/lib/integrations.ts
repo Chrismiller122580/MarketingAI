@@ -43,13 +43,14 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     name: "X / Twitter",
     envVars: ["TWITTER_ACCESS_TOKEN", "TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET"],
     summary:
-      "Direct posting to X. Supports manual user token OR full OAuth 2.0 with Client ID/Secret for 'Connect with X'.",
+      "Direct posting to X. Supports manual user token OR full OAuth 2.0 with Client ID/Secret for 'Connect with X'. App-only bearer token is accepted as limited global fallback.",
     steps: [
       "In Twitter Developer Portal, create a Project + App with OAuth 2.0 User authentication.",
       "Enable scopes: tweet.read, tweet.write, users.read, offline.access.",
       "Copy your App's Client ID and Client Secret and set TWITTER_CLIENT_ID + TWITTER_CLIENT_SECRET.",
-      "Option A (simple): Generate a user access token manually and set TWITTER_ACCESS_TOKEN.",
-      "Option B (recommended): Users can connect their own X account via Sign in with X (requires the Client credentials above).",
+      "Option A (simple global): Generate a user access token manually and set TWITTER_ACCESS_TOKEN.",
+      "Option B (recommended for multi-client): Users/clients connect their own X account via the per-site 'Connect with X' buttons (requires the Client credentials above).",
+      "TWITTER_BEARER_TOKEN (the AAAA... app-only token) is supported but cannot post — publishing will use share links instead.",
       "Redeploy. Settings will show connection status.",
     ],
     docsUrl: "https://developer.x.com/en/docs/authentication/oauth-2-0",
@@ -120,6 +121,11 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
 
 export function getTwitterToken(): string | undefined {
   return process.env.TWITTER_ACCESS_TOKEN ?? process.env.TWITTER_BEARER_TOKEN;
+}
+
+/** True when only the app-only bearer token is present (no user access token with write scope). */
+export function isTwitterBearerOnly(): boolean {
+  return !process.env.TWITTER_ACCESS_TOKEN && !!process.env.TWITTER_BEARER_TOKEN;
 }
 
 export function hasTwitterOAuthCredentials(): boolean {

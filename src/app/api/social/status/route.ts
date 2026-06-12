@@ -3,6 +3,7 @@ import {
   getAiImageProvider,
   getAiProvider,
   hasTwitterOAuthCredentials,
+  isTwitterBearerOnly,
   INTEGRATION_GUIDES,
 } from "@/lib/integrations";
 import { getConnectionStatus } from "@/lib/social/publishers";
@@ -21,6 +22,7 @@ export async function GET() {
     aiCopyProvider: copyProvider,
     aiImageProvider: imageProvider,
     twitterOAuthEnabled: hasTwitterOAuthCredentials(),
+    twitterBearerOnly: isTwitterBearerOnly(),
     guides: INTEGRATION_GUIDES,
   });
 }
