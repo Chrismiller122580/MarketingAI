@@ -10,6 +10,7 @@ const navItems = [
   { href: "/content", label: "Content Studio", icon: "✦" },
   { href: "/posts", label: "Post Library", icon: "▤" },
   { href: "/analytics", label: "Analytics", icon: "▣" },
+  { href: "/billing", label: "Billing", icon: "💳" },
   { href: "/settings", label: "Settings", icon: "⚙" },
 ];
 
