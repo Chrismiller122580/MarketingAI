@@ -88,12 +88,17 @@ export function SocialConnections() {
   const { site, siteSocialConnections, connectSocial, loadSiteSocialConnections } = useSite();
   const isAdmin = session?.user?.role === "admin";
 
-  useEffect(() => {
+  const fetchStatus = useCallback(() => {
+    setLoading(true);
     fetch("/api/social/status")
       .then((r) => r.json())
       .then(setStatus)
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
 
   if (loading) {
     return (
@@ -113,9 +118,18 @@ export function SocialConnections() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-          Integrations overview
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            Integrations overview
+          </h2>
+          <button
+            onClick={fetchStatus}
+            disabled={loading}
+            className="text-xs text-amber-600 hover:underline disabled:opacity-50"
+          >
+            {loading ? "Refreshing..." : "Refresh status"}
+          </button>
+        </div>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Add API keys as environment variables in Vercel (or <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">.env</code> locally), then redeploy.
         </p>
@@ -150,9 +164,18 @@ export function SocialConnections() {
 
       {isAdmin && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            AI setup
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+              AI setup
+            </h2>
+            <button
+              onClick={fetchStatus}
+              disabled={loading}
+              className="text-xs text-amber-600 hover:underline disabled:opacity-50"
+            >
+              {loading ? "Refreshing..." : "Refresh status"}
+            </button>
+          </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Set <strong>one or both</strong> — copy: {providerLabel(status?.aiCopyProvider ?? null)},
             images: {providerLabel(status?.aiImageProvider ?? null)}
