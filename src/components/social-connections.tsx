@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useSite } from "@/context/site-context";
 import type { IntegrationGuide } from "@/lib/integrations";
 import type { SocialConnectionStatus } from "@/lib/types";
 
@@ -81,6 +83,10 @@ function GuideCard({ guide, connected }: { guide: IntegrationGuide; connected: b
 export function SocialConnections() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const { data: session } = useSession();
+  const { site, siteSocialConnections, connectSocial, loadSiteSocialConnections } = useSite();
+  const isAdmin = session?.user?.role === "admin";
 
   useEffect(() => {
     fetch("/api/social/status")
@@ -174,21 +180,66 @@ export function SocialConnections() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Global connections (via env vars) are app-level fallbacks. For per-client (per domain), use the &quot;Social accounts for this site&quot; section in the domain card after loading a site. Clients authorize via standard OAuth — no developer account needed on their side.
         </p>
-        <div className="mt-4 space-y-2">
-          {socialGuides.map((guide) => (
-            <GuideCard
-              key={guide.id}
-              guide={guide}
-              connected={socialConnected(guide.id)}
-            />
-          ))}
-        </div>
+
+        {/* Per-user / per-site OAuth connect for regular users */}
+        {site ? (
+          <div className="mt-4 p-4 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900">
+            <h3 className="font-semibold text-sm mb-2 text-emerald-800 dark:text-emerald-200">
+              Connect accounts for this site: {site.domain}
+            </h3>
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 mb-3">
+              Click to log in and grant access. Your tokens are stored privately for this domain only.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {["twitter", "linkedin", "facebook"].map((platform) => {
+                const conn = siteSocialConnections[platform];
+                const isConnected = !!conn?.accessToken;
+                return (
+                  <button
+                    key={platform}
+                    onClick={() => connectSocial(platform)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition font-medium ${
+                      isConnected
+                        ? "bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                        : "bg-white border-emerald-200 hover:bg-emerald-50 dark:bg-slate-900 dark:border-emerald-800 dark:hover:bg-emerald-950"
+                    }`}
+                  >
+                    {isConnected ? "✓ " : ""}Connect with {platform === "twitter" ? "X" : platform.charAt(0).toUpperCase() + platform.slice(1)}
+                  </button>
+                );
+              })}
+              {/* Instagram and Pinterest can fall back or use extended Facebook flow */}
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 self-center ml-2">Instagram/Pinterest: use Facebook connect or manual in domain card</span>
+            </div>
+            <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400">
+              After connecting, posts for this site will use your accounts.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+            Load a site first (in the domain card) to connect its social accounts.
+          </p>
+        )}
+
+        {/* Detailed global setup — admin only */}
+        {isAdmin && (
+          <div className="mt-4 space-y-2">
+            {socialGuides.map((guide) => (
+              <GuideCard
+                key={guide.id}
+                guide={guide}
+                connected={socialConnected(guide.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-6 dark:border-amber-900/50 dark:bg-amber-950/20">
-        <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-          Vercel quick checklist
-        </h3>
+      {isAdmin && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-6 dark:border-amber-900/50 dark:bg-amber-950/20">
+          <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+            Vercel quick checklist
+          </h3>
         <ol className="mt-3 list-decimal space-y-1.5 pl-4 text-sm text-amber-800 dark:text-amber-300/90">
           <li>Open Vercel → your project → Settings → Environment Variables</li>
           <li>Add each variable below for Production (and Preview if needed)</li>
@@ -213,6 +264,7 @@ PINTEREST_ACCESS_TOKEN=
 PINTEREST_BOARD_ID=`}
         </pre>
       </div>
+      )}
     </div>
   );
 }
