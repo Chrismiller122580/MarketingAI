@@ -7,11 +7,12 @@ export default auth((req) => {
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
   const isLanding = pathname === "/";
+  const isPublicPage = pathname === "/privacy" || pathname === "/terms" || pathname === "/domains";
   const isPublicApi =
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/og/");
 
-  if (isPublicApi || isLanding) return NextResponse.next();
+  if (isPublicApi || isLanding || isPublicPage) return NextResponse.next();
 
   if (!isLoggedIn && !isAuthPage) {
     if (pathname.startsWith("/api/")) {
