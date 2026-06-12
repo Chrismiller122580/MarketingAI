@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import type { IntegrationGuide } from "@/lib/integrations";

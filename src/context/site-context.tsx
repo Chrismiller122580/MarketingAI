@@ -147,12 +147,15 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
       setSite(data);
       setStatus("success");
-      // Do not auto-persist here — user clicks Save domain button after seeing results
+
+      // Auto-persist crawled client/site data to DB so libraries and clients are always saved
+      await persistSite(data);
+      await loadSavedSitesList();
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Failed to crawl domain");
     }
-  }, [domainInput]);
+  }, [domainInput, persistSite, loadSavedSitesList]);
 
   const clearSite = useCallback(async () => {
     setSite(null);

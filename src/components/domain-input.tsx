@@ -11,12 +11,8 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
     error,
     crawlSite,
     clearSite,
-    saveSite,
     loadSavedSite,
     savedSites,
-    siteSocialConnections,
-    connectSocial,
-    loadSiteSocialConnections,
   } = useSite();
 
   const isLoading = status === "loading";
@@ -115,13 +111,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           >
             {site.brand.tone}
           </span>
-          <button
-            type="button"
-            onClick={saveSite}
-            className="ml-auto text-xs font-medium underline hover:no-underline"
-          >
-            Save domain
-          </button>
+          <span className="ml-auto text-xs font-medium">Saved to clients</span>
         </div>
       )}
 

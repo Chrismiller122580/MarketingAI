@@ -37,7 +37,6 @@ export function ContentGenerator() {
   const [post, setPost] = useState<GeneratedPost | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const [preferAiImage, setPreferAiImage] = useState(settings.preferAiImages);
 
   async function handleGenerate() {
@@ -45,7 +44,6 @@ export function ContentGenerator() {
 
     setLoading(true);
     setError(null);
-    setSaved(false);
 
     try {
       const response = await fetch("/api/generate", {
@@ -65,19 +63,22 @@ export function ContentGenerator() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Generation failed");
 
-      setPost(data as GeneratedPost);
+      const generated = data as GeneratedPost;
+      setPost(generated);
+
+      // Auto-save every generated post to the DB-backed library so no content is lost
+      // (posts appear immediately in PostsLibrary and /posts, and are available for admin/client views)
+      try {
+        const saved = await savePost(generated);
+        setSavedPost(saved);
+      } catch (saveErr) {
+        // Preview still shown; rare DB save failure shouldn't block review
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleSave() {
-    if (!post) return;
-    const saved = await savePost(post);
-    setSavedPost(saved);
-    setSaved(true);
   }
 
   return (
@@ -246,13 +247,6 @@ export function ContentGenerator() {
           >
             Copy caption
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
-            {saved ? "Saved ✓" : "Save to library"}
-          </button>
           <a
             href={post.image.url}
             download={`${site?.brand.name ?? "post"}-${post.platform}.png`}
@@ -270,6 +264,7 @@ export function ContentGenerator() {
           >
             Regenerate
           </button>
+          <span className="ml-2 self-center text-xs text-emerald-600">Saved to library</span>
         </div>
       )}
     </div>
