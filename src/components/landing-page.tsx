@@ -286,6 +286,39 @@ export function LandingPage() {
           </div>
         </section>
 
+        {/* Pricing teaser for market readiness */}
+        <section id="pricing" className="border-t border-slate-200 dark:border-slate-800 px-6 py-24 bg-slate-50 dark:bg-slate-950/50">
+          <div className="mx-auto max-w-5xl">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Simple, crypto-powered pricing</h2>
+              <p className="mt-3 text-slate-600 dark:text-slate-400">Pay with USDC. Upgrade instantly. No credit card required.</p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                { name: "Free", price: "0", features: ["Basic generations", "1 site crawl", "Community support", "Manual publishing"], cta: "Get started", href: "/signup" },
+                { name: "Pro", price: "29", features: ["Unlimited generations", "Unlimited sites", "Priority AI", "Full calendar & auto-publish", "Crypto billing"], cta: "Upgrade to Pro", href: "/signup", popular: true },
+                { name: "Enterprise", price: "99", features: ["Everything in Pro", "Team seats", "Custom AI training", "API access", "Dedicated support", "SLA"], cta: "Contact sales", href: "/signup" },
+              ].map((tier) => (
+                <div key={tier.name} className={`card p-6 flex flex-col ${tier.popular ? 'ring-2 ring-amber-500' : ''}`}>
+                  {tier.popular && <div className="text-[10px] uppercase tracking-widest text-amber-600 font-semibold mb-1">Most popular</div>}
+                  <div className="text-xl font-semibold">{tier.name}</div>
+                  <div className="mt-4 flex items-baseline">
+                    <span className="text-4xl font-bold">${tier.price}</span>
+                    <span className="text-sm text-slate-500 ml-1">/mo</span>
+                  </div>
+                  <ul className="mt-6 space-y-2 text-sm flex-1">
+                    {tier.features.map(f => <li key={f} className="flex items-center gap-2">✓ {f}</li>)}
+                  </ul>
+                  <Link href={tier.href} className={tier.popular ? "btn-primary mt-6 text-center" : "btn-secondary mt-6 text-center"}>
+                    {tier.cta}
+                  </Link>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs mt-6 text-slate-500">Billed in USDC on Base. Plans managed in your Billing page after signup.</p>
+          </div>
+        </section>
+
         <section className="border-t border-slate-200 dark:border-slate-800 px-6 py-24">
           <div className="mx-auto max-w-4xl rounded-2xl bg-gradient-to-br from-crawl-800 to-spark-600 px-8 py-16 text-center text-white shadow-xl shadow-crawl-200">
             <h2 className="text-3xl font-bold tracking-tight">

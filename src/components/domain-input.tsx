@@ -3,8 +3,18 @@
 import { useSite } from "@/context/site-context";
 
 export function DomainInput({ compact = false }: { compact?: boolean }) {
-  const { domainInput, setDomainInput, site, status, error, crawlSite, clearSite } =
-    useSite();
+  const {
+    domainInput,
+    setDomainInput,
+    site,
+    status,
+    error,
+    crawlSite,
+    clearSite,
+    saveSite,
+    loadSavedSite,
+    savedSites,
+  } = useSite();
 
   const isLoading = status === "loading";
 
@@ -102,6 +112,42 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           >
             {site.brand.tone}
           </span>
+          <button
+            type="button"
+            onClick={saveSite}
+            className="ml-auto text-xs font-medium underline hover:no-underline"
+          >
+            Save domain
+          </button>
+        </div>
+      )}
+
+      {savedSites.length > 0 && (
+        <div className="mt-4 border-t border-slate-200 dark:border-slate-800 pt-4">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
+            Your saved sites — click to load (no re-crawl needed):
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {savedSites.map((s) => {
+              const isCurrent = !!site && s.domain === site.domain;
+              return (
+                <button
+                  key={s.domain}
+                  onClick={() => loadSavedSite(s.domain)}
+                  disabled={isCurrent}
+                  className={`text-xs px-3 py-1 rounded-full border transition ${
+                    isCurrent
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default dark:bg-emerald-950/30 dark:border-emerald-800"
+                      : "hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                  }`}
+                  title={`Last crawled ${new Date(s.crawledAt).toLocaleDateString()} • ${s.pages} pages, ${s.images} images`}
+                >
+                  {s.domain.replace(/^https?:\/\//, "")}
+                  {isCurrent && " (current)"}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

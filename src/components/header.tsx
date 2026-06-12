@@ -6,6 +6,7 @@ import { DomainInput } from "./domain-input";
 import { UserMenu } from "./user-menu";
 import { ThemeToggle } from "./theme-toggle";
 import { PwaInstallButton } from "./pwa-install-button";
+import { PlanBadge } from "./plan-badge";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
@@ -28,13 +29,17 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Post Library",
     subtitle: "Saved posts, campaign packs, and your content calendar.",
   },
+  "/billing": {
+    title: "Billing & Payments",
+    subtitle: "Manage your plan and crypto payments.",
+  },
   "/settings": {
     title: "Settings",
     subtitle: "Configure brand voice, audience, and platforms.",
   },
   "/admin": {
-    title: "Admin",
-    subtitle: "Platform overview and user management.",
+    title: "Admin Stats",
+    subtitle: "Platform snapshot: users, payments, data.",
   },
 };
 
@@ -77,6 +82,8 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
       <div className="flex flex-wrap items-center gap-3">
         <DomainInput compact />
+
+        <PlanBadge compact />
 
         <PwaInstallButton className="hidden sm:inline-flex" />
 

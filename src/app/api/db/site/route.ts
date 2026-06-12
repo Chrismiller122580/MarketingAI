@@ -2,13 +2,53 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { siteToData } from "@/lib/db-mappers";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { normalizeDomain } from "@/lib/crawl";
 import type { SiteData } from "@/lib/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;
 
+  const { searchParams } = new URL(request.url);
+  const domainParam = searchParams.get("domain");
+  const listParam = searchParams.get("list");
+
   try {
+    if (listParam === "true" || listParam === "1") {
+      const rows = await prisma.site.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          domain: true,
+          crawledAt: true,
+          brand: true,
+          pages: true,
+          images: true,
+        },
+      });
+      const sites = rows.map((r) => ({
+        domain: r.domain,
+        crawledAt: r.crawledAt.toISOString(),
+        brandName: (r.brand as any)?.name || r.domain,
+        pages: Array.isArray(r.pages) ? r.pages.length : 0,
+        images: Array.isArray(r.images) ? r.images.length : 0,
+      }));
+      return NextResponse.json({ sites });
+    }
+
+    if (domainParam) {
+      let lookup = domainParam;
+      try {
+        lookup = normalizeDomain(domainParam);
+      } catch {}
+      const site = await prisma.site.findFirst({
+        where: { userId, domain: lookup },
+      });
+      if (!site) return NextResponse.json({ site: null });
+      return NextResponse.json({ site: siteToData(site) });
+    }
+
+    // default: latest site
     const site = await prisma.site.findFirst({
       where: { userId },
       orderBy: { updatedAt: "desc" },
