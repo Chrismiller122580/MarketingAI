@@ -63,19 +63,35 @@ model VerificationToken {
 }
 
 model Site {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  domain    String
-  crawledAt DateTime
-  brand     Json
-  pages     Json
-  images    Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  posts     Post[]
+  id                 String                 @id @default(cuid())
+  userId             String
+  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain             String
+  crawledAt          DateTime
+  brand              Json
+  pages              Json
+  images             Json
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  posts              Post[]
+  socialConnections  SiteSocialConnection[]
 
   @@unique([userId, domain])
+}
+
+model SiteSocialConnection {
+  id            String    @id @default(cuid())
+  siteId        String
+  site          Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  platform      String    // "twitter", "linkedin", "facebook", "instagram", "pinterest"
+  accessToken   String    @db.Text
+  refreshToken  String?   @db.Text
+  expiresAt     DateTime?
+  accountId     String?   // e.g. Twitter user id, LinkedIn person URN, Facebook Page ID, etc.
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([siteId, platform])
 }
 
 model Post {

@@ -57,6 +57,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
       },
     }),
+    // Add other platforms for per-site OAuth
+    {
+      id: "linkedin",
+      name: "LinkedIn",
+      type: "oauth",
+      clientId: process.env.LINKEDIN_CLIENT_ID,
+      clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
+      authorization: "https://www.linkedin.com/oauth/v2/authorization?scope=r_liteprofile%20w_member_social",
+      token: "https://www.linkedin.com/oauth/v2/accessToken",
+      userinfo: "https://api.linkedin.com/v2/me",
+      profile(profile) {
+        return {
+          id: profile.id,
+          name: `${profile.localizedFirstName} ${profile.localizedLastName}`,
+          email: null,
+        };
+      },
+    },
+    {
+      id: "facebook",
+      name: "Facebook",
+      type: "oauth",
+      clientId: process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      authorization: "https://www.facebook.com/v10.0/dialog/oauth?scope=pages_manage_posts,pages_read_engagement",
+      token: "https://graph.facebook.com/v10.0/oauth/accessToken",
+      userinfo: "https://graph.facebook.com/me?fields=id,name,email",
+      profile(profile) {
+        return {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+        };
+      },
+    },
   ],
   callbacks: {
     async jwt({ token, user, account }) {
@@ -68,10 +103,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if ((user as any)?.subscriptionStatus !== undefined) token.subscriptionStatus = (user as any).subscriptionStatus;
       if ((user as any)?.subscriptionEndsAt !== undefined) token.subscriptionEndsAt = (user as any).subscriptionEndsAt;
 
-      // Store Twitter OAuth token when user connects via X
+      // Store OAuth tokens for social platforms (per user, will be linked to specific sites)
       if (account?.provider === "twitter") {
         token.twitterAccessToken = account.access_token;
         token.twitterRefreshToken = account.refresh_token;
+      }
+      if (account?.provider === "linkedin") {
+        (token as any).linkedinAccessToken = account.access_token;
+        (token as any).linkedinRefreshToken = account.refresh_token;
+      }
+      if (account?.provider === "facebook") {
+        (token as any).facebookAccessToken = account.access_token;
+        (token as any).facebookRefreshToken = account.refresh_token;
       }
 
       return token;
@@ -84,8 +127,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).subscriptionStatus = (token.subscriptionStatus as string) ?? null;
         (session.user as any).subscriptionEndsAt = token.subscriptionEndsAt as string | null | undefined;
 
-        // Expose Twitter token on session for publishing
-        (session.user as any).twitterAccessToken = token.twitterAccessToken as string | undefined;
+        // Expose social tokens on session (used for linking to specific sites)
+        (session.user as any).twitterAccessToken = (token as any).twitterAccessToken;
+        (session.user as any).linkedinAccessToken = (token as any).linkedinAccessToken;
+        (session.user as any).facebookAccessToken = (token as any).facebookAccessToken;
       }
       return session;
     },

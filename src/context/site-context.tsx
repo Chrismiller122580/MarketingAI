@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { signIn } from "next-auth/react";
 import type { CrawlStatus, SiteData } from "@/lib/types";
 
 type SiteContextValue = {
@@ -27,6 +28,9 @@ type SiteContextValue = {
     pages: number;
     images: number;
   }>;
+  siteSocialConnections: Record<string, any>; // platform -> connection data
+  connectSocial: (platform: string) => void;
+  loadSiteSocialConnections: () => Promise<void>;
   loading: boolean;
 };
 
@@ -49,6 +53,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedSites, setSavedSites] = useState<SiteContextValue["savedSites"]>([]);
+  const [siteSocialConnections, setSiteSocialConnections] = useState<Record<string, any>>({});
 
   const loadSavedSitesList = useCallback(async () => {
     try {
@@ -57,6 +62,38 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       if (data.sites) setSavedSites(data.sites);
     } catch {}
   }, []);
+
+  const loadSiteSocialConnections = useCallback(async () => {
+    if (!site) {
+      setSiteSocialConnections({});
+      return;
+    }
+    try {
+      const res = await fetch(`/api/db/site/social?domain=${encodeURIComponent(site.domain)}`);
+      const data = await res.json();
+      if (data.connections) {
+        const map: Record<string, any> = {};
+        data.connections.forEach((c: any) => {
+          map[c.platform] = c;
+        });
+        setSiteSocialConnections(map);
+      }
+    } catch {
+      setSiteSocialConnections({});
+    }
+  }, [site]);
+
+  const connectSocial = useCallback((platform: string) => {
+    if (!site) return;
+
+    // Store which site we are connecting social for
+    localStorage.setItem("pendingSocialConnectSite", site.domain);
+
+    // Trigger the OAuth flow for the platform
+    // After success, a useEffect (in providers or layout) will detect the pending site
+    // and call the link API with the token from session.
+    signIn(platform.toLowerCase());
+  }, [site]);
 
   useEffect(() => {
     Promise.all([
@@ -73,6 +110,11 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [loadSavedSitesList]);
+
+  // Load social connections whenever the current site changes
+  useEffect(() => {
+    loadSiteSocialConnections();
+  }, [site, loadSiteSocialConnections]);
 
   const persistSite = useCallback(async (siteData: SiteData) => {
     await fetch("/api/db/site", {
@@ -124,7 +166,8 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     if (!site) return;
     await persistSite(site);
     await loadSavedSitesList();
-  }, [site, persistSite, loadSavedSitesList]);
+    await loadSiteSocialConnections();
+  }, [site, persistSite, loadSavedSitesList, loadSiteSocialConnections]);
 
   const loadSavedSite = useCallback(async (domain: string) => {
     setStatus("loading");
@@ -139,11 +182,12 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       setSite(data.site);
       setDomainInput(data.site.domain.replace(/^https?:\/\//, ""));
       setStatus("success");
+      await loadSiteSocialConnections();
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Failed to load saved site");
     }
-  }, []);
+  }, [loadSiteSocialConnections]);
 
   const value = useMemo(
     () => ({
@@ -157,9 +201,26 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       saveSite,
       loadSavedSite,
       savedSites,
+      siteSocialConnections,
+      connectSocial,
+      loadSiteSocialConnections,
       loading,
     }),
-    [domainInput, site, status, error, crawlSite, clearSite, saveSite, loadSavedSite, savedSites, loading],
+    [
+      domainInput,
+      site,
+      status,
+      error,
+      crawlSite,
+      clearSite,
+      saveSite,
+      loadSavedSite,
+      savedSites,
+      siteSocialConnections,
+      connectSocial,
+      loadSiteSocialConnections,
+      loading,
+    ],
   );
 
   return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>;

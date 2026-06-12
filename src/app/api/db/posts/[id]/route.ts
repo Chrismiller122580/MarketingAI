@@ -85,10 +85,27 @@ export async function POST(
     const session = await auth();
     const twitterAccessToken = (session?.user as any)?.twitterAccessToken;
 
+    // Per-site social tokens take priority (for the specific domain/client)
+    const siteSocial = post.siteId
+      ? await prisma.siteSocialConnection.findFirst({
+          where: { siteId: post.siteId, platform: post.platform },
+        })
+      : null;
+
+    const extraCtx: any = {};
+    if (siteSocial?.accessToken) {
+      if (post.platform === "twitter") extraCtx.twitterAccessToken = siteSocial.accessToken;
+      if (post.platform === "linkedin") extraCtx.linkedinAccessToken = siteSocial.accessToken;
+      if (post.platform === "facebook") extraCtx.facebookAccessToken = siteSocial.accessToken;
+      // instagram/pinterest can be added similarly
+    } else if (twitterAccessToken && post.platform === "twitter") {
+      extraCtx.twitterAccessToken = twitterAccessToken;
+    }
+
     const result = await publishToSocial({
       ...postToSaved(post),
-      twitterAccessToken,
-    } as any);
+      ...extraCtx,
+    });
 
     const updated = await prisma.post.update({
       where: { id },

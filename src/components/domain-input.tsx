@@ -14,6 +14,9 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
     saveSite,
     loadSavedSite,
     savedSites,
+    siteSocialConnections,
+    connectSocial,
+    loadSiteSocialConnections,
   } = useSite();
 
   const isLoading = status === "loading";

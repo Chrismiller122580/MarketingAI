@@ -6,6 +6,7 @@ import { PostsProvider } from "@/context/posts-context";
 import { AuthSessionProvider } from "./session-provider";
 import { ThemeProvider } from "./theme-provider";
 import { PwaManager } from "./pwa-manager";
+import { SocialLinker } from "./social-linker";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <PwaManager />
       <AuthSessionProvider>
         <SiteProvider>
+          <SocialLinker />
           <SettingsProvider>
             <PostsProvider>{children}</PostsProvider>
           </SettingsProvider>

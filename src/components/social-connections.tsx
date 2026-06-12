@@ -172,7 +172,7 @@ export function SocialConnections() {
           Social publishing
         </h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Unconnected platforms fall back to share links when you publish.
+          Global connections (via env vars) are app-level fallbacks. For per-client (per domain), use the &quot;Social accounts for this site&quot; section in the domain card after loading a site. Clients authorize via standard OAuth — no developer account needed on their side.
         </p>
         <div className="mt-4 space-y-2">
           {socialGuides.map((guide) => (

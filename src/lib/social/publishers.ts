@@ -4,6 +4,11 @@ import type { Platform, PublishResult, SavedPost } from "../types";
 type PublishContext = {
   post: SavedPost;
   imageBase64?: string;
+  // Per-site / per-client social tokens (preferred)
+  twitterAccessToken?: string;
+  linkedinAccessToken?: string;
+  facebookAccessToken?: string;
+  // Extend for instagram, pinterest as needed
 };
 
 function shareLinks(post: SavedPost): string {
@@ -22,8 +27,8 @@ function shareLinks(post: SavedPost): string {
 }
 
 async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
-  // Prefer per-user OAuth token (from "Connect with X") over global env token
-  const token = (ctx as any).twitterAccessToken || getTwitterToken();
+  // Prefer per-site token (connected per domain/client) over global env
+  const token = ctx.twitterAccessToken || getTwitterToken();
   if (!token) {
     return {
       success: true,
@@ -76,7 +81,7 @@ async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
 }
 
 async function publishLinkedIn(ctx: PublishContext): Promise<PublishResult> {
-  const token = process.env.LINKEDIN_ACCESS_TOKEN;
+  const token = ctx.linkedinAccessToken || process.env.LINKEDIN_ACCESS_TOKEN;
   const authorUrn = process.env.LINKEDIN_AUTHOR_URN;
 
   if (!token || !authorUrn) {
@@ -141,7 +146,7 @@ async function publishLinkedIn(ctx: PublishContext): Promise<PublishResult> {
 }
 
 async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
-  const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  const token = ctx.facebookAccessToken || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   const pageId = process.env.FACEBOOK_PAGE_ID;
 
   if (!token || !pageId) {
@@ -296,9 +301,10 @@ const publishers: Record<
 
 export async function publishPost(
   post: SavedPost,
+  extraContext?: Partial<PublishContext>,
 ): Promise<PublishResult> {
   const publisher = publishers[post.platform];
-  return publisher({ post });
+  return publisher({ post, ...extraContext });
 }
 
 export function getConnectionStatus(): import("../types").SocialConnectionStatus[] {
