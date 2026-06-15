@@ -6,13 +6,16 @@ export function generateDeletionConfirmationCode(): string {
   return `FB${segment()}${segment()}`;
 }
 
-export function buildDeletionStatusUrl(confirmationCode: string): string {
-  const base =
+export function getAppOrigin(): string {
+  return (
     process.env.AUTH_URL ??
     process.env.NEXTAUTH_URL ??
-    "https://crawlspark.ai";
-  const origin = base.replace(/\/$/, "");
-  return `${origin}/data-deletion?code=${encodeURIComponent(confirmationCode)}`;
+    "https://www.crawlspark.ai"
+  ).replace(/\/$/, "");
+}
+
+export function buildDeletionStatusUrl(confirmationCode: string): string {
+  return `${getAppOrigin()}/data-deletion?code=${encodeURIComponent(confirmationCode)}`;
 }
 
 export async function processFacebookDataDeletion(

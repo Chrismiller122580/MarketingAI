@@ -146,7 +146,7 @@ export default function PrivacyPolicy() {
           <p>
             Our automated data deletion callback URL for Meta App Review is:{" "}
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs dark:bg-slate-800">
-              https://crawlspark.ai/api/facebook/data-deletion
+              https://www.crawlspark.ai/api/facebook/data-deletion
             </code>
           </p>
 
