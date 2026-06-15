@@ -13,9 +13,9 @@ export default async function AdminPage() {
     <AppShell>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Admin Stats</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Admin</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Snapshot of users, payments, revenue, and platform data. Use the tabs for detailed management.
+            Platform stats, user management, and payment review.
           </p>
         </div>
         <AdminDashboard />

@@ -121,3 +121,43 @@ export async function PATCH(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const admin = await requireAdmin();
+  if (isAdminError(admin)) return admin;
+
+  const { id } = await params;
+
+  if (id === admin.userId) {
+    return NextResponse.json(
+      { error: "You cannot delete your own account" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const existing = await prisma.user.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (existing.role === "admin") {
+      const adminCount = await prisma.user.count({ where: { role: "admin" } });
+      if (adminCount <= 1) {
+        return NextResponse.json(
+          { error: "Cannot delete the last admin" },
+          { status: 400 },
+        );
+      }
+    }
+
+    await prisma.user.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Database error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
