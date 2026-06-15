@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 import { generateCampaignPack } from "@/lib/smart-generator";
 import type { BatchGenerateRequest } from "@/lib/types";
+import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const userId = await requirePaidUserId();
+  if (isAuthError(userId)) return userId;
+
+  const rl = checkRateLimit(userId as string, "generate");
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: `Generation rate limit exceeded. Please retry in ~${rl.retryAfterSeconds}s.`, retryAfter: rl.retryAfterSeconds },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = await request.json();
 
@@ -19,6 +32,7 @@ export async function POST(request: Request) {
       prompt: body.prompt ?? "",
       platforms: body.platforms,
       maxPosts: Math.min(body.maxPosts ?? 9, 20),
+      preferAiImage: body.preferAiImage,
     };
 
     const posts = await generateCampaignPack(batchRequest);

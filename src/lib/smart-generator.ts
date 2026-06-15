@@ -210,6 +210,14 @@ async function resolveImage(
   if (preferAi) {
     const ai = await generateAiImage(site, page, platform);
     if (ai) {
+      if (ai.url.startsWith("data:")) {
+        return {
+          url: ai.url,
+          source: "ai",
+          alt: `${site.brand.name} — ${page.title}`,
+        };
+      }
+
       try {
         const res = await fetch(ai.url);
         if (res.ok) {
@@ -224,9 +232,15 @@ async function resolveImage(
           };
         }
       } catch {
-        /* fall through */
+        /* fall through to branded placeholder */
       }
     }
+
+    return {
+      url: buildBrandedImageUrl(site, page.title, platform, page.path),
+      source: "branded",
+      alt: `${site.brand.name} — ${page.title}`,
+    };
   }
 
   const siteImage = pickBestImage(site, context, page, platform);

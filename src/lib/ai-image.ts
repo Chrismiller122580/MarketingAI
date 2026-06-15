@@ -1,11 +1,19 @@
 import type { Platform, SiteData, SitePage } from "./types";
 
-const ASPECT_RATIOS: Record<Platform, "1024x1024" | "1792x1024" | "1024x1792"> = {
+const OPENAI_SIZES: Record<Platform, "1024x1024" | "1792x1024" | "1024x1792"> = {
   instagram: "1024x1024",
   twitter: "1792x1024",
   linkedin: "1792x1024",
   facebook: "1792x1024",
   pinterest: "1024x1792",
+};
+
+const XAI_ASPECT_RATIOS: Record<Platform, string> = {
+  instagram: "1:1",
+  twitter: "16:9",
+  linkedin: "16:9",
+  facebook: "16:9",
+  pinterest: "9:16",
 };
 
 function buildImagePrompt(
@@ -34,7 +42,7 @@ export async function generateAiImage(
   platform: Platform,
 ): Promise<{ url: string; prompt: string } | null> {
   const prompt = buildImagePrompt(site, page, platform);
-  const size = ASPECT_RATIOS[platform];
+  const size = OPENAI_SIZES[platform];
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (openaiKey) {
@@ -78,18 +86,25 @@ export async function generateAiImage(
           Authorization: `Bearer ${xaiKey}`,
         },
         body: JSON.stringify({
-          model: "grok-2-image",
+          model: "grok-imagine-image-quality",
           prompt,
           n: 1,
+          aspect_ratio: XAI_ASPECT_RATIOS[platform],
         }),
       });
 
       if (!response.ok) return null;
       const data = await response.json();
-      const imageUrl = data.data?.[0]?.url;
-      if (!imageUrl) return null;
+      const item = data.data?.[0];
+      const imageUrl = item?.url;
+      if (imageUrl) return { url: imageUrl, prompt };
 
-      return { url: imageUrl, prompt };
+      const b64 = item?.b64_json;
+      if (b64) {
+        return { url: `data:image/png;base64,${b64}`, prompt };
+      }
+
+      return null;
     } catch {
       return null;
     }
