@@ -1,4 +1,5 @@
 import { getTwitterToken, isTwitterBearerOnly } from "../integrations";
+import { publishFacebookPost } from "./facebook";
 import type { Platform, PublishResult, SavedPost } from "../types";
 
 type PublishContext = {
@@ -168,36 +169,43 @@ async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
   }
 
   try {
-    const response = await fetch(
-      `https://graph.facebook.com/v19.0/${pageId}/feed`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: ctx.post.text,
-          access_token: token,
-          link: ctx.post.cta.startsWith("http") ? ctx.post.cta : `https://${ctx.post.cta}`,
-        }),
-      },
-    );
+    const link = ctx.post.cta.startsWith("http")
+      ? ctx.post.cta
+      : `https://${ctx.post.cta}`;
 
-    if (!response.ok) {
+    const result = await publishFacebookPost({
+      pageId,
+      pageAccessToken: token,
+      message: ctx.post.text,
+      link,
+      videoUrl: ctx.post.image.videoUrl,
+      imageUrl: ctx.post.image.originalUrl ?? ctx.post.image.url,
+      siteOrigin: process.env.AUTH_URL ?? process.env.NEXTAUTH_URL,
+    });
+
+    if (result.error) {
       return {
         success: false,
         platform: "facebook",
         method: "api",
-        message: `Facebook API error: ${response.status}`,
+        message: result.error,
         url: shareLinks(ctx.post),
       };
     }
 
-    const data = await response.json();
+    const methodLabel =
+      result.method === "video"
+        ? "video"
+        : result.method === "photo"
+          ? "photo"
+          : "post";
+
     return {
       success: true,
       platform: "facebook",
       method: "api",
-      message: "Published to Facebook successfully.",
-      url: data.id ? `https://facebook.com/${data.id}` : undefined,
+      message: `Published ${methodLabel} to Facebook successfully.`,
+      url: result.id ? `https://facebook.com/${result.id}` : undefined,
       publishedAt: new Date().toISOString(),
     };
   } catch {

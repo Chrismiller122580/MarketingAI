@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
-import { resolveFacebookPageToken } from "@/lib/social/facebook";
+import {
+  exchangeFacebookLongLivedToken,
+  resolveFacebookPageToken,
+} from "@/lib/social/facebook";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -58,6 +61,11 @@ export async function POST(request: Request) {
     }
 
     if (platform === "facebook") {
+      const longLived = await exchangeFacebookLongLivedToken(accessToken);
+      if (longLived.accessToken) {
+        accessToken = longLived.accessToken;
+      }
+
       const page = await resolveFacebookPageToken(
         accessToken,
         preferredPageId,
