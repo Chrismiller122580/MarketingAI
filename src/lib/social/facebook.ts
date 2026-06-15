@@ -4,6 +4,17 @@ export type FacebookPage = {
   accessToken: string;
 };
 
+export async function fetchFacebookUserId(
+  accessToken: string,
+): Promise<string | null> {
+  const response = await fetch(
+    `https://graph.facebook.com/v19.0/me?fields=id&access_token=${encodeURIComponent(accessToken)}`,
+  );
+  if (!response.ok) return null;
+  const data = await response.json();
+  return typeof data.id === "string" ? data.id : null;
+}
+
 export async function fetchFacebookPages(
   userAccessToken: string,
 ): Promise<FacebookPage[]> {

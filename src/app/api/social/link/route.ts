@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import {
   exchangeFacebookLongLivedToken,
+  fetchFacebookUserId,
   resolveFacebookPageToken,
 } from "@/lib/social/facebook";
 
@@ -60,10 +61,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `No ${platform} token found in your session. Please connect via OAuth first.` }, { status: 400 });
     }
 
+    let providerUserId: string | undefined;
+
     if (platform === "facebook") {
+      providerUserId =
+        (await fetchFacebookUserId(accessToken)) ?? undefined;
+
       const longLived = await exchangeFacebookLongLivedToken(accessToken);
       if (longLived.accessToken) {
         accessToken = longLived.accessToken;
+        providerUserId =
+          (await fetchFacebookUserId(accessToken)) ?? providerUserId;
       }
 
       const page = await resolveFacebookPageToken(
@@ -97,11 +105,13 @@ export async function POST(request: Request) {
         accessToken,
         refreshToken: refreshToken || null,
         accountId: accountId || null,
+        providerUserId: providerUserId || null,
       },
       update: {
         accessToken,
         refreshToken: refreshToken || undefined,
         accountId: accountId || undefined,
+        providerUserId: providerUserId || undefined,
         updatedAt: new Date(),
       },
     });

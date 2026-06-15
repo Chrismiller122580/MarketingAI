@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export default function PrivacyPolicy() {
-  const lastUpdated = "June 11, 2026";
+  const lastUpdated = "June 15, 2026";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -117,6 +117,38 @@ export default function PrivacyPolicy() {
             <li>Withdraw consent where processing is based on consent.</li>
           </ul>
           <p>To exercise these rights, use the in-app tools (Settings, delete account flows) or email us at the address below. We will respond within a reasonable time and in accordance with applicable law.</p>
+
+          <h3>Facebook / Meta data deletion</h3>
+          <p>
+            If you connected crawlspark.ai with Facebook Login or linked a Facebook Page,
+            you can request deletion of Facebook-related data we store (OAuth tokens and
+            Page connection records) in either of these ways:
+          </p>
+          <ul>
+            <li>
+              <strong>Via Facebook:</strong> Go to Facebook Settings → Apps and Websites,
+              remove crawlspark.ai, and click <strong>Send Request</strong>. Meta will
+              notify us automatically. You will receive a confirmation code and a status
+              link to track the request.
+            </li>
+            <li>
+              <strong>Directly:</strong> Email{" "}
+              <a href="mailto:privacy@crawlspark.ai" className="text-amber-600 hover:underline">
+                privacy@crawlspark.ai
+              </a>{" "}
+              or visit our{" "}
+              <Link href="/data-deletion" className="text-amber-600 hover:underline">
+                data deletion status page
+              </Link>{" "}
+              with your confirmation code.
+            </li>
+          </ul>
+          <p>
+            Our automated data deletion callback URL for Meta App Review is:{" "}
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs dark:bg-slate-800">
+              https://crawlspark.ai/api/facebook/data-deletion
+            </code>
+          </p>
 
           <h2>7. Cookies and Tracking</h2>
           <p>We use essential cookies for authentication and session management. We may use basic analytics cookies to understand usage. You can control cookies through your browser settings. Our Service does not use third-party advertising cookies.</p>

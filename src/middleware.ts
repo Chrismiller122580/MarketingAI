@@ -7,10 +7,15 @@ export default auth((req) => {
 
   const isAuthPage = pathname === "/login" || pathname === "/signup";
   const isLanding = pathname === "/";
-  const isPublicPage = pathname === "/privacy" || pathname === "/terms" || pathname === "/domains";
+  const isPublicPage =
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/domains" ||
+    pathname === "/data-deletion";
   const isPublicApi =
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/og/");
+    pathname.startsWith("/api/og/") ||
+    pathname === "/api/facebook/data-deletion";
 
   if (isPublicApi || isLanding || isPublicPage) return NextResponse.next();
 

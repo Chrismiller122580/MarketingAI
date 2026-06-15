@@ -80,18 +80,31 @@ model Site {
 }
 
 model SiteSocialConnection {
-  id            String    @id @default(cuid())
-  siteId        String
-  site          Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  platform      String    // "twitter", "linkedin", "facebook", "instagram", "pinterest"
-  accessToken   String    @db.Text
-  refreshToken  String?   @db.Text
-  expiresAt     DateTime?
-  accountId     String?   // e.g. Twitter user id, LinkedIn person URN, Facebook Page ID, etc.
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  siteId         String
+  site           Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  platform       String    // "twitter", "linkedin", "facebook", "instagram", "pinterest"
+  accessToken    String    @db.Text
+  refreshToken   String?   @db.Text
+  expiresAt      DateTime?
+  accountId      String?   // e.g. Facebook Page ID, LinkedIn URN
+  providerUserId String?   // e.g. Facebook app-scoped user ID (ASID)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([siteId, platform])
+}
+
+model DataDeletionRequest {
+  id               String    @id @default(cuid())
+  facebookUserId   String
+  confirmationCode String    @unique
+  status           String    @default("pending") // pending, completed, failed
+  errorMessage     String?
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  @@index([facebookUserId])
 }
 
 model Post {

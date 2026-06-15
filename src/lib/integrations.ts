@@ -102,6 +102,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
       "Option A (global): generate a long-lived Page access token + set FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID.",
       "Option B (per-site): set FACEBOOK_CLIENT_ID + FACEBOOK_CLIENT_SECRET, then use Connect with Facebook on a loaded site.",
       "Redeploy and verify in Settings → Integrations.",
+      "In App Dashboard → Settings → Basic, set Data Deletion Callback URL to https://YOUR_DOMAIN/api/facebook/data-deletion",
     ],
     docsUrl: "https://developers.facebook.com/docs/pages-api/getting-started",
   },
