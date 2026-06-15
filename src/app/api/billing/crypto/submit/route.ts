@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isValidXrpTxHash, isXrpNetwork } from "@/lib/billing";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -20,6 +21,14 @@ export async function POST(request: Request) {
   }
 
   const cleanTx = txHash.trim();
+  const networkName = network || "xrp";
+
+  if (isXrpNetwork(networkName) && !isValidXrpTxHash(cleanTx)) {
+    return NextResponse.json(
+      { error: "Invalid XRPL transaction hash (expected 64 hex characters)" },
+      { status: 400 },
+    );
+  }
 
   try {
     const payment = await prisma.payment.findUnique({

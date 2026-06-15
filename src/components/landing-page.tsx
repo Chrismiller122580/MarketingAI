@@ -291,7 +291,7 @@ export function LandingPage() {
           <div className="mx-auto max-w-5xl">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Simple, crypto-powered pricing</h2>
-              <p className="mt-3 text-slate-600 dark:text-slate-400">Pay with USDC. Upgrade instantly. No credit card required.</p>
+              <p className="mt-3 text-slate-600 dark:text-slate-400">Pay with XRP. Connect your wallet and upgrade instantly.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {[
@@ -315,7 +315,7 @@ export function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="text-center text-xs mt-6 text-slate-500">Billed in USDC on Base. Plans managed in your Billing page after signup.</p>
+            <p className="text-center text-xs mt-6 text-slate-500">Billed in XRP on XRPL. Plans managed in your Billing page after signup.</p>
           </div>
         </section>
 

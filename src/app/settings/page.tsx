@@ -14,7 +14,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Billing &amp; Payments</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">View your plan, upgrade with crypto (USDC), and see payment history.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">View your plan, upgrade with XRP, and see payment history.</p>
             </div>
             <Link
               href="/billing"

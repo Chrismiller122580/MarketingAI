@@ -34,7 +34,7 @@ export async function GET() {
       prisma.payment.count({ where: { status: "confirmed" } }),
       prisma.payment.aggregate({
         _sum: { amount: true },
-        where: { status: "confirmed", currency: "USDC" },
+        where: { status: "confirmed" },
       }),
       prisma.user.count({ where: { OR: [{ plan: "pro" }, { plan: "enterprise" }] } }),
       prisma.user.findMany({

@@ -1,22 +1,29 @@
 // Crypto billing configuration for crawlspark.ai
-// Prices are in the smallest unit of the currency (USDC has 6 decimals, but we store as Decimal(10,2) for simplicity and display dollars).
+// XRP on XRPL Ledger (default). Legacy USDC on Base/Ethereum still supported via env.
 
-export const SUPPORTED_NETWORKS = ["base", "ethereum"] as const;
+export const SUPPORTED_NETWORKS = ["xrp", "base", "ethereum"] as const;
 export type CryptoNetwork = (typeof SUPPORTED_NETWORKS)[number];
+
+const DEFAULT_NETWORK = (process.env.NEXT_PUBLIC_CRYPTO_NETWORK ?? "xrp") as CryptoNetwork;
+const DEFAULT_CURRENCY =
+  process.env.NEXT_PUBLIC_CRYPTO_CURRENCY ??
+  (DEFAULT_NETWORK === "xrp" ? "XRP" : "USDC");
+
+const DEFAULT_XRP_RECEIVER = "rNBYkS1ZHSekLLoFHGAvbTtgAaXXi9Fm71";
 
 export const PRICING = {
   pro: {
     amount: Number(process.env.CRYPTO_PRICE_PRO ?? 29),
-    currency: "USDC",
-    network: (process.env.NEXT_PUBLIC_CRYPTO_NETWORK ?? "base") as CryptoNetwork,
+    currency: DEFAULT_CURRENCY,
+    network: DEFAULT_NETWORK,
     label: "Pro",
     description: "Unlimited generations, priority support, advanced features",
     monthly: true,
   },
   enterprise: {
     amount: Number(process.env.CRYPTO_PRICE_ENTERPRISE ?? 99),
-    currency: "USDC",
-    network: (process.env.NEXT_PUBLIC_CRYPTO_NETWORK ?? "base") as CryptoNetwork,
+    currency: DEFAULT_CURRENCY,
+    network: DEFAULT_NETWORK,
     label: "Enterprise",
     description: "Everything in Pro + custom brand training, API access, dedicated support",
     monthly: true,
@@ -25,26 +32,51 @@ export const PRICING = {
 
 export type PlanKey = keyof typeof PRICING;
 
-export function getReceiverAddress(): string {
-  // Prefer public env so it can be shown on client
-  return (
-    process.env.NEXT_PUBLIC_CRYPTO_RECEIVER_ADDRESS ||
-    "0x0000000000000000000000000000000000000000" // placeholder - replace in .env
-  );
+export function isXrpNetwork(network?: string): boolean {
+  return network === "xrp" || network === "xrpl";
 }
 
-export function getNetworkLabel(network: CryptoNetwork): string {
+export function getReceiverAddress(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_CRYPTO_RECEIVER_ADDRESS?.trim();
+  if (fromEnv) return fromEnv;
+
+  if (DEFAULT_NETWORK === "xrp") return DEFAULT_XRP_RECEIVER;
+
+  const placeholder = "0x0000000000000000000000000000000000000000";
+  if (typeof console !== "undefined") {
+    console.warn(
+      "CRITICAL: NEXT_PUBLIC_CRYPTO_RECEIVER_ADDRESS is not set (using placeholder).",
+    );
+  }
+  return placeholder;
+}
+
+export function getNetworkLabel(network: CryptoNetwork | string): string {
+  if (network === "xrp" || network === "xrpl") return "XRP Ledger";
   if (network === "base") return "Base";
   if (network === "ethereum") return "Ethereum";
   return network;
 }
 
-export function getExplorerTxUrl(network: CryptoNetwork, txHash: string): string {
+export function getExplorerTxUrl(network: CryptoNetwork | string, txHash: string): string {
+  if (isXrpNetwork(network)) {
+    const hash = txHash.toUpperCase();
+    return `https://livenet.xrpl.org/transactions/${hash}`;
+  }
+
   const hash = txHash.startsWith("0x") ? txHash : `0x${txHash}`;
   if (network === "base") {
     return `https://basescan.org/tx/${hash}`;
   }
   return `https://etherscan.io/tx/${hash}`;
+}
+
+export function isValidXrpAddress(address: string): boolean {
+  return /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(address);
+}
+
+export function isValidXrpTxHash(hash: string): boolean {
+  return /^[A-Fa-f0-9]{64}$/.test(hash.trim());
 }
 
 export function generateReference(userId: string, plan: string): string {

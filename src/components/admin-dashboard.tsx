@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { AdminUserManagement } from "./admin-user-management";
+import { getExplorerTxUrl } from "@/lib/billing";
 
 type AdminStats = {
   totals: { users: number; posts: number; sites: number; packs: number; published: number };
@@ -125,7 +126,7 @@ export function AdminDashboard() {
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Crypto Payments (USDC)</p>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Crypto Payments (XRP)</p>
             <div className="mt-1 flex items-baseline gap-4 text-lg">
               <div><span className="font-bold">${stats.snapshot.payments.totalRevenueUSDC}</span> revenue</div>
               <div>Pending: <span className="font-semibold text-amber-600">{stats.snapshot.payments.pending}</span></div>
@@ -195,7 +196,16 @@ export function AdminDashboard() {
                       <td className="py-1.5 pr-2">
                         {p.user?.email}<br />
                         <span className="font-mono text-[10px] text-slate-500">{p.reference}</span>
-                        {p.txHash && <a href={`https://basescan.org/tx/${p.txHash}`} target="_blank" className="ml-1 text-[10px] underline">tx</a>}
+                        {p.txHash && (
+                          <a
+                            href={getExplorerTxUrl(p.network ?? "xrp", p.txHash)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-1 text-[10px] underline"
+                          >
+                            tx
+                          </a>
+                        )}
                       </td>
                       <td className="py-1.5 pr-2">{p.plan}</td>
                       <td className="py-1.5 pr-2 tabular-nums">{p.amount} {p.currency}</td>
@@ -228,7 +238,7 @@ export function AdminDashboard() {
               </tbody>
             </table>
           </div>
-          <p className="mt-2 text-[10px] text-slate-500">Approving sets plan + 30-day active subscription. Verify tx on Basescan/Etherscan first.</p>
+          <p className="mt-2 text-[10px] text-slate-500">Approving sets plan + 30-day active subscription. Verify tx on XRPL explorer first.</p>
         </div>
       </div>
     </div>

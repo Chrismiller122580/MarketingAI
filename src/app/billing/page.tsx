@@ -9,7 +9,7 @@ export default function BillingPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Billing &amp; Payments</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Manage your subscription and view crypto payment history. Pay with USDC on Base or Ethereum.
+            Manage your subscription and view crypto payment history. Pay with XRP via Crossmark or Gem Wallet.
           </p>
         </div>
 
@@ -18,9 +18,9 @@ export default function BillingPage() {
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-600 dark:text-slate-400 shadow-sm">
           <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">How crypto billing works</h3>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Choose Pro or Enterprise and click “Pay with USDC”.</li>
-            <li>Send the exact amount to the displayed address on the chosen network (Base recommended).</li>
-            <li>After the transaction confirms, paste the tx hash and submit.</li>
+            <li>Choose Pro or Enterprise and click “Pay with XRP”.</li>
+            <li>Connect Crossmark or Gem Wallet and pay in one click, or send manually to the displayed address.</li>
+            <li>After the transaction confirms, the tx hash is auto-submitted (or paste it manually).</li>
             <li>An admin will verify on-chain and activate/renew your plan (usually within hours).</li>
             <li>Your current plan and end date are shown above. Renew before expiry to keep access.</li>
           </ul>
