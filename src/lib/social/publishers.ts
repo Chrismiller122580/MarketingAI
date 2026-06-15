@@ -8,6 +8,7 @@ type PublishContext = {
   twitterAccessToken?: string;
   linkedinAccessToken?: string;
   facebookAccessToken?: string;
+  facebookPageId?: string;
   // Extend for instagram, pinterest as needed
 };
 
@@ -154,7 +155,7 @@ async function publishLinkedIn(ctx: PublishContext): Promise<PublishResult> {
 
 async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
   const token = ctx.facebookAccessToken || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-  const pageId = process.env.FACEBOOK_PAGE_ID;
+  const pageId = ctx.facebookPageId || process.env.FACEBOOK_PAGE_ID;
 
   if (!token || !pageId) {
     return {

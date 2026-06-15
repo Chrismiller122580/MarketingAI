@@ -160,6 +160,33 @@ function productDescription(site: SiteData, page: SitePage): string {
   );
 }
 
+function videoAd(
+  site: SiteData,
+  page: SitePage,
+  platform: Platform,
+  prompt: string,
+  settings: UserSettings,
+): string {
+  const h = hook(page, site.brand);
+  const body = page.description || page.excerpt.slice(0, 120);
+  const cta = `→ ${site.domain}${page.path === "/" ? "" : page.path}`;
+  const prefix = emojiPrefix(settings.emojiStyle, platform);
+
+  let script = `${prefix}${h}\n\n${body}`;
+  if (settings.targetAudience) {
+    script += `\n\nFor ${settings.targetAudience}.`;
+  }
+  if (prompt) script += `\n\n${prompt}`;
+  script += `\n\n${cta}`;
+
+  const hashtags = buildHashtags(site, page, prompt, settings);
+  if (hashtags.length > 0) {
+    script += `\n\n${hashtags.join(" ")}`;
+  }
+
+  return truncate(script, PLATFORM_LIMITS[platform]);
+}
+
 const generators: Record<
   ContentType,
   (
@@ -177,6 +204,7 @@ const generators: Record<
   "Blog Intro": blogIntro,
   "Product Description": (site, page, _platform, _prompt, _settings) =>
     productDescription(site, page),
+  "Video Ad": videoAd,
 };
 
 function buildInsights(
@@ -270,12 +298,20 @@ export async function generateSmartPost(
   const hashtags = buildHashtags(site, page, prompt, settings);
 
   const context = `${page.title} ${page.description} ${prompt}`;
+  const isVideoAd = contentType === "Video Ad";
   const preferAi =
-    request.preferAiImage ?? settings.preferAiImages ?? false;
+    isVideoAd || (request.preferAiImage ?? settings.preferAiImages ?? false);
   const image = await resolveImage(site, page, platform, context, preferAi);
 
   const aiEnhanced = await tryAiEnhancement(request, text, page, settings);
   const finalText = aiEnhanced ?? text;
+
+  const insights = buildInsights(site, page, image.source, platform, settings);
+  if (isVideoAd) {
+    insights.push(
+      "AI video ad — short-form vertical/horizontal creative generated from your brand.",
+    );
+  }
 
   return {
     text: finalText,
@@ -284,7 +320,7 @@ export async function generateSmartPost(
     platform,
     contentType,
     image,
-    insights: buildInsights(site, page, image.source, platform, settings),
+    insights,
     sourcePage: page.path,
     characterCount: finalText.length,
     createdAt: new Date().toISOString(),

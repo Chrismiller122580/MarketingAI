@@ -44,9 +44,9 @@ async function main() {
 
   console.log("Admin user ready:");
   console.log(`  Email:    ${email}`);
-  console.log(`  Password: ${password}`);
   console.log(`  Role:     ${admin.role}`);
   console.log(`  ID:       ${admin.id}`);
+  console.log("  (Password was set/updated from ADMIN_PASSWORD or default; never logged here for security.)");
 }
 
 main()

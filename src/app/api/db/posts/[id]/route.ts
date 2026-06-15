@@ -4,7 +4,6 @@ import { postToSaved } from "@/lib/db-mappers";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { auth } from "@/auth";
 import { publishPost as publishToSocial } from "@/lib/social/publishers";
-import type { PublishResult } from "@/lib/types";
 
 async function getOwnedPost(id: string, userId: string) {
   return prisma.post.findFirst({ where: { id, userId } });
@@ -35,6 +34,7 @@ export async function PATCH(
         ...(body.publishStatus && { publishStatus: body.publishStatus }),
         ...(body.publishedAt && { publishedAt: new Date(body.publishedAt) }),
         ...(body.publishUrl !== undefined && { publishUrl: body.publishUrl }),
+        ...(body.image !== undefined && { image: body.image }),
       },
     });
 
@@ -83,7 +83,7 @@ export async function POST(
 
     // Try to get per-user Twitter token from the current session (if user signed in with X)
     const session = await auth();
-    const twitterAccessToken = (session?.user as any)?.twitterAccessToken;
+    const twitterAccessToken = (session?.user as Record<string, unknown>)?.twitterAccessToken as string | undefined;
 
     // Per-site social tokens take priority (for the specific domain/client)
     const siteSocial = post.siteId
@@ -92,11 +92,14 @@ export async function POST(
         })
       : null;
 
-    const extraCtx: any = {};
+    const extraCtx: Record<string, string> = {};
     if (siteSocial?.accessToken) {
       if (post.platform === "twitter") extraCtx.twitterAccessToken = siteSocial.accessToken;
       if (post.platform === "linkedin") extraCtx.linkedinAccessToken = siteSocial.accessToken;
-      if (post.platform === "facebook") extraCtx.facebookAccessToken = siteSocial.accessToken;
+      if (post.platform === "facebook") {
+        extraCtx.facebookAccessToken = siteSocial.accessToken;
+        if (siteSocial.accountId) extraCtx.facebookPageId = siteSocial.accountId;
+      }
       // instagram/pinterest can be added similarly
     } else if (twitterAccessToken && post.platform === "twitter") {
       extraCtx.twitterAccessToken = twitterAccessToken;

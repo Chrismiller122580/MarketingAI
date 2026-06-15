@@ -49,7 +49,22 @@ export type ContentType =
   | "Email Copy"
   | "Ad Headline"
   | "Blog Intro"
-  | "Product Description";
+  | "Product Description"
+  | "Video Ad";
+
+export type VideoAspectRatio = "9:16" | "16:9" | "1:1";
+
+export type PostMedia = {
+  url: string;
+  source: "site" | "branded" | "ai";
+  alt: string;
+  originalUrl?: string;
+  videoUrl?: string;
+  videoStatus?: "processing" | "ready" | "failed";
+  videoJobId?: string;
+  durationSec?: number;
+  aspectRatio?: VideoAspectRatio;
+};
 
 export type PublishStatus = "draft" | "scheduled" | "published" | "failed";
 
@@ -70,12 +85,7 @@ export type GeneratedPost = {
   cta: string;
   platform: Platform;
   contentType: ContentType;
-  image: {
-    url: string;
-    source: "site" | "branded" | "ai";
-    alt: string;
-    originalUrl?: string;
-  };
+  image: PostMedia;
   insights: string[];
   sourcePage?: string;
   characterCount: number;
@@ -105,6 +115,16 @@ export type GenerateRequest = {
   sourcePageUrl?: string;
   settings?: UserSettings;
   preferAiImage?: boolean;
+  videoDuration?: 5 | 10;
+};
+
+export type VideoJobStatus = {
+  jobId: string;
+  status: "processing" | "ready" | "failed";
+  videoUrl?: string;
+  error?: string;
+  prompt?: string;
+  aspectRatio?: VideoAspectRatio;
 };
 
 export type BatchGenerateRequest = {

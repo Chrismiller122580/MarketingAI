@@ -7,6 +7,10 @@ import { prisma } from "@/lib/db";
 const authSecret =
   process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
+// Loose typing helpers to avoid `any` while supporting extended NextAuth JWT/session fields
+type ExtToken = Record<string, unknown>;
+type ExtUser = Record<string, unknown>;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: authSecret,
   trustHost: true,
@@ -81,9 +85,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       type: "oauth",
       clientId: process.env.FACEBOOK_CLIENT_ID,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-      authorization: "https://www.facebook.com/v10.0/dialog/oauth?scope=pages_manage_posts,pages_read_engagement",
-      token: "https://graph.facebook.com/v10.0/oauth/accessToken",
-      userinfo: "https://graph.facebook.com/me?fields=id,name,email",
+      authorization: {
+        url: "https://www.facebook.com/v19.0/dialog/oauth",
+        params: {
+          scope: "pages_show_list,pages_manage_posts,pages_read_engagement",
+        },
+      },
+      token: "https://graph.facebook.com/v19.0/oauth/access_token",
+      userinfo: "https://graph.facebook.com/v19.0/me?fields=id,name,email",
       profile(profile) {
         return {
           id: profile.id,
@@ -99,22 +108,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user?.role) token.role = user.role as string;
 
       // Propagate subscription fields
-      if ((user as any)?.plan) token.plan = (user as any).plan;
-      if ((user as any)?.subscriptionStatus !== undefined) token.subscriptionStatus = (user as any).subscriptionStatus;
-      if ((user as any)?.subscriptionEndsAt !== undefined) token.subscriptionEndsAt = (user as any).subscriptionEndsAt;
+      const u = (user ?? {}) as unknown as ExtUser;
+      if (u.plan) (token as ExtToken).plan = u.plan;
+      if (u.subscriptionStatus !== undefined) (token as ExtToken).subscriptionStatus = u.subscriptionStatus;
+      if (u.subscriptionEndsAt !== undefined) (token as ExtToken).subscriptionEndsAt = u.subscriptionEndsAt;
 
       // Store OAuth tokens for social platforms (per user, will be linked to specific sites)
       if (account?.provider === "twitter") {
-        token.twitterAccessToken = account.access_token;
-        token.twitterRefreshToken = account.refresh_token;
+        (token as ExtToken).twitterAccessToken = account.access_token;
+        (token as ExtToken).twitterRefreshToken = account.refresh_token;
       }
       if (account?.provider === "linkedin") {
-        (token as any).linkedinAccessToken = account.access_token;
-        (token as any).linkedinRefreshToken = account.refresh_token;
+        (token as ExtToken).linkedinAccessToken = account.access_token;
+        (token as ExtToken).linkedinRefreshToken = account.refresh_token;
       }
       if (account?.provider === "facebook") {
-        (token as any).facebookAccessToken = account.access_token;
-        (token as any).facebookRefreshToken = account.refresh_token;
+        (token as ExtToken).facebookAccessToken = account.access_token;
+        (token as ExtToken).facebookRefreshToken = account.refresh_token;
       }
 
       return token;
@@ -123,14 +133,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token.id) {
         session.user.id = token.id as string;
         session.user.role = (token.role as string) ?? "user";
-        (session.user as any).plan = (token.plan as string) ?? "free";
-        (session.user as any).subscriptionStatus = (token.subscriptionStatus as string) ?? null;
-        (session.user as any).subscriptionEndsAt = token.subscriptionEndsAt as string | null | undefined;
+        const su = (session.user ?? {}) as unknown as ExtUser;
+        const tt = token as ExtToken;
+        su.plan = (tt.plan as string) ?? "free";
+        su.subscriptionStatus = (tt.subscriptionStatus as string) ?? null;
+        su.subscriptionEndsAt = tt.subscriptionEndsAt as string | null | undefined;
 
         // Expose social tokens on session (used for linking to specific sites)
-        (session.user as any).twitterAccessToken = (token as any).twitterAccessToken;
-        (session.user as any).linkedinAccessToken = (token as any).linkedinAccessToken;
-        (session.user as any).facebookAccessToken = (token as any).facebookAccessToken;
+        su.twitterAccessToken = tt.twitterAccessToken;
+        su.linkedinAccessToken = tt.linkedinAccessToken;
+        su.facebookAccessToken = tt.facebookAccessToken;
       }
       return session;
     },

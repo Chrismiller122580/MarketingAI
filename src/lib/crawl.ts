@@ -7,6 +7,31 @@ import type { SiteData, SitePage } from "./types";
 const MAX_PAGES = 25;
 const FETCH_TIMEOUT_MS = 10_000;
 
+async function isAllowedByRobots(origin: string, path: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${origin}/robots.txt`, {
+      headers: { "User-Agent": "CrawlSpark-Crawler/1.0" },
+      redirect: "follow",
+    });
+    if (!res.ok) return true; // absence of robots.txt means allowed
+    const txt = await res.text();
+    for (const raw of txt.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line.startsWith("#")) continue;
+      const m = line.match(/^Disallow:\s*(\S*)/i);
+      if (m) {
+        const rule = m[1] || "";
+        if (rule === "/" || (rule && path.startsWith(rule))) {
+          return false;
+        }
+      }
+    }
+    return true;
+  } catch {
+    return true; // on error, be permissive but log would be ideal in prod
+  }
+}
+
 const SKIP_EXTENSIONS = new Set([
   ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp",
   ".css", ".js", ".zip", ".mp4", ".mp3", ".woff", ".woff2",
@@ -153,11 +178,13 @@ export async function crawlDomain(domainInput: string): Promise<SiteData> {
     const nextUrl = queue.shift();
     if (!nextUrl || visited.has(nextUrl)) continue;
 
+    const pageUrl = new URL(nextUrl);
+    if (!(await isAllowedByRobots(origin, pageUrl.pathname))) continue;
+
     visited.add(nextUrl);
 
     try {
       const html = await fetchPage(nextUrl);
-      const pageUrl = new URL(nextUrl);
 
       if (!themeColor) themeColor = extractThemeColor(html);
 

@@ -22,13 +22,28 @@ function PostCard({
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
       <div className="relative aspect-video bg-slate-100 dark:bg-slate-800">
-        <Image
-          src={post.image.url}
-          alt={post.image.alt}
-          fill
-          unoptimized
-          className="object-cover"
-        />
+        {post.image.videoUrl ? (
+          <video
+            src={post.image.videoUrl}
+            className="h-full w-full object-cover"
+            muted
+            playsInline
+            poster={post.image.url}
+          />
+        ) : (
+          <Image
+            src={post.image.url}
+            alt={post.image.alt}
+            fill
+            unoptimized
+            className="object-cover"
+          />
+        )}
+        {post.contentType === "Video Ad" && (
+          <span className="absolute left-2 top-2 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white">
+            Video
+          </span>
+        )}
         <span
           className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-medium ${statusColors[post.publishStatus ?? "draft"]}`}
         >
@@ -53,14 +68,25 @@ function PostCard({
           >
             Copy
           </button>
-          <a
-            href={post.image.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-medium text-amber-600 hover:text-amber-700"
-          >
-            Image
-          </a>
+          {post.image.videoUrl ? (
+            <a
+              href={post.image.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-amber-600 hover:text-amber-700"
+            >
+              Video
+            </a>
+          ) : (
+            <a
+              href={post.image.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-amber-600 hover:text-amber-700"
+            >
+              Image
+            </a>
+          )}
           <button
             type="button"
             onClick={onDelete}

@@ -45,7 +45,7 @@ export default function TermsOfService() {
 
         <div className="prose prose-slate dark:prose-invert max-w-none text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">
           <p>
-            These Terms of Service ("Terms") govern your access to and use of the crawlspark.ai website and platform (the "Service") operated by crawlspark.ai ("Company", "we", "us", or "our"). By accessing or using the Service, you agree to be bound by these Terms.
+            These Terms of Service (&quot;Terms&quot;) govern your access to and use of the crawlspark.ai website and platform (the &quot;Service&quot;) operated by crawlspark.ai (&quot;Company&quot;, &quot;we&quot;, &quot;us&quot;, or &quot;our&quot;). By accessing or using the Service, you agree to be bound by these Terms.
           </p>
 
           <h2>1. Acceptance of Terms</h2>
@@ -76,7 +76,7 @@ export default function TermsOfService() {
 
           <h2>4. Your Content and License Grant</h2>
           <p>
-            <strong>Ownership:</strong> You retain ownership of all content you submit to the Service (including website domains you provide for crawling) and all content you generate or edit using the Service ("Your Content").
+            <strong>Ownership:</strong> You retain ownership of all content you submit to the Service (including website domains you provide for crawling) and all content you generate or edit using the Service (&quot;Your Content&quot;).
           </p>
           <p>
             <strong>License to Us:</strong> By using the Service, you grant us a worldwide, non-exclusive, royalty-free license to host, store, process, display, and use Your Content solely as necessary to provide, maintain, and improve the Service. This includes crawling websites you designate and using that data to generate marketing content.
@@ -101,7 +101,7 @@ export default function TermsOfService() {
 
           <h2>6. Intellectual Property</h2>
           <p>
-            The Service, including all software, designs, text, graphics, and the "crawlspark.ai" name and logo, are owned by us or our licensors. Except for the limited license granted above for Your Content, these Terms do not grant you any rights to our intellectual property.
+            The Service, including all software, designs, text, graphics, and the &quot;crawlspark.ai&quot; name and logo, are owned by us or our licensors. Except for the limited license granted above for Your Content, these Terms do not grant you any rights to our intellectual property.
           </p>
 
           <h2>7. Payments and Subscriptions</h2>
@@ -130,7 +130,7 @@ export default function TermsOfService() {
 
           <h2>10. Disclaimers</h2>
           <p>
-            THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+            THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
           </p>
           <p>
             We do not guarantee that the Service will be uninterrupted, secure, or error-free, or that results from using the Service (including AI outputs or publishing success) will meet your expectations.
@@ -146,7 +146,7 @@ export default function TermsOfService() {
 
           <h2>12. Indemnification</h2>
           <p>
-            You agree to indemnify, defend, and hold harmless crawlspark.ai and its affiliates from and against any claims, liabilities, damages, losses, and expenses (including reasonable attorneys' fees) arising out of or related to your use of the Service, Your Content, or violation of these Terms.
+            You agree to indemnify, defend, and hold harmless crawlspark.ai and its affiliates from and against any claims, liabilities, damages, losses, and expenses (including reasonable attorneys&apos; fees) arising out of or related to your use of the Service, Your Content, or violation of these Terms.
           </p>
 
           <h2>13. Governing Law and Dispute Resolution</h2>

@@ -10,9 +10,11 @@ type StatusResponse = {
   connections: SocialConnectionStatus[];
   connectedCount: number;
   aiImageAvailable: boolean;
+  aiVideoAvailable: boolean;
   aiCopyAvailable: boolean;
   aiCopyProvider: "openai" | "xai" | null;
   aiImageProvider: "openai" | "xai" | null;
+  aiVideoProvider: "replicate" | null;
   twitterOAuthEnabled?: boolean;
   twitterBearerOnly?: boolean;
   guides: IntegrationGuide[];
@@ -136,7 +138,7 @@ export function SocialConnections() {
           Add API keys as environment variables in Vercel (or <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">.env</code> locally), then redeploy.
         </p>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
           <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
             <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               {status?.connectedCount ?? 0}/{status?.connections.length ?? 5}
@@ -154,6 +156,12 @@ export function SocialConnections() {
               {status?.aiImageAvailable ? "✓" : "—"}
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">AI images</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              {status?.aiVideoAvailable ? "✓" : "—"}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">AI video</p>
           </div>
           <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
             <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -179,8 +187,9 @@ export function SocialConnections() {
             </button>
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Set <strong>one or both</strong> — copy: {providerLabel(status?.aiCopyProvider ?? null)},
-            images: {providerLabel(status?.aiImageProvider ?? null)}
+            Set API keys as needed — copy: {providerLabel(status?.aiCopyProvider ?? null)},
+            images: {providerLabel(status?.aiImageProvider ?? null)},
+            video: {status?.aiVideoAvailable ? "Replicate" : "Not configured"}
           </p>
           <div className="mt-4 space-y-2">
             {aiGuides.map((guide) => (
@@ -191,8 +200,10 @@ export function SocialConnections() {
                   guide.id === "openai"
                     ? status?.aiCopyProvider === "openai" ||
                       status?.aiImageProvider === "openai"
-                    : status?.aiCopyProvider === "xai" ||
-                      status?.aiImageProvider === "xai"
+                    : guide.id === "replicate"
+                      ? !!status?.aiVideoAvailable
+                      : status?.aiCopyProvider === "xai" ||
+                        status?.aiImageProvider === "xai"
                 }
               />
             ))}
@@ -298,6 +309,12 @@ export function SocialConnections() {
                   {(status?.aiCopyProvider === "xai" || status?.aiImageProvider === "xai") ? "Active" : "Not active"}
                 </span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-700 dark:text-slate-300">REPLICATE_API_TOKEN</span>
+                <span className={status?.aiVideoAvailable ? "font-medium text-emerald-600" : "text-slate-400 dark:text-slate-500"}>
+                  {status?.aiVideoAvailable ? "Active" : "Not active"}
+                </span>
+              </div>
 
               {/* Social — uses the live connections data (already handles bearer-only labels) */}
               {status?.connections?.map((c) => (
@@ -329,6 +346,8 @@ LINKEDIN_AUTHOR_URN=
 
 FACEBOOK_PAGE_ACCESS_TOKEN=
 FACEBOOK_PAGE_ID=
+FACEBOOK_CLIENT_ID=
+FACEBOOK_CLIENT_SECRET=
 
 INSTAGRAM_ACCESS_TOKEN=
 INSTAGRAM_ACCOUNT_ID=

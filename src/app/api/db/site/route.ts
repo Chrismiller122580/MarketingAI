@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       const sites = rows.map((r) => ({
         domain: r.domain,
         crawledAt: r.crawledAt.toISOString(),
-        brandName: (r.brand as any)?.name || r.domain,
+        brandName: ((r.brand as Record<string, unknown>)?.name as string) || r.domain,
         pages: Array.isArray(r.pages) ? r.pages.length : 0,
         images: Array.isArray(r.images) ? r.images.length : 0,
       }));

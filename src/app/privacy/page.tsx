@@ -45,7 +45,7 @@ export default function PrivacyPolicy() {
 
         <div className="prose prose-slate dark:prose-invert max-w-none text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">
           <p>
-            crawlspark.ai ("we", "us", or "our") respects your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and AI-powered marketing platform (the "Service").
+            crawlspark.ai (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) respects your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and AI-powered marketing platform (the &quot;Service&quot;).
           </p>
 
           <h2>1. Information We Collect</h2>
@@ -111,7 +111,7 @@ export default function PrivacyPolicy() {
           <ul>
             <li>Access the personal data we hold about you.</li>
             <li>Request correction of inaccurate data.</li>
-            <li>Request deletion of your data ("right to be forgotten").</li>
+            <li>Request deletion of your data (&quot;right to be forgotten&quot;).</li>
             <li>Request a copy of your data in a portable format.</li>
             <li>Object to or restrict certain processing.</li>
             <li>Withdraw consent where processing is based on consent.</li>
@@ -121,14 +121,14 @@ export default function PrivacyPolicy() {
           <h2>7. Cookies and Tracking</h2>
           <p>We use essential cookies for authentication and session management. We may use basic analytics cookies to understand usage. You can control cookies through your browser settings. Our Service does not use third-party advertising cookies.</p>
 
-          <h2>8. Children's Privacy</h2>
+          <h2>8. Children&apos;s Privacy</h2>
           <p>Our Service is not directed to children under 13 (or the applicable age in your jurisdiction). We do not knowingly collect personal information from children. If you believe we have collected such data, please contact us immediately.</p>
 
           <h2>9. International Data Transfers</h2>
           <p>Your information may be transferred to and processed in the United States and other countries where our service providers operate. We take steps to ensure adequate protection for your data in accordance with this policy and applicable law.</p>
 
           <h2>10. Changes to This Policy</h2>
-          <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the new policy on this page and updating the "Last updated" date. Your continued use of the Service after changes constitutes acceptance of the updated policy.</p>
+          <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the new policy on this page and updating the &quot;Last updated&quot; date. Your continued use of the Service after changes constitutes acceptance of the updated policy.</p>
 
           <h2>11. Contact Us</h2>
           <p>If you have questions, concerns, or requests regarding this Privacy Policy or your data, please contact us at:</p>

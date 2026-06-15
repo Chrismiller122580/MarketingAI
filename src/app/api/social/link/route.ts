@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { resolveFacebookPageToken } from "@/lib/social/facebook";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -13,7 +14,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { platform, siteDomain } = await request.json();
+    const body = await request.json();
+    const { platform, siteDomain, pageId: preferredPageId } = body as {
+      platform?: string;
+      siteDomain?: string;
+      pageId?: string;
+    };
 
     if (!platform || !siteDomain) {
       return NextResponse.json({ error: "platform and siteDomain required" }, { status: 400 });
@@ -36,22 +42,38 @@ export async function POST(request: Request) {
     let refreshToken: string | undefined;
     let accountId: string | undefined;
 
-    if (platform === "twitter" && (session.user as any).twitterAccessToken) {
-      accessToken = (session.user as any).twitterAccessToken;
+    const su = session.user as Record<string, unknown>;
+    if (platform === "twitter" && su.twitterAccessToken) {
+      accessToken = su.twitterAccessToken as string | undefined;
       // For Twitter, we can try to get the user id from the token or session if available
       // For simplicity, we can fetch it or store later
-    } else if (platform === "linkedin" && (session.user as any).linkedinAccessToken) {
-      accessToken = (session.user as any).linkedinAccessToken;
-    } else if (platform === "facebook" && (session.user as any).facebookAccessToken) {
-      accessToken = (session.user as any).facebookAccessToken;
+    } else if (platform === "linkedin" && su.linkedinAccessToken) {
+      accessToken = su.linkedinAccessToken as string | undefined;
+    } else if (platform === "facebook" && su.facebookAccessToken) {
+      accessToken = su.facebookAccessToken as string | undefined;
     }
 
     if (!accessToken) {
       return NextResponse.json({ error: `No ${platform} token found in your session. Please connect via OAuth first.` }, { status: 400 });
     }
 
-    // For Twitter we already set it in auth
-    // For others, the providers we added should populate similar fields if configured correctly in session callback.
+    if (platform === "facebook") {
+      const page = await resolveFacebookPageToken(
+        accessToken,
+        preferredPageId,
+      );
+      if (!page) {
+        return NextResponse.json(
+          {
+            error:
+              "No Facebook Pages found for this account. Ensure you are an admin of a Page and granted pages_show_list permission.",
+          },
+          { status: 400 },
+        );
+      }
+      accessToken = page.accessToken;
+      accountId = page.id;
+    }
 
     // Upsert the connection for this site
     const connection = await prisma.siteSocialConnection.upsert({

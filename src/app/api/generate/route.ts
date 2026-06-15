@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateSmartPost } from "@/lib/smart-generator";
+import { startVideoGeneration } from "@/lib/video-generator";
 import type { GenerateRequest } from "@/lib/types";
 import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -26,17 +27,56 @@ export async function POST(request: Request) {
       );
     }
 
+    const contentType = body.contentType ?? "Social Post";
+
     const generateRequest: GenerateRequest = {
       site: body.site,
-      contentType: body.contentType ?? "Social Post",
+      contentType,
       platform: body.platform ?? "instagram",
       prompt: body.prompt ?? "",
       sourcePageUrl: body.sourcePageUrl,
       settings: body.settings,
       preferAiImage: body.preferAiImage,
+      videoDuration: body.videoDuration,
     };
 
     const post = await generateSmartPost(generateRequest);
+
+    if (contentType === "Video Ad") {
+      const videoRl = checkRateLimit(userId as string, "video");
+      if (!videoRl.allowed) {
+        post.image = { ...post.image, videoStatus: "failed" };
+        post.insights = [
+          ...post.insights,
+          `Video rate limit exceeded. Retry in ~${videoRl.retryAfterSeconds}s.`,
+        ];
+      } else {
+        const videoResult = await startVideoGeneration(
+          userId as string,
+          body.site,
+          body.platform ?? "instagram",
+          {
+            prompt: body.prompt ?? "",
+            sourcePageUrl: body.sourcePageUrl,
+            durationSec: body.videoDuration === 10 ? 10 : 5,
+          },
+        );
+
+        if ("jobId" in videoResult) {
+          post.image = {
+            ...post.image,
+            videoStatus: "processing",
+            videoJobId: videoResult.jobId,
+            aspectRatio: videoResult.aspectRatio,
+            durationSec: videoResult.durationSec,
+          };
+        } else {
+          post.image = { ...post.image, videoStatus: "failed" };
+          post.insights = [...post.insights, videoResult.error];
+        }
+      }
+    }
+
     return NextResponse.json(post);
   } catch (error) {
     const message =

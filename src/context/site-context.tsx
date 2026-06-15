@@ -92,7 +92,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     // Trigger the OAuth flow for the platform
     // After success, a useEffect (in providers or layout) will detect the pending site
     // and call the link API with the token from session.
-    signIn(platform.toLowerCase());
+    signIn(platform.toLowerCase(), { callbackUrl: window.location.pathname });
   }, [site]);
 
   useEffect(() => {

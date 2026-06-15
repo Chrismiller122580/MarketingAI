@@ -1,7 +1,9 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import Image from "next/image";
+import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import { useSettings } from "@/context/settings-context";
 import { usePosts } from "@/context/posts-context";
@@ -16,9 +18,16 @@ const ALL_PLATFORMS: { value: Platform; label: string }[] = [
 ];
 
 export function CampaignPack() {
+  const { data: session } = useSession();
   const { site } = useSite();
   const { settings } = useSettings();
   const { savePack, savePost } = usePosts();
+
+  const su = (session?.user ?? {}) as Record<string, unknown>;
+  const userPlan = (su.plan as string) || "free";
+  const endsAtRaw = su.subscriptionEndsAt;
+  const isPaid = userPlan !== "free" && (!endsAtRaw || (() => { try { return new Date(endsAtRaw as any) > new Date(); } catch { return false; } })());
+
   const [prompt, setPrompt] = useState("");
   const [maxPosts, setMaxPosts] = useState(9);
   const [posts, setPosts] = useState<SavedPost[]>([]);
@@ -47,7 +56,12 @@ export function CampaignPack() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Batch generation failed");
+      if (!response.ok) {
+        if (response.status === 402 || data?.code === "SUBSCRIPTION_REQUIRED") {
+          throw new Error(data.error || "Paid subscription required. Upgrade at /billing.");
+        }
+        throw new Error(data.error ?? "Batch generation failed");
+      }
       setPosts(data.posts);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Batch generation failed");
@@ -141,12 +155,19 @@ export function CampaignPack() {
               />
             </div>
 
+            {!isPaid && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                Campaign packs require an active Pro or Enterprise plan.{" "}
+                <a href="/billing" className="font-semibold underline">Upgrade now</a>
+              </div>
+            )}
+
             {error && <p className="text-sm text-rose-600">{error}</p>}
 
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={loading}
+              disabled={loading || !isPaid}
               className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
             >
               {loading

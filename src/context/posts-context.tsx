@@ -12,6 +12,7 @@ import { useSite } from "./site-context";
 import type {
   CampaignPack,
   GeneratedPost,
+  PostMedia,
   PublishResult,
   SavedPost,
 } from "@/lib/types";
@@ -21,6 +22,7 @@ type PostsContextValue = {
   packs: CampaignPack[];
   loading: boolean;
   savePost: (post: GeneratedPost) => Promise<SavedPost>;
+  updatePostMedia: (id: string, image: PostMedia) => Promise<SavedPost>;
   deletePost: (id: string) => Promise<void>;
   schedulePost: (id: string, date: string | undefined) => Promise<void>;
   publishPost: (id: string) => Promise<PublishResult>;
@@ -75,6 +77,23 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
       return data.post;
     },
     [site?.domain],
+  );
+
+  const updatePostMedia = useCallback(
+    async (id: string, image: PostMedia): Promise<SavedPost> => {
+      const response = await fetch(`/api/db/posts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to update post");
+      setPosts((prev) =>
+        prev.map((p) => (p.id === id ? data.post : p)),
+      );
+      return data.post;
+    },
+    [],
   );
 
   const deletePost = useCallback(async (id: string) => {
@@ -148,6 +167,7 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
       packs,
       loading,
       savePost,
+      updatePostMedia,
       deletePost,
       schedulePost,
       publishPost: publishPostById,
@@ -161,6 +181,7 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
       packs,
       loading,
       savePost,
+      updatePostMedia,
       deletePost,
       schedulePost,
       publishPostById,

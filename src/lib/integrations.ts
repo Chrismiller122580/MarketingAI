@@ -23,6 +23,20 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     docsUrl: "https://platform.openai.com/api-keys",
   },
   {
+    id: "replicate",
+    category: "ai",
+    name: "Replicate",
+    envVars: ["REPLICATE_API_TOKEN"],
+    summary:
+      "Powers AI video ad generation (Seedance text-to-video) for short-form marketing creatives.",
+    steps: [
+      "Go to replicate.com → Account → API tokens → Create token.",
+      "Add REPLICATE_API_TOKEN to .env locally or Vercel → Settings → Environment Variables.",
+      "Redeploy on Vercel after saving. Video Ad generation in Content Studio will be enabled.",
+    ],
+    docsUrl: "https://replicate.com/account/api-tokens",
+  },
+  {
     id: "xai",
     category: "ai",
     name: "xAI (Grok)",
@@ -74,14 +88,20 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     id: "facebook",
     category: "social",
     name: "Facebook",
-    envVars: ["FACEBOOK_PAGE_ACCESS_TOKEN", "FACEBOOK_PAGE_ID"],
-    summary: "Publish to a Facebook Page via Graph API.",
+    envVars: [
+      "FACEBOOK_PAGE_ACCESS_TOKEN",
+      "FACEBOOK_PAGE_ID",
+      "FACEBOOK_CLIENT_ID",
+      "FACEBOOK_CLIENT_SECRET",
+    ],
+    summary:
+      "Publish to a Facebook Page via Graph API. Use env tokens globally, or OAuth per site.",
     steps: [
-      "Create a Meta app at developers.facebook.com with Pages API.",
-      "Connect your Facebook Page and generate a long-lived Page access token.",
-      "Copy the numeric Page ID from Page Settings → About.",
-      "Set FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID in Vercel.",
-      "Redeploy and verify in Settings.",
+      "Create a Meta app at developers.facebook.com → add Facebook Login + Pages API.",
+      "Add OAuth redirect: https://YOUR_DOMAIN/api/auth/callback/facebook",
+      "Option A (global): generate a long-lived Page access token + set FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID.",
+      "Option B (per-site): set FACEBOOK_CLIENT_ID + FACEBOOK_CLIENT_SECRET, then use Connect with Facebook on a loaded site.",
+      "Redeploy and verify in Settings → Integrations.",
     ],
     docsUrl: "https://developers.facebook.com/docs/pages-api/getting-started",
   },
@@ -141,5 +161,10 @@ export function getAiProvider(): "openai" | "xai" | null {
 export function getAiImageProvider(): "openai" | "xai" | null {
   if (process.env.OPENAI_API_KEY) return "openai";
   if (process.env.XAI_API_KEY) return "xai";
+  return null;
+}
+
+export function getAiVideoProvider(): "replicate" | null {
+  if (process.env.REPLICATE_API_TOKEN) return "replicate";
   return null;
 }
