@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseFacebookSignedRequest } from "@/lib/facebook-signed-request";
 import { processFacebookDataDeletion } from "@/lib/facebook-data-deletion";
-
-function callbackBaseUrl(): string {
-  const configured =
-    process.env.AUTH_URL ??
-    process.env.NEXTAUTH_URL ??
-    "https://www.crawlspark.ai";
-  return configured.replace(/\/$/, "");
-}
+import { getAppOrigin } from "@/lib/app-url";
 
 export async function GET() {
   const configured = !!process.env.FACEBOOK_CLIENT_SECRET;
@@ -17,7 +10,7 @@ export async function GET() {
     endpoint: "facebook-data-deletion-callback",
     method: "POST",
     configured,
-    callback_url: `${callbackBaseUrl()}/api/facebook/data-deletion`,
+    callback_url: `${getAppOrigin()}/api/facebook/data-deletion`,
     message: configured
       ? "Ready to receive Meta data deletion requests via POST signed_request."
       : "FACEBOOK_CLIENT_SECRET is not set — add it in Vercel env vars and redeploy.",

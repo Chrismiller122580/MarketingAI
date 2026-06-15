@@ -1,17 +1,10 @@
 import { prisma } from "./db";
+import { getAppOrigin } from "./app-url";
 
 export function generateDeletionConfirmationCode(): string {
   const segment = () =>
     Math.random().toString(36).slice(2, 10).toUpperCase();
   return `FB${segment()}${segment()}`;
-}
-
-export function getAppOrigin(): string {
-  return (
-    process.env.AUTH_URL ??
-    process.env.NEXTAUTH_URL ??
-    "https://www.crawlspark.ai"
-  ).replace(/\/$/, "");
 }
 
 export function buildDeletionStatusUrl(confirmationCode: string): string {

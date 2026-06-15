@@ -1,4 +1,5 @@
 import { getTwitterToken, isTwitterBearerOnly } from "../integrations";
+import { getAppOrigin } from "../app-url";
 import { publishFacebookPost } from "./facebook";
 import type { Platform, PublishResult, SavedPost } from "../types";
 
@@ -180,7 +181,7 @@ async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
       link,
       videoUrl: ctx.post.image.videoUrl,
       imageUrl: ctx.post.image.originalUrl ?? ctx.post.image.url,
-      siteOrigin: process.env.AUTH_URL ?? process.env.NEXTAUTH_URL,
+      siteOrigin: getAppOrigin(),
     });
 
     if (result.error) {
