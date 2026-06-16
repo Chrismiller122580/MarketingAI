@@ -84,7 +84,7 @@ export function Sidebar({
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
               }`}
             >
-              <Icon className="shrink-0 opacity-80" />
+              <Icon className="h-4 w-4 shrink-0 opacity-70" />
               {item.label}
             </Link>
           );

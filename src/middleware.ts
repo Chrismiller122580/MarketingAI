@@ -17,8 +17,12 @@ export default auth((req) => {
     pathname.startsWith("/api/og/") ||
     pathname.startsWith("/api/cron/") ||
     pathname === "/api/facebook/data-deletion";
+  const isPwaAsset =
+    pathname === "/manifest.webmanifest" || pathname === "/sw.js";
 
-  if (isPublicApi || isLanding || isPublicPage) return NextResponse.next();
+  if (isPublicApi || isLanding || isPublicPage || isPwaAsset) {
+    return NextResponse.next();
+  }
 
   if (!isLoggedIn && !isAuthPage) {
     if (pathname.startsWith("/api/")) {
@@ -38,6 +42,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)",
   ],
 };
