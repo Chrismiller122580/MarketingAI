@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
+import { getAppOrigin } from "./src/lib/app-url";
 
-const appOrigin =
-  process.env.AUTH_URL ??
-  process.env.NEXTAUTH_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+// Never bake VERCEL_URL — it changes per deployment and breaks OAuth redirect URIs.
+const appOrigin = getAppOrigin();
 
 const nextConfig: NextConfig = {
   env: {

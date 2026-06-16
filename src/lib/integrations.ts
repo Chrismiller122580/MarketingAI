@@ -99,7 +99,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
       "Publish to a Facebook Page via Graph API. Use env tokens globally, or OAuth per site.",
     steps: [
       "Create a Meta app at developers.facebook.com → add Facebook Login + Pages API.",
-      "Add OAuth redirect: https://www.crawlspark.ai/api/auth/callback/facebook",
+      "Facebook Login → Configurations → Valid OAuth Redirect URIs: paste https://www.crawlspark.ai/api/auth/callback/facebook in the list field, Save, then use Redirect URI Validator.",
       "Option A (global): generate a long-lived Page access token + set FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID.",
       "Option B (per-site): set FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET, and FACEBOOK_LOGIN_CONFIG_ID (from Facebook Login → Configurations), then use Connect with Facebook on a loaded site.",
       "Redeploy and verify in Settings → Integrations.",

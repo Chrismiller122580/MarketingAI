@@ -3,6 +3,12 @@ import Credentials from "next-auth/providers/credentials";
 import Twitter from "next-auth/providers/twitter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { getAppOrigin } from "@/lib/app-url";
+
+// Ensure NextAuth uses the canonical domain (not per-deployment VERCEL_URL).
+if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
+  process.env.AUTH_URL = getAppOrigin();
+}
 
 const authSecret =
   process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
