@@ -291,13 +291,13 @@ export function LandingPage() {
           <div className="mx-auto max-w-5xl">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Simple, crypto-powered pricing</h2>
-              <p className="mt-3 text-slate-600 dark:text-slate-400">Pay with XRP. Connect your wallet and upgrade instantly.</p>
+              <p className="mt-3 text-slate-600 dark:text-slate-400">Pay with XRP. Connect your wallet — verified payments activate instantly.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {[
                 { name: "Free", price: "0", features: ["Basic generations", "1 site crawl", "Community support", "Manual publishing"], cta: "Get started", href: "/signup" },
-                { name: "Pro", price: "29", features: ["Unlimited generations", "Unlimited sites", "Priority AI", "Full calendar & auto-publish", "Crypto billing"], cta: "Upgrade to Pro", href: "/signup", popular: true },
-                { name: "Enterprise", price: "99", features: ["Everything in Pro", "Team seats", "Custom AI training", "API access", "Dedicated support", "SLA"], cta: "Contact sales", href: "/signup" },
+                { name: "Pro", price: "29", features: ["Unlimited generations", "Unlimited sites", "Priority AI", "Content calendar & auto-publish", "Crypto billing"], cta: "Upgrade to Pro", href: "/signup", popular: true },
+                { name: "Enterprise", price: "99", features: ["Everything in Pro", "Priority support", "Custom onboarding", "Volume pricing", "Dedicated account manager"], cta: "Contact sales", href: "/signup" },
               ].map((tier) => (
                 <div key={tier.name} className={`card p-6 flex flex-col ${tier.popular ? 'ring-2 ring-amber-500' : ''}`}>
                   {tier.popular && <div className="text-[10px] uppercase tracking-widest text-amber-600 font-semibold mb-1">Most popular</div>}

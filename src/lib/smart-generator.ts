@@ -18,6 +18,7 @@ const PLATFORM_LIMITS: Record<Platform, number> = {
   linkedin: 3000,
   facebook: 5000,
   pinterest: 500,
+  email: 5000,
 };
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -41,7 +42,7 @@ function pickPage(site: SiteData, sourcePageUrl?: string): SitePage {
 }
 
 function emojiPrefix(style: UserSettings["emojiStyle"], platform: Platform): string {
-  if (style === "none" || platform === "linkedin") return "";
+  if (style === "none" || platform === "linkedin" || platform === "email") return "";
   if (style === "heavy") return "🚀✨ ";
   return "✨ ";
 }
@@ -294,7 +295,10 @@ export async function generateSmartPost(
   const settings = getSettings(request);
   const { site, contentType, platform, prompt = "", sourcePageUrl } = request;
   const page = pickPage(site, sourcePageUrl);
-  const text = generators[contentType](site, page, platform, prompt, settings);
+  const text =
+    platform === "email" && contentType === "Social Post"
+      ? emailCopy(site, page, platform, prompt, settings)
+      : generators[contentType](site, page, platform, prompt, settings);
   const hashtags = buildHashtags(site, page, prompt, settings);
 
   const context = `${page.title} ${page.description} ${prompt}`;

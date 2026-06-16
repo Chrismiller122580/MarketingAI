@@ -25,6 +25,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   linkedin: "bg-blue-100 text-blue-700 border-blue-200",
   facebook: "bg-crawl-100 text-crawl-700 border-crawl-100",
   pinterest: "bg-rose-100 text-rose-700 border-rose-200",
+  email: "bg-violet-100 text-violet-700 border-violet-200",
 };
 
 function DraggablePost({ post }: { post: SavedPost }) {

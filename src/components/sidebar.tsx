@@ -87,12 +87,23 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="border-t border-slate-200 dark:border-slate-800 p-4">
+      <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-800">
         <div className="rounded-lg bg-gradient-to-br from-crawl-800 to-spark-500 p-4 text-white">
           <p className="text-sm font-medium">Crawl your site</p>
           <p className="mt-1 text-xs text-spark-100">
             Spark your content — generate, schedule, and publish.
           </p>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11px] text-slate-400">
+          <Link href="/domains" className="hover:text-slate-600 dark:hover:text-slate-300" onClick={handleNavClick}>
+            Domains
+          </Link>
+          <Link href="/privacy" className="hover:text-slate-600 dark:hover:text-slate-300" onClick={handleNavClick}>
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-slate-600 dark:hover:text-slate-300" onClick={handleNavClick}>
+            Terms
+          </Link>
         </div>
       </div>
     </aside>

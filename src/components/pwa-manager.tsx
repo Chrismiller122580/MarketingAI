@@ -46,7 +46,7 @@ export function PwaManager() {
               if (newWorker) {
                 newWorker.addEventListener("statechange", () => {
                   if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                    // New content available; could toast in future
+                    window.dispatchEvent(new CustomEvent("pwa-update-available"));
                   }
                 });
               }

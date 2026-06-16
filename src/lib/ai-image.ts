@@ -6,6 +6,7 @@ const OPENAI_SIZES: Record<Platform, "1024x1024" | "1792x1024" | "1024x1792"> = 
   linkedin: "1792x1024",
   facebook: "1792x1024",
   pinterest: "1024x1792",
+  email: "1792x1024",
 };
 
 const XAI_ASPECT_RATIOS: Record<Platform, string> = {
@@ -14,6 +15,7 @@ const XAI_ASPECT_RATIOS: Record<Platform, string> = {
   linkedin: "16:9",
   facebook: "16:9",
   pinterest: "9:16",
+  email: "16:9",
 };
 
 function buildImagePrompt(

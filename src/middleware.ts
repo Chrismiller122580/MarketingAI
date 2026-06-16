@@ -15,6 +15,7 @@ export default auth((req) => {
   const isPublicApi =
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/og/") ||
+    pathname.startsWith("/api/cron/") ||
     pathname === "/api/facebook/data-deletion";
 
   if (isPublicApi || isLanding || isPublicPage) return NextResponse.next();

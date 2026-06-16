@@ -49,56 +49,52 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const page = pageTitles[pathname] ?? pageTitles["/dashboard"];
 
   return (
-    <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-3 md:px-8">
-      <div className="flex min-w-0 items-center gap-2">
-        {/* Mobile hamburger */}
-        {onMenuClick && (
-          <button
-            type="button"
-            onClick={onMenuClick}
-            className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-            aria-label="Open navigation menu"
-            aria-expanded="false"
-          >
-            ☰
-          </button>
-        )}
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 md:text-xl truncate">{page.title}</h1>
-          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 truncate">
-            {site ? (
-              <>
-                Active site:{" "}
-                <span className="font-medium text-amber-600">{site.domain}</span>
-                {" · "}
-                {site.pages.length} pages
-              </>
-            ) : (
-              page.subtitle
-            )}
-          </p>
+    <header className="shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-6 lg:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {onMenuClick && (
+            <button
+              type="button"
+              onClick={onMenuClick}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 md:hidden dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              aria-label="Open navigation menu"
+            >
+              ☰
+            </button>
+          )}
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold text-slate-900 md:text-lg dark:text-slate-100">
+              {page.title}
+            </h1>
+            <p className="truncate text-xs text-slate-500 md:text-sm dark:text-slate-400">
+              {site ? (
+                <>
+                  <span className="font-medium text-amber-600">{site.domain}</span>
+                  <span className="hidden sm:inline">
+                    {" · "}
+                    {site.pages.length} pages
+                  </span>
+                </>
+              ) : (
+                page.subtitle
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="hidden lg:block">
+            <DomainInput compact />
+          </div>
+          <PlanBadge compact />
+          <PwaInstallButton className="hidden sm:inline-flex" />
+          <ThemeToggle />
+          <UserMenu />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="border-t border-slate-100 px-3 py-2 lg:hidden dark:border-slate-800">
         <DomainInput compact />
-
-        <PlanBadge compact />
-
-        <PwaInstallButton className="hidden sm:inline-flex" />
-
-        <button
-          type="button"
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-          aria-label="Notifications (coming soon)"
-        >
-          <span className="text-sm">🔔</span>
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
-        </button>
-
-        <ThemeToggle />
-
-        <UserMenu />
       </div>
     </header>
   );

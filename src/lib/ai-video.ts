@@ -8,6 +8,7 @@ const PLATFORM_ASPECT: Record<Platform, VideoAspectRatio> = {
   linkedin: "16:9",
   facebook: "16:9",
   pinterest: "9:16",
+  email: "16:9",
 };
 
 const REPLICATE_MODEL = "bytedance/seedance-1-lite";

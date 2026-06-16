@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdminError, requireAdmin } from "@/lib/auth-helpers";
+import { confirmPaymentAndUpgrade } from "@/lib/confirm-payment";
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -67,29 +68,14 @@ export async function PATCH(request: Request) {
     }
 
     if (action === "confirm") {
-      // Upgrade the user
-      const now = new Date();
-      const endsAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: payment.userId },
-          data: {
-            plan: payment.plan,
-            subscriptionStatus: "active",
-            subscriptionEndsAt: endsAt,
-          },
-        }),
-        prisma.payment.update({
-          where: { id: paymentId },
-          data: {
-            status: "confirmed",
-            confirmedAt: now,
-          },
-        }),
-      ]);
-
-      return NextResponse.json({ success: true, message: `User upgraded to ${payment.plan}. Subscription active for 30 days.` });
+      const upgrade = await confirmPaymentAndUpgrade(paymentId);
+      if (!upgrade.ok) {
+        return NextResponse.json({ error: upgrade.error }, { status: 400 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: `User upgraded to ${upgrade.plan}. Subscription active for 30 days.`,
+      });
     } else {
       // Reject
       await prisma.payment.update({

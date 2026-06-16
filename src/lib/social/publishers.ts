@@ -14,6 +14,9 @@ type PublishContext = {
   facebookPageId?: string;
   instagramAccessToken?: string;
   instagramAccountId?: string;
+  pinterestAccessToken?: string;
+  pinterestBoardId?: string;
+  emailRecipient?: string;
 };
 
 function shareLinks(post: SavedPost): string {
@@ -26,9 +29,17 @@ function shareLinks(post: SavedPost): string {
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${text}`,
     pinterest: `https://pinterest.com/pin/create/button/?url=${url}&description=${text}`,
     instagram: "https://www.instagram.com/",
+    email: "",
   };
 
   return links[post.platform];
+}
+
+function parseEmailContent(text: string, fallbackSubject: string) {
+  const subjectMatch = text.match(/^Subject:\s*(.+)$/m);
+  const subject = subjectMatch?.[1]?.trim() ?? fallbackSubject;
+  const body = text.replace(/^Subject:\s*.+\n*/m, "").trim();
+  return { subject, body };
 }
 
 async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
@@ -277,9 +288,66 @@ async function publishInstagram(ctx: PublishContext): Promise<PublishResult> {
   }
 }
 
+async function publishEmail(ctx: PublishContext): Promise<PublishResult> {
+  const { subject, body } = parseEmailContent(
+    ctx.post.text,
+    `${ctx.post.cta} — update`,
+  );
+  const to =
+    ctx.emailRecipient?.trim() ||
+    process.env.EMAIL_DEFAULT_TO?.trim() ||
+    "";
+  const from = process.env.EMAIL_FROM?.trim();
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+
+  if (resendKey && from && to) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to: [to],
+          subject,
+          text: body,
+        }),
+      });
+
+      if (response.ok) {
+        const data = (await response.json()) as { id?: string };
+        return {
+          success: true,
+          platform: "email",
+          method: "api",
+          message: `Email sent to ${to}.`,
+          publishedAt: new Date().toISOString(),
+          url: data.id ? `mailto:${to}` : undefined,
+        };
+      }
+    } catch {
+      /* fall through to mailto */
+    }
+  }
+
+  const mailto = `mailto:${to ? encodeURIComponent(to) : ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return {
+    success: true,
+    platform: "email",
+    method: "share_link",
+    message: resendKey
+      ? "Email API unavailable — open a pre-filled draft in your mail client."
+      : "Open your mail client to send this email (set RESEND_API_KEY + EMAIL_FROM for direct send).",
+    url: mailto,
+  };
+}
+
 async function publishPinterest(ctx: PublishContext): Promise<PublishResult> {
-  const token = process.env.PINTEREST_ACCESS_TOKEN;
-  const boardId = process.env.PINTEREST_BOARD_ID;
+  const token =
+    ctx.pinterestAccessToken || process.env.PINTEREST_ACCESS_TOKEN;
+  const boardId = ctx.pinterestBoardId || process.env.PINTEREST_BOARD_ID;
 
   if (!token || !boardId) {
     return {
@@ -345,6 +413,7 @@ const publishers: Record<
   facebook: publishFacebook,
   instagram: publishInstagram,
   pinterest: publishPinterest,
+  email: publishEmail,
 };
 
 export async function publishPost(
@@ -401,10 +470,20 @@ export function getConnectionStatus(): import("../types").SocialConnectionStatus
     {
       platform: "pinterest",
       connected: !!(
-        process.env.PINTEREST_ACCESS_TOKEN && process.env.PINTEREST_BOARD_ID
+        (process.env.PINTEREST_ACCESS_TOKEN &&
+          process.env.PINTEREST_BOARD_ID) ||
+        (process.env.PINTEREST_CLIENT_ID && process.env.PINTEREST_CLIENT_SECRET)
       ),
       method: "api",
       label: "Pinterest",
+    },
+    {
+      platform: "email",
+      connected: !!(
+        process.env.RESEND_API_KEY && process.env.EMAIL_FROM
+      ),
+      method: "api",
+      label: "Email (Resend)",
     },
   ];
 }

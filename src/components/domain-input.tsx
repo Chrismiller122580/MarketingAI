@@ -20,7 +20,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <form
-        className="flex items-center gap-2"
+        className="flex w-full items-center gap-2 lg:w-auto"
         onSubmit={(e) => {
           e.preventDefault();
           crawlSite();
@@ -31,7 +31,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           value={domainInput}
           onChange={(e) => setDomainInput(e.target.value)}
           placeholder="example.com"
-          className="h-9 w-48 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-amber-300 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-100"
+          className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 sm:max-w-48 sm:flex-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 placeholder:text-slate-400 focus:border-amber-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
         />
         <button
           type="submit"

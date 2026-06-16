@@ -9,6 +9,7 @@ const SIZES: Record<string, { width: number; height: number }> = {
   linkedin: { width: 1200, height: 627 },
   facebook: { width: 1200, height: 630 },
   pinterest: { width: 1000, height: 1500 },
+  email: { width: 1200, height: 630 },
 };
 
 export async function GET(request: NextRequest) {

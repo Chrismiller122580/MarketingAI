@@ -473,7 +473,7 @@ export function BillingPanel() {
             </div>
 
             <p className="mt-4 text-center text-[10px] text-slate-400">
-              Your plan activates after an admin verifies the on-chain transaction.
+              Valid XRP payments auto-activate your plan. Otherwise an admin will verify shortly.
             </p>
           </div>
         </div>

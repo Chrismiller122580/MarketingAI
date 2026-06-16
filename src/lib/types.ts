@@ -42,7 +42,8 @@ export type Platform =
   | "twitter"
   | "linkedin"
   | "facebook"
-  | "pinterest";
+  | "pinterest"
+  | "email";
 
 export type ContentType =
   | "Social Post"

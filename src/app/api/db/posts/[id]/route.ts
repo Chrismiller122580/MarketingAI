@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { postToSaved } from "@/lib/db-mappers";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { auth } from "@/auth";
-import { publishPost as publishToSocial } from "@/lib/social/publishers";
+import { publishPostRecord } from "@/lib/publish-post";
 
 async function getOwnedPost(id: string, userId: string) {
   return prisma.post.findFirst({ where: { id, userId } });
@@ -68,7 +68,7 @@ export async function DELETE(
 }
 
 export async function POST(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const userId = await requireAuthUserId();
@@ -81,52 +81,19 @@ export async function POST(
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // Try to get per-user Twitter token from the current session (if user signed in with X)
     const session = await auth();
-    const twitterAccessToken = (session?.user as Record<string, unknown>)?.twitterAccessToken as string | undefined;
+    const twitterAccessToken = (session?.user as Record<string, unknown>)
+      ?.twitterAccessToken as string | undefined;
 
-    // Per-site social tokens take priority (for the specific domain/client)
-    const siteSocial = post.siteId
-      ? await prisma.siteSocialConnection.findFirst({
-          where: { siteId: post.siteId, platform: post.platform },
-        })
-      : null;
-
-    const extraCtx: Record<string, string> = {};
-    if (siteSocial?.accessToken) {
-      if (post.platform === "twitter") extraCtx.twitterAccessToken = siteSocial.accessToken;
-      if (post.platform === "linkedin") extraCtx.linkedinAccessToken = siteSocial.accessToken;
-      if (post.platform === "facebook") {
-        extraCtx.facebookAccessToken = siteSocial.accessToken;
-        if (siteSocial.accountId) extraCtx.facebookPageId = siteSocial.accountId;
-      }
-      if (post.platform === "instagram") {
-        extraCtx.instagramAccessToken = siteSocial.accessToken;
-        if (siteSocial.accountId) {
-          extraCtx.instagramAccountId = siteSocial.accountId;
-        }
-      }
-    } else if (twitterAccessToken && post.platform === "twitter") {
-      extraCtx.twitterAccessToken = twitterAccessToken;
+    const outcome = await publishPostRecord(id, twitterAccessToken);
+    if ("error" in outcome) {
+      return NextResponse.json({ error: outcome.error }, { status: 404 });
     }
 
-    const result = await publishToSocial({
-      ...postToSaved(post),
-      ...extraCtx,
+    return NextResponse.json({
+      post: outcome.post,
+      result: outcome.result,
     });
-
-    const updated = await prisma.post.update({
-      where: { id },
-      data: {
-        publishStatus: result.success ? "published" : "failed",
-        publishedAt: result.publishedAt
-          ? new Date(result.publishedAt)
-          : new Date(),
-        publishUrl: result.url ?? null,
-      },
-    });
-
-    return NextResponse.json({ post: postToSaved(updated), result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Database error";
     return NextResponse.json({ error: message }, { status: 500 });

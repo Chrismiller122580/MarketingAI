@@ -9,6 +9,7 @@ const platformLabels: Record<Platform, string> = {
   linkedin: "LinkedIn",
   facebook: "Facebook",
   pinterest: "Pinterest",
+  email: "Email",
 };
 
 const aspectClasses: Record<Platform, string> = {
@@ -17,6 +18,7 @@ const aspectClasses: Record<Platform, string> = {
   linkedin: "aspect-[1.91/1]",
   facebook: "aspect-[1.91/1]",
   pinterest: "aspect-[2/3] max-h-[420px]",
+  email: "aspect-[1.91/1]",
 };
 
 const videoAspectClasses: Record<string, string> = {

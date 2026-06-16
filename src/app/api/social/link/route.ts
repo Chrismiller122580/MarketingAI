@@ -9,6 +9,7 @@ import {
 } from "@/lib/social/facebook";
 import { resolveInstagramAccount } from "@/lib/social/instagram";
 import { exchangeMetaLongLivedToken } from "@/lib/social/meta-credentials";
+import { resolvePinterestBoard } from "@/lib/social/pinterest";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -21,10 +22,12 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { platform, siteDomain, pageId: preferredPageId } = body as {
+    const { platform, siteDomain, pageId: preferredPageId, boardId, recipientEmail } = body as {
       platform?: string;
       siteDomain?: string;
       pageId?: string;
+      boardId?: string;
+      recipientEmail?: string;
     };
 
     if (!platform || !siteDomain) {
@@ -43,26 +46,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Site not found or not owned by you" }, { status: 404 });
     }
 
-    // Get token from session (for platforms we support via NextAuth)
     let accessToken: string | undefined;
     let refreshToken: string | undefined;
     let accountId: string | undefined;
 
-    const su = session.user as Record<string, unknown>;
-    if (platform === "twitter" && su.twitterAccessToken) {
-      accessToken = su.twitterAccessToken as string | undefined;
-      // For Twitter, we can try to get the user id from the token or session if available
-      // For simplicity, we can fetch it or store later
-    } else if (platform === "linkedin" && su.linkedinAccessToken) {
-      accessToken = su.linkedinAccessToken as string | undefined;
-    } else if (platform === "facebook" && su.facebookAccessToken) {
-      accessToken = su.facebookAccessToken as string | undefined;
-    } else if (platform === "instagram" && su.instagramAccessToken) {
-      accessToken = su.instagramAccessToken as string | undefined;
-    }
+    if (platform === "email") {
+      const email = recipientEmail?.trim().toLowerCase();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return NextResponse.json({ error: "Valid recipientEmail is required for email." }, { status: 400 });
+      }
+      accessToken = "recipient";
+      accountId = email;
+    } else {
+      const su = session.user as Record<string, unknown>;
+      if (platform === "twitter" && su.twitterAccessToken) {
+        accessToken = su.twitterAccessToken as string | undefined;
+      } else if (platform === "linkedin" && su.linkedinAccessToken) {
+        accessToken = su.linkedinAccessToken as string | undefined;
+      } else if (platform === "facebook" && su.facebookAccessToken) {
+        accessToken = su.facebookAccessToken as string | undefined;
+      } else if (platform === "instagram" && su.instagramAccessToken) {
+        accessToken = su.instagramAccessToken as string | undefined;
+      } else if (platform === "pinterest" && su.pinterestAccessToken) {
+        accessToken = su.pinterestAccessToken as string | undefined;
+      }
 
-    if (!accessToken) {
-      return NextResponse.json({ error: `No ${platform} token found in your session. Please connect via OAuth first.` }, { status: 400 });
+      if (!accessToken) {
+        return NextResponse.json({ error: `No ${platform} token found in your session. Please connect via OAuth first.` }, { status: 400 });
+      }
     }
 
     let providerUserId: string | undefined;
@@ -125,6 +136,21 @@ export async function POST(request: Request) {
 
       accessToken = igAccount.accessToken;
       accountId = igAccount.igUserId;
+    }
+
+    if (platform === "pinterest") {
+      const board = await resolvePinterestBoard(accessToken, boardId);
+      if (!board) {
+        return NextResponse.json(
+          {
+            error:
+              "No Pinterest boards found. Create a board in Pinterest and grant boards:read + pins:write scopes.",
+          },
+          { status: 400 },
+        );
+      }
+      accessToken = board.accessToken;
+      accountId = board.boardId;
     }
 
     // Upsert the connection for this site

@@ -15,6 +15,7 @@ const ALL_PLATFORMS: { value: Platform; label: string }[] = [
   { value: "linkedin", label: "LinkedIn" },
   { value: "facebook", label: "Facebook" },
   { value: "pinterest", label: "Pinterest" },
+  { value: "email", label: "Email" },
 ];
 
 export function CampaignPack() {

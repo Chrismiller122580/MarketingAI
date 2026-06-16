@@ -25,14 +25,15 @@ export function SocialLinker() {
     ) {
       // We have a pending site and the user just completed OAuth
       // Try to link for the platforms we support
-      const platformsToTry = ["twitter", "linkedin", "facebook", "instagram"];
+      const platformsToTry = ["twitter", "linkedin", "facebook", "instagram", "pinterest"];
 
       const linkPromises = platformsToTry.map(async (platform) => {
         const hasToken =
           (platform === "twitter" && (session.user as any).twitterAccessToken) ||
           (platform === "linkedin" && (session.user as any).linkedinAccessToken) ||
           (platform === "facebook" && (session.user as any).facebookAccessToken) ||
-          (platform === "instagram" && (session.user as any).instagramAccessToken);
+          (platform === "instagram" && (session.user as any).instagramAccessToken) ||
+          (platform === "pinterest" && (session.user as any).pinterestAccessToken);
 
         if (hasToken) {
           try {

@@ -111,6 +111,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     },
     {
+      id: "pinterest",
+      name: "Pinterest",
+      type: "oauth",
+      clientId: process.env.PINTEREST_CLIENT_ID,
+      clientSecret: process.env.PINTEREST_CLIENT_SECRET,
+      authorization: {
+        url: "https://www.pinterest.com/oauth/",
+        params: {
+          scope: "boards:read,pins:write,user_accounts:read",
+        },
+      },
+      token: "https://api.pinterest.com/v5/oauth/token",
+      userinfo: {
+        url: "https://api.pinterest.com/v5/user_account",
+        async request(context: { tokens: { access_token?: string } }) {
+          const res = await fetch("https://api.pinterest.com/v5/user_account", {
+            headers: {
+              Authorization: `Bearer ${context.tokens.access_token ?? ""}`,
+            },
+          });
+          return { data: await res.json() };
+        },
+      },
+      profile(profile) {
+        return {
+          id: profile.username ?? profile.id ?? "pinterest-user",
+          name: profile.username ?? "Pinterest",
+          email: null,
+        };
+      },
+    },
+    {
       id: "instagram",
       name: "Instagram",
       type: "oauth",
@@ -167,6 +199,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (token as ExtToken).instagramAccessToken = account.access_token;
         (token as ExtToken).instagramRefreshToken = account.refresh_token;
       }
+      if (account?.provider === "pinterest") {
+        (token as ExtToken).pinterestAccessToken = account.access_token;
+        (token as ExtToken).pinterestRefreshToken = account.refresh_token;
+      }
 
       return token;
     },
@@ -185,6 +221,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         su.linkedinAccessToken = tt.linkedinAccessToken;
         su.facebookAccessToken = tt.facebookAccessToken;
         su.instagramAccessToken = tt.instagramAccessToken;
+        su.pinterestAccessToken = tt.pinterestAccessToken;
       }
       return session;
     },

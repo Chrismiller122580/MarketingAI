@@ -231,9 +231,13 @@ export function SocialConnections() {
               Click to log in and grant access. Your tokens are stored privately for this domain only.
             </p>
             <div className="flex flex-wrap gap-2">
-              {["twitter", "linkedin", "facebook", "instagram"].map((platform) => {
+              {(["twitter", "linkedin", "facebook", "instagram", "pinterest"] as const).map((platform) => {
                 const conn = siteSocialConnections[platform];
                 const isConnected = !!conn?.accessToken;
+                const label =
+                  platform === "twitter"
+                    ? "X"
+                    : platform.charAt(0).toUpperCase() + platform.slice(1);
                 return (
                   <button
                     key={platform}
@@ -244,11 +248,43 @@ export function SocialConnections() {
                         : "bg-white border-emerald-200 hover:bg-emerald-50 dark:bg-slate-900 dark:border-emerald-800 dark:hover:bg-emerald-950"
                     }`}
                   >
-                    {isConnected ? "✓ " : ""}Connect with {platform === "twitter" ? "X" : platform === "instagram" ? "Instagram" : platform.charAt(0).toUpperCase() + platform.slice(1)}
+                    {isConnected ? "✓ " : ""}Connect {label}
                   </button>
                 );
               })}
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 self-center ml-2">Pinterest: manual env vars in Settings</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!site) return;
+                  const email = window.prompt("Recipient email for this site:");
+                  if (!email?.trim()) return;
+                  try {
+                    const res = await fetch("/api/social/link", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        platform: "email",
+                        siteDomain: site.domain,
+                        recipientEmail: email.trim(),
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Failed");
+                    loadSiteSocialConnections();
+                  } catch (e) {
+                    window.alert(e instanceof Error ? e.message : "Failed to set email");
+                  }
+                }}
+                className={`text-xs px-3 py-1.5 rounded-full border transition font-medium ${
+                  siteSocialConnections.email?.accountId
+                    ? "bg-emerald-100 border-emerald-300 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                    : "bg-white border-emerald-200 hover:bg-emerald-50 dark:bg-slate-900 dark:border-emerald-800 dark:hover:bg-emerald-950"
+                }`}
+              >
+                {siteSocialConnections.email?.accountId
+                  ? `✓ Email: ${siteSocialConnections.email.accountId}`
+                  : "Set email recipient"}
+              </button>
             </div>
             <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400">
               After connecting, posts for this site will use your accounts.

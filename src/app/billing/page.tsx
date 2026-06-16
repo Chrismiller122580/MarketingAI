@@ -21,7 +21,7 @@ export default function BillingPage() {
             <li>Choose Pro or Enterprise and click “Pay with XRP”.</li>
             <li>Connect Crossmark or Gem Wallet and pay in one click, or send manually to the displayed address.</li>
             <li>After the transaction confirms, the tx hash is auto-submitted (or paste it manually).</li>
-            <li>An admin will verify on-chain and activate/renew your plan (usually within hours).</li>
+            <li>Valid XRP payments auto-activate your plan; others are reviewed by an admin.</li>
             <li>Your current plan and end date are shown above. Renew before expiry to keep access.</li>
           </ul>
           <p className="mt-3 text-xs">Questions? Contact support from your account or the admin team.</p>
