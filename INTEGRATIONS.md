@@ -132,6 +132,29 @@ Requires an **Instagram Business or Creator** account linked to a Facebook Page.
 
 Instagram publishing may require completing steps in Meta Business Suite depending on your account setup.
 
+### Meta Marketing API — App Review (`META_ADS_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`)
+
+**Today:** crawlspark.ai uses the **Pages API** for organic Facebook/Instagram publishing (`pages_manage_posts`, etc.). It does **not** yet ship paid-ads UI in production.
+
+**Marketing API Access Tier** (App Review) requires **≥500 Marketing API calls** with **≥85% success** from your app. Page publish calls (`/{page-id}/feed`) do **not** count.
+
+**Setup for the 500-call test:**
+
+1. Meta app → add **Marketing API** product
+2. Request **`ads_read`** (and **`ads_management`** if you will create/edit ads)
+3. Business Manager → create or use a **test ad account**
+4. Business Settings → **System Users** → create user → assign ad account → generate token **from this app** with `ads_read`
+5. Run locally:
+
+```bash
+META_ADS_ACCESS_TOKEN=EAA... META_AD_ACCOUNT_ID=act_123456789 npm run meta:ads-test
+```
+
+6. Wait up to **24 hours** for Developer Console → App Review → Testing to show updated counts
+7. Submit App Review only after the dashboard shows **500+ calls** and **≥85% success**
+
+Do **not** claim completed test calls in App Review until the Meta dashboard reflects them.
+
 ### Pinterest (`PINTEREST_ACCESS_TOKEN`, `PINTEREST_BOARD_ID`, `PINTEREST_CLIENT_ID`, `PINTEREST_CLIENT_SECRET`)
 
 **Steps:**
