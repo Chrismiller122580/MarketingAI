@@ -1,5 +1,6 @@
 import { getTwitterToken, isTwitterBearerOnly } from "../integrations";
 import { getAppOrigin } from "../app-url";
+import { sendViaResend, textToHtml } from "../email";
 import { publishFacebookPost } from "./facebook";
 import { publishInstagramPost } from "./instagram";
 import type { Platform, PublishResult, SavedPost } from "../types";
@@ -297,49 +298,58 @@ async function publishEmail(ctx: PublishContext): Promise<PublishResult> {
     ctx.emailRecipient?.trim() ||
     process.env.EMAIL_DEFAULT_TO?.trim() ||
     "";
-  const from = process.env.EMAIL_FROM?.trim();
-  const resendKey = process.env.RESEND_API_KEY?.trim();
-
-  if (resendKey && from && to) {
-    try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from,
-          to: [to],
-          subject,
-          text: body,
-        }),
-      });
-
-      if (response.ok) {
-        const data = (await response.json()) as { id?: string };
-        return {
-          success: true,
-          platform: "email",
-          method: "api",
-          message: `Email sent to ${to}.`,
-          publishedAt: new Date().toISOString(),
-          url: data.id ? `mailto:${to}` : undefined,
-        };
-      }
-    } catch {
-      /* fall through to mailto */
-    }
+  if (!to) {
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return {
+      success: true,
+      platform: "email",
+      method: "share_link",
+      message:
+        "No recipient set — use Set email recipient on your site, or set EMAIL_DEFAULT_TO.",
+      url: mailto,
+    };
   }
 
-  const mailto = `mailto:${to ? encodeURIComponent(to) : ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim();
+
+  if (resendKey && from) {
+    const sent = await sendViaResend({
+      to,
+      subject,
+      text: body,
+      html: textToHtml(body),
+      idempotencyKey: `post/${ctx.post.id ?? subject}`.slice(0, 256),
+    });
+
+    if (sent.ok) {
+      return {
+        success: true,
+        platform: "email",
+        method: "api",
+        message: `Email sent to ${to} via Resend.`,
+        publishedAt: new Date().toISOString(),
+        url: `mailto:${to}`,
+      };
+    }
+
+    const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return {
+      success: false,
+      platform: "email",
+      method: "share_link",
+      message: `Resend error: ${sent.error}. Open mailto draft instead.`,
+      url: mailto,
+    };
+  }
+
+  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   return {
     success: true,
     platform: "email",
     method: "share_link",
-    message: resendKey
-      ? "Email API unavailable — open a pre-filled draft in your mail client."
-      : "Open your mail client to send this email (set RESEND_API_KEY + EMAIL_FROM for direct send).",
+    message:
+      "Open your mail client to send (set RESEND_API_KEY + EMAIL_FROM on Vercel for direct send).",
     url: mailto,
   };
 }

@@ -144,11 +144,16 @@ Instagram publishing may require completing steps in Meta Business Suite dependi
 ### Email — Resend (`RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_DEFAULT_TO`)
 
 **Steps:**
-1. Create an account at [resend.com](https://resend.com) and verify your domain
-2. Set `RESEND_API_KEY` and `EMAIL_FROM`
-3. Optional global recipient: `EMAIL_DEFAULT_TO`
-4. Per-site recipient: **Set email recipient** in Settings after loading a site
-5. Without Resend, publish opens a pre-filled `mailto:` draft
+1. Create an account at [resend.com](https://resend.com) → **API Keys** → create key → `RESEND_API_KEY`
+2. **Domains** → add `crawlspark.ai` → add DNS records → wait for **Verified**
+3. Set `EMAIL_FROM=CrawlSpark <hello@crawlspark.ai>` (must use your verified domain)
+4. Optional: `EMAIL_DEFAULT_TO` for a global fallback recipient
+5. Per-site: **Set email recipient** in Settings after loading a site
+6. Redeploy on Vercel. Settings → Integrations should show **Email (Resend)** as Active
+
+**Quick test (no domain yet):**
+- `EMAIL_FROM=CrawlSpark <onboarding@resend.dev>`
+- Send only to the email on your Resend account (test addresses like `delivered@resend.dev` also work)
 
 ---
 
