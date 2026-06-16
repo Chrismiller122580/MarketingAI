@@ -108,6 +108,10 @@ export type CampaignPack = {
   posts: SavedPost[];
 };
 
+import type { VisualTargeting } from "./visual-targeting";
+
+export type { VisualTargeting };
+
 export type GenerateRequest = {
   site: SiteData;
   contentType: ContentType;
@@ -117,6 +121,7 @@ export type GenerateRequest = {
   settings?: UserSettings;
   preferAiImage?: boolean;
   videoDuration?: 5 | 10;
+  visualTargeting?: VisualTargeting;
 };
 
 export type VideoJobStatus = {
@@ -135,6 +140,7 @@ export type BatchGenerateRequest = {
   platforms?: Platform[];
   maxPosts?: number;
   preferAiImage?: boolean;
+  visualTargeting?: VisualTargeting;
 };
 
 export type PublishRequest = {

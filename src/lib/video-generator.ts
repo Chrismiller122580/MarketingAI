@@ -5,7 +5,7 @@ import {
   hasVideoProvider,
 } from "./ai-video";
 import { createVideoJob } from "./video-jobs";
-import type { Platform, SiteData } from "./types";
+import type { Platform, SiteData, VisualTargeting } from "./types";
 
 export async function startVideoGeneration(
   userId: string,
@@ -15,6 +15,7 @@ export async function startVideoGeneration(
     prompt?: string;
     sourcePageUrl?: string;
     durationSec?: 5 | 10;
+    visualTargeting?: VisualTargeting;
   },
 ): Promise<
   | {
@@ -47,6 +48,7 @@ export async function startVideoGeneration(
     page,
     platform,
     options.prompt,
+    options.visualTargeting,
   );
 
   const prediction = await createVideoPrediction(

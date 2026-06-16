@@ -1,4 +1,8 @@
 import type { Platform, SiteData, SitePage } from "./types";
+import {
+  enrichVisualPrompt,
+  type VisualTargeting,
+} from "./visual-targeting";
 
 /** gpt-image-1 supported sizes (dall-e-3 sizes like 1792x1024 are invalid). */
 const OPENAI_SIZES: Record<Platform, "1024x1024" | "1536x1024" | "1024x1536"> = {
@@ -140,8 +144,13 @@ export async function generateAiImage(
   site: SiteData,
   page: SitePage,
   platform: Platform,
+  visualTargeting?: VisualTargeting,
 ): Promise<{ url: string; prompt: string; provider: "openai" | "xai" } | null> {
-  const prompt = buildImagePrompt(site, page, platform);
+  const prompt = enrichVisualPrompt(
+    buildImagePrompt(site, page, platform),
+    visualTargeting,
+    "image",
+  );
   const size = OPENAI_SIZES[platform];
 
   // Prefer OpenAI for images when configured; fall through to xAI on failure.

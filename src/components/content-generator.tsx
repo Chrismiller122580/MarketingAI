@@ -9,7 +9,9 @@ import { usePosts } from "@/context/posts-context";
 import { PostPreview } from "./post-preview";
 import { BrandInsights } from "./brand-insights";
 import { PublishPanel } from "./publish-panel";
-import type { ContentType, GeneratedPost, Platform, SavedPost } from "@/lib/types";
+import type { ContentType, GeneratedPost, Platform, SavedPost, VisualTargeting } from "@/lib/types";
+import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
+import { VisualTargetingPicker } from "./visual-targeting-picker";
 
 const contentTypes: ContentType[] = [
   "Social Post",
@@ -51,9 +53,12 @@ export function ContentGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [preferAiImage, setPreferAiImage] = useState(settings.preferAiImages);
   const [videoDuration, setVideoDuration] = useState<5 | 10>(5);
+  const [visualTargeting, setVisualTargeting] =
+    useState<VisualTargeting>(DEFAULT_VISUAL_TARGETING);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isVideoAd = contentType === "Video Ad";
+  const usesAiVisuals = isVideoAd || preferAiImage;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -142,6 +147,7 @@ export function ContentGenerator() {
           sourcePageUrl: selectedPage === "all" ? undefined : selectedPage,
           preferAiImage: isVideoAd ? true : preferAiImage,
           videoDuration: isVideoAd ? videoDuration : undefined,
+          visualTargeting: usesAiVisuals ? visualTargeting : undefined,
         }),
       });
 
@@ -312,6 +318,13 @@ export function ContentGenerator() {
                 Generate AI image (DALL-E / Grok) instead of site photo
               </span>
             </label>
+          )}
+
+          {site && usesAiVisuals && (
+            <VisualTargetingPicker
+              value={visualTargeting}
+              onChange={setVisualTargeting}
+            />
           )}
 
           <div>

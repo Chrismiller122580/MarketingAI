@@ -1,4 +1,8 @@
 import type { Platform, SiteData, SitePage } from "./types";
+import {
+  enrichVisualPrompt,
+  type VisualTargeting,
+} from "./visual-targeting";
 
 export type VideoAspectRatio = "9:16" | "16:9" | "1:1";
 
@@ -22,9 +26,10 @@ export function buildVideoPrompt(
   page: SitePage,
   platform: Platform,
   brief?: string,
+  visualTargeting?: VisualTargeting,
 ): string {
   const keywords = site.brand.keywords.slice(0, 5).join(", ");
-  return [
+  const base = [
     `Short-form video ad for ${site.brand.name}.`,
     `Hook: ${page.headings[0] || page.title}.`,
     page.description ? `Message: ${page.description.slice(0, 100)}.` : "",
@@ -35,6 +40,8 @@ export function buildVideoPrompt(
   ]
     .filter(Boolean)
     .join(" ");
+
+  return enrichVisualPrompt(base, visualTargeting, "video");
 }
 
 type ReplicatePrediction = {

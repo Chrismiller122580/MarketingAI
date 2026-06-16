@@ -7,7 +7,9 @@ import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import { useSettings } from "@/context/settings-context";
 import { usePosts } from "@/context/posts-context";
-import type { Platform, SavedPost } from "@/lib/types";
+import type { Platform, SavedPost, VisualTargeting } from "@/lib/types";
+import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
+import { VisualTargetingPicker } from "./visual-targeting-picker";
 
 const ALL_PLATFORMS: { value: Platform; label: string }[] = [
   { value: "instagram", label: "Instagram" },
@@ -35,6 +37,8 @@ export function CampaignPack() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [visualTargeting, setVisualTargeting] =
+    useState<VisualTargeting>(DEFAULT_VISUAL_TARGETING);
 
   async function handleGenerate() {
     if (!site) return;
@@ -53,6 +57,7 @@ export function CampaignPack() {
           platforms: settings.defaultPlatforms,
           maxPosts,
           preferAiImage: settings.preferAiImages,
+          visualTargeting: settings.preferAiImages ? visualTargeting : undefined,
         }),
       });
 
@@ -155,6 +160,14 @@ export function CampaignPack() {
                 className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm"
               />
             </div>
+
+            {settings.preferAiImages && (
+              <VisualTargetingPicker
+                value={visualTargeting}
+                onChange={setVisualTargeting}
+                compact
+              />
+            )}
 
             {!isPaid && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">

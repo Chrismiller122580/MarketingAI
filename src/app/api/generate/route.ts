@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       settings: body.settings,
       preferAiImage: body.preferAiImage,
       videoDuration: body.videoDuration,
+      visualTargeting: body.visualTargeting,
     };
 
     const post = await generateSmartPost(generateRequest);
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
             prompt: body.prompt ?? "",
             sourcePageUrl: body.sourcePageUrl,
             durationSec: body.videoDuration === 10 ? 10 : 5,
+            visualTargeting: body.visualTargeting,
           },
         );
 

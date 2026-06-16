@@ -1,5 +1,9 @@
 import { generateAiImage } from "./ai-image";
 import { pickBestImage, buildBrandedImageUrl } from "./image-matcher";
+import {
+  describeVisualTargeting,
+  hasActiveVisualTargeting,
+} from "./visual-targeting";
 import type {
   BatchGenerateRequest,
   ContentType,
@@ -235,9 +239,10 @@ async function resolveImage(
   platform: Platform,
   context: string,
   preferAi: boolean,
+  visualTargeting?: GenerateRequest["visualTargeting"],
 ): Promise<GeneratedPost["image"]> {
   if (preferAi) {
-    const ai = await generateAiImage(site, page, platform);
+    const ai = await generateAiImage(site, page, platform, visualTargeting);
     if (ai) {
       if (ai.url.startsWith("data:")) {
         return {
@@ -305,7 +310,14 @@ export async function generateSmartPost(
   const isVideoAd = contentType === "Video Ad";
   const preferAi =
     isVideoAd || (request.preferAiImage ?? settings.preferAiImages ?? false);
-  const image = await resolveImage(site, page, platform, context, preferAi);
+  const image = await resolveImage(
+    site,
+    page,
+    platform,
+    context,
+    preferAi,
+    request.visualTargeting,
+  );
 
   const aiEnhanced = await tryAiEnhancement(request, text, page, settings);
   const finalText = aiEnhanced ?? text;
@@ -319,6 +331,11 @@ export async function generateSmartPost(
   if (isVideoAd) {
     insights.push(
       "AI video ad — short-form vertical/horizontal creative generated from your brand.",
+    );
+  }
+  if (hasActiveVisualTargeting(request.visualTargeting)) {
+    insights.push(
+      `Visual direction: ${describeVisualTargeting(request.visualTargeting).join(", ")}.`,
     );
   }
 
@@ -362,6 +379,7 @@ export async function generateCampaignPack(
         sourcePageUrl: page.url,
         settings,
         preferAiImage: request.preferAiImage ?? settings?.preferAiImages,
+        visualTargeting: request.visualTargeting,
       });
 
       const dayOffset = posts.length;

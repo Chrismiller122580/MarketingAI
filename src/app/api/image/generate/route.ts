@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await generateAiImage(site, page, platform);
+    const result = await generateAiImage(site, page, platform, body.visualTargeting);
 
     if (!result) {
       return NextResponse.json(
