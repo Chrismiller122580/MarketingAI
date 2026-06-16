@@ -55,6 +55,14 @@ export function ContentGenerator() {
   const isVideoAd = contentType === "Video Ad";
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("type") === "video") {
+      setContentType("Video Ad");
+    }
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
@@ -184,9 +192,10 @@ export function ContentGenerator() {
 
         <div className="space-y-4 p-6">
           {!site && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Enter a domain above to analyze your site and generate posts with
-              matched images.
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              Enter a domain above to analyze your site. Then choose{" "}
+              <strong>Video Ad</strong> under Content type to generate short AI
+              video ads (5–10 seconds).
             </div>
           )}
 

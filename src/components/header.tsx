@@ -19,7 +19,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   },
   "/content": {
     title: "Content Studio",
-    subtitle: "Generate copy grounded in your site's pages.",
+    subtitle: "Generate posts, images, and AI video ads from your site.",
   },
   "/analytics": {
     title: "Analytics",

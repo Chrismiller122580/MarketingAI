@@ -39,15 +39,25 @@ export function QuickActions() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Link
         href="/content"
         className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md"
       >
         <p className="text-2xl">✦</p>
-        <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Create a post</p>
+        <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Content Studio</p>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Single post with matched image
+          Social posts with matched images
+        </p>
+      </Link>
+      <Link
+        href="/content?type=video"
+        className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-spark-50 p-5 shadow-sm transition hover:border-amber-300 hover:shadow-md dark:border-amber-900/50 dark:from-amber-950/30 dark:to-spark-950/20"
+      >
+        <p className="text-2xl">🎬</p>
+        <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Video Ad</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          AI video ads (5–10s) from your brand
         </p>
       </Link>
       <Link
