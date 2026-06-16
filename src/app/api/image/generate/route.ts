@@ -28,6 +28,15 @@ export async function POST(request: Request) {
       );
     }
 
+    if (result.url.startsWith("data:")) {
+      return NextResponse.json({
+        url: result.url,
+        prompt: result.prompt,
+        source: "ai",
+        provider: result.provider,
+      });
+    }
+
     const imageResponse = await fetch(result.url);
     if (!imageResponse.ok) {
       return NextResponse.json(
@@ -45,6 +54,7 @@ export async function POST(request: Request) {
       url: `data:${contentType};base64,${base64}`,
       prompt: result.prompt,
       source: "ai",
+      provider: result.provider,
     });
   } catch (error) {
     const message =

@@ -14,7 +14,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     category: "ai",
     name: "OpenAI",
     envVars: ["OPENAI_API_KEY"],
-    summary: "Powers AI copy (GPT-4o mini) and image generation (DALL·E 3).",
+    summary: "Powers AI copy (GPT-4o mini) and image generation (GPT Image).",
     steps: [
       "Go to platform.openai.com → API keys → Create new secret key.",
       "Add OPENAI_API_KEY to .env locally or Vercel → Settings → Environment Variables.",

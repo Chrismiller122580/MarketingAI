@@ -44,7 +44,7 @@ npm run dev
 ### OpenAI (`OPENAI_API_KEY`)
 
 - **Copy:** GPT-4o mini via Chat Completions API
-- **Images:** DALL·E 3
+- **Images:** GPT Image (`gpt-image-1`, override with `OPENAI_IMAGE_MODEL`)
 
 **Steps:**
 1. Create an account at [platform.openai.com](https://platform.openai.com)

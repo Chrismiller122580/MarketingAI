@@ -311,6 +311,11 @@ export async function generateSmartPost(
   const finalText = aiEnhanced ?? text;
 
   const insights = buildInsights(site, page, image.source, platform, settings);
+  if (preferAi && image.source !== "ai") {
+    insights.push(
+      "AI image generation failed — using branded placeholder. Check OPENAI_API_KEY or XAI_API_KEY on the server.",
+    );
+  }
   if (isVideoAd) {
     insights.push(
       "AI video ad — short-form vertical/horizontal creative generated from your brand.",
