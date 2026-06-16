@@ -7,6 +7,7 @@ import { AuthSessionProvider } from "./session-provider";
 import { ThemeProvider } from "./theme-provider";
 import { PwaManager } from "./pwa-manager";
 import { PwaUpdateBanner } from "./pwa-update-banner";
+import { PwaInstallBanner } from "./pwa-install-banner";
 import { SocialLinker } from "./social-linker";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <PwaManager />
       <PwaUpdateBanner />
+      <PwaInstallBanner />
       <AuthSessionProvider>
         <SiteProvider>
           <SocialLinker />

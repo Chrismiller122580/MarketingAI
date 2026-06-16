@@ -1,8 +1,7 @@
 // crawlspark.ai — Minimal service worker for PWA installability + basic offline shell
-// Scope: /
-// Strategy: cache static assets + app shell; network-first for data routes.
+// Only intercepts same-origin http(s) GET requests (never extension URLs).
 
-const CACHE_NAME = "crawlspark-v1";
+const CACHE_NAME = "crawlspark-v2";
 const APP_SHELL = [
   "/",
   "/dashboard",
@@ -12,82 +11,108 @@ const APP_SHELL = [
   "/icon-512.png",
 ];
 
-// Install: precache core shell
+function isCacheableRequest(request) {
+  if (request.method !== "GET") return false;
+  try {
+    const url = new URL(request.url);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    if (url.origin !== self.location.origin) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function putInCache(cache, request, response) {
+  if (!response || !response.ok) return;
+  try {
+    await cache.put(request, response.clone());
+  } catch {
+    // Ignore quota, opaque, or unsupported scheme errors
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) =>
+        cache.addAll(APP_SHELL).catch(() => {
+          // Best-effort precache; missing assets must not block install
+        }),
+      )
+      .then(() => self.skipWaiting()),
   );
 });
 
-// Activate: clean old caches
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+        ),
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
-// Fetch handler
 self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  const url = new URL(req.url);
+  const request = event.request;
 
-  // Never cache auth or API mutations — always network for dynamic data
+  // Let the browser handle extensions, cross-origin, POST, etc.
+  if (!isCacheableRequest(request)) return;
+
+  const url = new URL(request.url);
+
   if (
     url.pathname.startsWith("/api/") ||
-    url.pathname.includes("/auth") ||
-    req.method !== "GET"
+    url.pathname.includes("/auth")
   ) {
-    event.respondWith(fetch(req).catch(() => caches.match("/")));
+    event.respondWith(fetch(request).catch(() => caches.match("/")));
     return;
   }
 
-  // For navigation and document requests: network-first with shell fallback
-  if (req.mode === "navigate" || (req.destination === "document")) {
+  if (request.mode === "navigate" || request.destination === "document") {
     event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(req, copy));
-          return res;
+      fetch(request)
+        .then((response) => {
+          caches.open(CACHE_NAME).then((cache) => putInCache(cache, request, response));
+          return response;
         })
-        .catch(() => caches.match(req).then((r) => r || caches.match("/")))
+        .catch(() =>
+          caches.match(request).then((cached) => cached || caches.match("/")),
+        ),
     );
     return;
   }
 
-  // Static + images: cache-first
   if (
     url.pathname.startsWith("/_next/static") ||
-    url.pathname.match(/\.(png|jpg|jpeg|svg|ico|webp|css|js)$/)
+    /\.(png|jpg|jpeg|svg|ico|webp|css|js|woff2?)$/.test(url.pathname)
   ) {
     event.respondWith(
-      caches.match(req).then((cached) => {
+      caches.match(request).then((cached) => {
         if (cached) return cached;
-        return fetch(req).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(req, copy));
-          return res;
+        return fetch(request).then((response) => {
+          caches.open(CACHE_NAME).then((cache) => putInCache(cache, request, response));
+          return response;
         });
-      })
+      }),
     );
     return;
   }
 
-  // Default: stale-while-revalidate
   event.respondWith(
-    caches.match(req).then((cached) => {
-      const fetchPromise = fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(req, copy));
-          return res;
+    caches.match(request).then((cached) => {
+      const network = fetch(request)
+        .then((response) => {
+          caches.open(CACHE_NAME).then((cache) => putInCache(cache, request, response));
+          return response;
         })
         .catch(() => cached);
-      return cached || fetchPromise;
-    })
+      return cached || network;
+    }),
   );
 });
