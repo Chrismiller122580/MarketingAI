@@ -7,6 +7,7 @@ import { UserMenu } from "./user-menu";
 import { ThemeToggle } from "./theme-toggle";
 import { PwaInstallButton } from "./pwa-install-button";
 import { PlanBadge } from "./plan-badge";
+import { MenuButton } from "./menu-button";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
@@ -43,7 +44,13 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   },
 };
 
-export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
+export function Header({
+  onMenuClick,
+  mobileOpen = false,
+}: {
+  onMenuClick?: () => void;
+  mobileOpen?: boolean;
+}) {
   const pathname = usePathname();
   const { site } = useSite();
   const page = pageTitles[pathname] ?? pageTitles["/dashboard"];
@@ -53,14 +60,12 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
       <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-6 lg:px-8">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {onMenuClick && (
-            <button
-              type="button"
+            <MenuButton
+              open={mobileOpen}
               onClick={onMenuClick}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 md:hidden dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              aria-label="Open navigation menu"
-            >
-              ☰
-            </button>
+              label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+              className="md:hidden"
+            />
           )}
           <div className="min-w-0">
             <h1 className="truncate text-base font-semibold text-slate-900 md:text-lg dark:text-slate-100">
@@ -82,18 +87,18 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <div className="hidden lg:block">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <div className="hidden xl:block">
             <DomainInput compact />
           </div>
           <PlanBadge compact />
-          <PwaInstallButton className="hidden sm:inline-flex" />
+          <PwaInstallButton className="hidden lg:inline-flex" />
           <ThemeToggle />
           <UserMenu />
         </div>
       </div>
 
-      <div className="border-t border-slate-100 px-3 py-2 lg:hidden dark:border-slate-800">
+      <div className="border-t border-slate-100 px-3 py-2 xl:hidden dark:border-slate-800">
         <DomainInput compact />
       </div>
     </header>

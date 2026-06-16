@@ -1,37 +1,12 @@
 import Link from "next/link";
+import { PublicNav } from "@/components/public-nav";
 
 export default function PrivacyPolicy() {
   const lastUpdated = "June 15, 2026";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Simple public header */}
-      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-crawl-700 to-spark-500 text-sm font-bold text-white">
-              C
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              crawlspark.ai
-            </span>
-          </Link>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/domains" className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100">
-              Domains
-            </Link>
-            <Link href="/login" className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100">
-              Sign in
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-amber-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
-            >
-              Get started
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicNav />
 
       <main className="mx-auto max-w-3xl px-6 py-12">
         <div className="mb-10">

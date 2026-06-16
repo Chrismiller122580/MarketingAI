@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <Header onMenuClick={toggleMobile} />
+          <Header onMenuClick={toggleMobile} mobileOpen={mobileOpen} />
           <main className="flex-1 overflow-y-auto p-4 pb-[env(safe-area-inset-bottom)] md:p-8">
             {children}
           </main>

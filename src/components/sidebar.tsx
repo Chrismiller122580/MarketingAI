@@ -3,15 +3,27 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { BrandLogo } from "./brand-logo";
+import { MenuButton } from "./menu-button";
+import {
+  NavIconAdmin,
+  NavIconAnalytics,
+  NavIconBilling,
+  NavIconCampaigns,
+  NavIconContent,
+  NavIconDashboard,
+  NavIconPosts,
+  NavIconSettings,
+} from "./nav-icons";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "◈" },
-  { href: "/campaigns", label: "Campaigns", icon: "◎" },
-  { href: "/content", label: "Content Studio", icon: "✦" },
-  { href: "/posts", label: "Post Library", icon: "▤" },
-  { href: "/analytics", label: "Analytics", icon: "▣" },
-  { href: "/billing", label: "Billing", icon: "💳" },
-  { href: "/settings", label: "Settings", icon: "⚙" },
+  { href: "/dashboard", label: "Dashboard", icon: NavIconDashboard },
+  { href: "/campaigns", label: "Campaigns", icon: NavIconCampaigns },
+  { href: "/content", label: "Content Studio", icon: NavIconContent },
+  { href: "/posts", label: "Post Library", icon: NavIconPosts },
+  { href: "/analytics", label: "Analytics", icon: NavIconAnalytics },
+  { href: "/billing", label: "Billing", icon: NavIconBilling },
+  { href: "/settings", label: "Settings", icon: NavIconSettings },
 ];
 
 export function Sidebar({
@@ -26,7 +38,7 @@ export function Sidebar({
   const isAdmin = session?.user?.role === "admin";
 
   const items = isAdmin
-    ? [...navItems, { href: "/admin", label: "Admin", icon: "★" }]
+    ? [...navItems, { href: "/admin", label: "Admin", icon: NavIconAdmin }]
     : navItems;
 
   const handleNavClick = () => {
@@ -41,33 +53,25 @@ export function Sidebar({
         ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}
     >
-      <div className="flex h-16 items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 px-4 md:px-6">
-        <Link href="/dashboard" className="flex items-center gap-2" onClick={handleNavClick}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-crawl-700 to-spark-500 text-sm font-bold text-white">
-            C
-          </div>
-          <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-            crawlspark.ai
-          </span>
-        </Link>
-
-        {/* Mobile close button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-          aria-label="Close navigation"
-        >
-          ✕
-        </button>
+      <div className="flex h-14 items-center justify-between gap-2 border-b border-slate-200 px-4 dark:border-slate-800 md:px-5">
+        <BrandLogo href="/dashboard" size="sm" onClick={handleNavClick} />
+        {onClose && (
+          <MenuButton
+            open
+            onClick={onClose}
+            label="Close navigation"
+            className="md:hidden"
+          />
+        )}
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-3 md:p-4">
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3 md:p-4">
         {items.map((item) => {
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
               : pathname.startsWith(item.href);
+          const Icon = item.icon;
 
           return (
             <Link
@@ -80,7 +84,7 @@ export function Sidebar({
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
               }`}
             >
-              <span className="text-base">{item.icon}</span>
+              <Icon className="shrink-0 opacity-80" />
               {item.label}
             </Link>
           );
@@ -95,13 +99,25 @@ export function Sidebar({
           </p>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11px] text-slate-400">
-          <Link href="/domains" className="hover:text-slate-600 dark:hover:text-slate-300" onClick={handleNavClick}>
+          <Link
+            href="/domains"
+            className="hover:text-slate-600 dark:hover:text-slate-300"
+            onClick={handleNavClick}
+          >
             Domains
           </Link>
-          <Link href="/privacy" className="hover:text-slate-600 dark:hover:text-slate-300" onClick={handleNavClick}>
+          <Link
+            href="/privacy"
+            className="hover:text-slate-600 dark:hover:text-slate-300"
+            onClick={handleNavClick}
+          >
             Privacy
           </Link>
-          <Link href="/terms" className="hover:text-slate-600 dark:hover:text-slate-300" onClick={handleNavClick}>
+          <Link
+            href="/terms"
+            className="hover:text-slate-600 dark:hover:text-slate-300"
+            onClick={handleNavClick}
+          >
             Terms
           </Link>
         </div>

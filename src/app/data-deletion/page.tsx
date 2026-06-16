@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PublicNav } from "@/components/public-nav";
 import { getDeletionRequestStatus } from "@/lib/facebook-data-deletion";
 
 type PageProps = {
@@ -42,16 +43,7 @@ export default async function DataDeletionStatusPage({ searchParams }: PageProps
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
-          <Link href="/" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            crawlspark.ai
-          </Link>
-          <Link href="/privacy" className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400">
-            Privacy Policy
-          </Link>
-        </div>
-      </header>
+      <PublicNav />
 
       <main className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">

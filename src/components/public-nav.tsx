@@ -6,40 +6,37 @@ import { useSession } from "next-auth/react";
 import { BrandLogo } from "./brand-logo";
 import { MenuButton } from "./menu-button";
 import { ThemeToggle } from "./theme-toggle";
-import { PwaInstallButton } from "./pwa-install-button";
 
-const anchorLinks = [
-  { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#platforms", label: "Platforms" },
-  { href: "#pricing", label: "Pricing" },
+const links = [
+  { href: "/domains", label: "Domains" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
 ];
 
-export function LandingNav() {
+export function PublicNav() {
   const [open, setOpen] = useState(false);
   const { status } = useSession();
   const isLoggedIn = status === "authenticated";
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
         <BrandLogo href="/" size="sm" onClick={() => setOpen(false)} />
 
-        <nav className="hidden items-center gap-5 text-sm font-medium text-slate-600 lg:flex dark:text-slate-400">
-          {anchorLinks.map((link) => (
-            <a
+        <nav className="hidden items-center gap-5 text-sm font-medium text-slate-600 md:flex dark:text-slate-400">
+          {links.map((link) => (
+            <Link
               key={link.href}
               href={link.href}
               className="transition hover:text-slate-900 dark:hover:text-slate-100"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle className="hidden sm:flex" />
-          <PwaInstallButton className="hidden md:inline-flex" />
           {isLoggedIn ? (
             <Link
               href="/dashboard"
@@ -51,7 +48,7 @@ export function LandingNav() {
             <>
               <Link
                 href="/login"
-                className="hidden rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-900 md:inline-block dark:text-slate-300 dark:hover:text-slate-100"
+                className="hidden rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-900 sm:inline-block dark:text-slate-300 dark:hover:text-slate-100"
               >
                 Sign in
               </Link>
@@ -67,27 +64,26 @@ export function LandingNav() {
             open={open}
             onClick={() => setOpen((v) => !v)}
             label={open ? "Close menu" : "Open menu"}
-            className="lg:hidden"
+            className="md:hidden"
           />
         </div>
       </div>
 
       {open && (
-        <nav className="border-t border-slate-100 px-4 py-3 lg:hidden dark:border-slate-800">
+        <nav className="border-t border-slate-100 px-4 py-3 md:hidden dark:border-slate-800">
           <div className="flex flex-col gap-1">
-            {anchorLinks.map((link) => (
-              <a
+            {links.map((link) => (
+              <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
                 className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
-            <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <div className="mt-2 flex items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
               <ThemeToggle className="sm:hidden" />
-              <PwaInstallButton />
               {isLoggedIn ? (
                 <Link
                   href="/dashboard"
