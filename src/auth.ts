@@ -87,9 +87,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
       authorization: {
         url: "https://www.facebook.com/v19.0/dialog/oauth",
-        params: {
-          scope: "pages_show_list,pages_manage_posts,pages_read_engagement",
-        },
+        params: process.env.FACEBOOK_LOGIN_CONFIG_ID
+          ? { config_id: process.env.FACEBOOK_LOGIN_CONFIG_ID }
+          : {
+              scope:
+                "pages_show_list,pages_manage_posts,pages_read_engagement",
+            },
       },
       token: "https://graph.facebook.com/v19.0/oauth/access_token",
       userinfo: "https://graph.facebook.com/v19.0/me?fields=id,name,email",

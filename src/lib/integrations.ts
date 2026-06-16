@@ -93,6 +93,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
       "FACEBOOK_PAGE_ID",
       "FACEBOOK_CLIENT_ID",
       "FACEBOOK_CLIENT_SECRET",
+      "FACEBOOK_LOGIN_CONFIG_ID",
     ],
     summary:
       "Publish to a Facebook Page via Graph API. Use env tokens globally, or OAuth per site.",
@@ -100,7 +101,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
       "Create a Meta app at developers.facebook.com → add Facebook Login + Pages API.",
       "Add OAuth redirect: https://www.crawlspark.ai/api/auth/callback/facebook",
       "Option A (global): generate a long-lived Page access token + set FACEBOOK_PAGE_ACCESS_TOKEN and FACEBOOK_PAGE_ID.",
-      "Option B (per-site): set FACEBOOK_CLIENT_ID + FACEBOOK_CLIENT_SECRET, then use Connect with Facebook on a loaded site.",
+      "Option B (per-site): set FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET, and FACEBOOK_LOGIN_CONFIG_ID (from Facebook Login → Configurations), then use Connect with Facebook on a loaded site.",
       "Redeploy and verify in Settings → Integrations.",
       "In App Dashboard → Settings → Basic, set Data Deletion Callback URL to https://www.crawlspark.ai/api/facebook/data-deletion (use www — apex redirects)",
     ],
