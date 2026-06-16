@@ -100,7 +100,12 @@ export async function POST(
         extraCtx.facebookAccessToken = siteSocial.accessToken;
         if (siteSocial.accountId) extraCtx.facebookPageId = siteSocial.accountId;
       }
-      // instagram/pinterest can be added similarly
+      if (post.platform === "instagram") {
+        extraCtx.instagramAccessToken = siteSocial.accessToken;
+        if (siteSocial.accountId) {
+          extraCtx.instagramAccountId = siteSocial.accountId;
+        }
+      }
     } else if (twitterAccessToken && post.platform === "twitter") {
       extraCtx.twitterAccessToken = twitterAccessToken;
     }

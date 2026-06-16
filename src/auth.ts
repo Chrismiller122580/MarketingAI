@@ -104,6 +104,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     },
+    {
+      id: "instagram",
+      name: "Instagram",
+      type: "oauth",
+      clientId:
+        process.env.INSTAGRAM_CLIENT_ID ?? process.env.FACEBOOK_CLIENT_ID,
+      clientSecret:
+        process.env.INSTAGRAM_CLIENT_SECRET ??
+        process.env.FACEBOOK_CLIENT_SECRET,
+      authorization: {
+        url: "https://www.facebook.com/v19.0/dialog/oauth",
+        params: process.env.INSTAGRAM_LOGIN_CONFIG_ID
+          ? { config_id: process.env.INSTAGRAM_LOGIN_CONFIG_ID }
+          : {
+              scope:
+                "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement",
+            },
+      },
+      token: "https://graph.facebook.com/v19.0/oauth/access_token",
+      userinfo: "https://graph.facebook.com/v19.0/me?fields=id,name,email",
+      profile(profile) {
+        return {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+        };
+      },
+    },
   ],
   callbacks: {
     async jwt({ token, user, account }) {
@@ -129,6 +157,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (token as ExtToken).facebookAccessToken = account.access_token;
         (token as ExtToken).facebookRefreshToken = account.refresh_token;
       }
+      if (account?.provider === "instagram") {
+        (token as ExtToken).instagramAccessToken = account.access_token;
+        (token as ExtToken).instagramRefreshToken = account.refresh_token;
+      }
 
       return token;
     },
@@ -146,6 +178,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         su.twitterAccessToken = tt.twitterAccessToken;
         su.linkedinAccessToken = tt.linkedinAccessToken;
         su.facebookAccessToken = tt.facebookAccessToken;
+        su.instagramAccessToken = tt.instagramAccessToken;
       }
       return session;
     },

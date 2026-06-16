@@ -202,8 +202,10 @@ export function SocialConnections() {
                       status?.aiImageProvider === "openai"
                     : guide.id === "replicate"
                       ? !!status?.aiVideoAvailable
-                      : status?.aiCopyProvider === "xai" ||
-                        status?.aiImageProvider === "xai"
+                      : guide.id === "instagram"
+                        ? !!status?.connections?.find((c) => c.platform === "instagram")?.connected
+                        : status?.aiCopyProvider === "xai" ||
+                          status?.aiImageProvider === "xai"
                 }
               />
             ))}
@@ -229,7 +231,7 @@ export function SocialConnections() {
               Click to log in and grant access. Your tokens are stored privately for this domain only.
             </p>
             <div className="flex flex-wrap gap-2">
-              {["twitter", "linkedin", "facebook"].map((platform) => {
+              {["twitter", "linkedin", "facebook", "instagram"].map((platform) => {
                 const conn = siteSocialConnections[platform];
                 const isConnected = !!conn?.accessToken;
                 return (
@@ -242,12 +244,11 @@ export function SocialConnections() {
                         : "bg-white border-emerald-200 hover:bg-emerald-50 dark:bg-slate-900 dark:border-emerald-800 dark:hover:bg-emerald-950"
                     }`}
                   >
-                    {isConnected ? "✓ " : ""}Connect with {platform === "twitter" ? "X" : platform.charAt(0).toUpperCase() + platform.slice(1)}
+                    {isConnected ? "✓ " : ""}Connect with {platform === "twitter" ? "X" : platform === "instagram" ? "Instagram" : platform.charAt(0).toUpperCase() + platform.slice(1)}
                   </button>
                 );
               })}
-              {/* Instagram and Pinterest can fall back or use extended Facebook flow */}
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 self-center ml-2">Instagram/Pinterest: use Facebook connect or manual in domain card</span>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 self-center ml-2">Pinterest: manual env vars in Settings</span>
             </div>
             <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400">
               After connecting, posts for this site will use your accounts.
@@ -315,6 +316,12 @@ export function SocialConnections() {
                   {status?.aiVideoAvailable ? "Active" : "Not active"}
                 </span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-700 dark:text-slate-300">INSTAGRAM_CLIENT_ID</span>
+                <span className={status?.connections?.find((c) => c.platform === "instagram")?.connected ? "font-medium text-emerald-600" : "text-slate-400 dark:text-slate-500"}>
+                  {status?.connections?.find((c) => c.platform === "instagram")?.connected ? "Active" : "Not active"}
+                </span>
+              </div>
 
               {/* Social — uses the live connections data (already handles bearer-only labels) */}
               {status?.connections?.map((c) => (
@@ -350,6 +357,8 @@ FACEBOOK_CLIENT_ID=
 FACEBOOK_CLIENT_SECRET=
 FACEBOOK_LOGIN_CONFIG_ID=
 
+INSTAGRAM_CLIENT_ID=
+INSTAGRAM_CLIENT_SECRET=
 INSTAGRAM_ACCESS_TOKEN=
 INSTAGRAM_ACCOUNT_ID=
 

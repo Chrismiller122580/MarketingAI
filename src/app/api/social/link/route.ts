@@ -7,6 +7,8 @@ import {
   fetchFacebookUserId,
   resolveFacebookPageToken,
 } from "@/lib/social/facebook";
+import { resolveInstagramAccount } from "@/lib/social/instagram";
+import { exchangeMetaLongLivedToken } from "@/lib/social/meta-credentials";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -55,6 +57,8 @@ export async function POST(request: Request) {
       accessToken = su.linkedinAccessToken as string | undefined;
     } else if (platform === "facebook" && su.facebookAccessToken) {
       accessToken = su.facebookAccessToken as string | undefined;
+    } else if (platform === "instagram" && su.instagramAccessToken) {
+      accessToken = su.instagramAccessToken as string | undefined;
     }
 
     if (!accessToken) {
@@ -89,6 +93,38 @@ export async function POST(request: Request) {
       }
       accessToken = page.accessToken;
       accountId = page.id;
+    }
+
+    if (platform === "instagram") {
+      providerUserId =
+        (await fetchFacebookUserId(accessToken)) ?? undefined;
+
+      const longLived = await exchangeMetaLongLivedToken(
+        accessToken,
+        "instagram",
+      );
+      if (longLived.accessToken) {
+        accessToken = longLived.accessToken;
+        providerUserId =
+          (await fetchFacebookUserId(accessToken)) ?? providerUserId;
+      }
+
+      const igAccount = await resolveInstagramAccount(
+        accessToken,
+        preferredPageId,
+      );
+      if (!igAccount) {
+        return NextResponse.json(
+          {
+            error:
+              "No Instagram Business account found. Link IG to a Facebook Page and grant instagram_basic + instagram_content_publish.",
+          },
+          { status: 400 },
+        );
+      }
+
+      accessToken = igAccount.accessToken;
+      accountId = igAccount.igUserId;
     }
 
     // Upsert the connection for this site

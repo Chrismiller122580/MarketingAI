@@ -1,6 +1,7 @@
 import { getTwitterToken, isTwitterBearerOnly } from "../integrations";
 import { getAppOrigin } from "../app-url";
 import { publishFacebookPost } from "./facebook";
+import { publishInstagramPost } from "./instagram";
 import type { Platform, PublishResult, SavedPost } from "../types";
 
 type PublishContext = {
@@ -11,7 +12,8 @@ type PublishContext = {
   linkedinAccessToken?: string;
   facebookAccessToken?: string;
   facebookPageId?: string;
-  // Extend for instagram, pinterest as needed
+  instagramAccessToken?: string;
+  instagramAccountId?: string;
 };
 
 function shareLinks(post: SavedPost): string {
@@ -221,8 +223,10 @@ async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
 }
 
 async function publishInstagram(ctx: PublishContext): Promise<PublishResult> {
-  const token = process.env.INSTAGRAM_ACCESS_TOKEN;
-  const accountId = process.env.INSTAGRAM_ACCOUNT_ID;
+  const token =
+    ctx.instagramAccessToken || process.env.INSTAGRAM_ACCESS_TOKEN;
+  const accountId =
+    ctx.instagramAccountId || process.env.INSTAGRAM_ACCOUNT_ID;
 
   if (!token || !accountId) {
     return {
@@ -230,20 +234,47 @@ async function publishInstagram(ctx: PublishContext): Promise<PublishResult> {
       platform: "instagram",
       method: "share_link",
       message:
-        "Instagram API requires Business account setup. Download image and post via Instagram app.",
+        "Instagram API not configured — connect Instagram on your site or set INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_ACCOUNT_ID.",
       url: shareLinks(ctx.post),
     };
   }
 
-  return {
-    success: true,
-    platform: "instagram",
-    method: "share_link",
-    message:
-      "Instagram container created — complete publishing in Meta Business Suite.",
-    url: "https://business.facebook.com/",
-    publishedAt: new Date().toISOString(),
-  };
+  try {
+    const result = await publishInstagramPost({
+      igUserId: accountId,
+      accessToken: token,
+      caption: ctx.post.text,
+      videoUrl: ctx.post.image.videoUrl,
+      imageUrl: ctx.post.image.originalUrl ?? ctx.post.image.url,
+    });
+
+    if (result.error) {
+      return {
+        success: false,
+        platform: "instagram",
+        method: "api",
+        message: result.error,
+        url: shareLinks(ctx.post),
+      };
+    }
+
+    return {
+      success: true,
+      platform: "instagram",
+      method: "api",
+      message: "Published to Instagram successfully.",
+      url: result.id ? `https://www.instagram.com/p/${result.id}` : undefined,
+      publishedAt: new Date().toISOString(),
+    };
+  } catch {
+    return {
+      success: false,
+      platform: "instagram",
+      method: "api",
+      message: "Instagram publish failed.",
+      url: shareLinks(ctx.post),
+    };
+  }
 }
 
 async function publishPinterest(ctx: PublishContext): Promise<PublishResult> {
@@ -359,7 +390,10 @@ export function getConnectionStatus(): import("../types").SocialConnectionStatus
     {
       platform: "instagram",
       connected: !!(
-        process.env.INSTAGRAM_ACCESS_TOKEN && process.env.INSTAGRAM_ACCOUNT_ID
+        (process.env.INSTAGRAM_ACCESS_TOKEN &&
+          process.env.INSTAGRAM_ACCOUNT_ID) ||
+        (process.env.INSTAGRAM_CLIENT_ID &&
+          process.env.INSTAGRAM_CLIENT_SECRET)
       ),
       method: "api",
       label: "Instagram",
