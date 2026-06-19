@@ -119,58 +119,114 @@ export function SocialConnections() {
   const socialConnected = (platform: string) =>
     status?.connections.find((c) => c.platform === platform)?.connected ?? false;
 
+  const siteConnectionCount = Object.keys(siteSocialConnections).filter(
+    (k) => siteSocialConnections[k]?.accessToken || siteSocialConnections[k]?.accountId,
+  ).length;
+
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            Integrations overview
-          </h2>
-          <button
-            onClick={fetchStatus}
-            disabled={loading}
-            className="text-xs text-amber-600 hover:underline disabled:opacity-50"
-          >
-            {loading ? "Refreshing..." : "Refresh status"}
-          </button>
-        </div>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Add API keys as environment variables in Vercel (or <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">.env</code> locally), then redeploy.
-        </p>
+      {isAdmin ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+              Integrations overview
+            </h2>
+            <button
+              onClick={fetchStatus}
+              disabled={loading}
+              className="text-xs text-amber-600 hover:underline disabled:opacity-50"
+            >
+              {loading ? "Refreshing..." : "Refresh status"}
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Server-side API keys (Vercel env vars). End users connect their own accounts below.
+          </p>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {status?.connectedCount ?? 0}/{status?.connections.length ?? 5}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Social APIs</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {status?.aiCopyAvailable ? "✓" : "—"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">AI copy</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {status?.aiImageAvailable ? "✓" : "—"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">AI images</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              {status?.aiVideoAvailable ? "✓" : "—"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">AI video</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
-            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              {status?.aiCopyProvider ? providerLabel(status.aiCopyProvider) : "—"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Copy provider</p>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {status?.connectedCount ?? 0}/{status?.connections.length ?? 5}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Global social</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {status?.aiCopyAvailable ? "✓" : "—"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">AI copy</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {status?.aiImageAvailable ? "✓" : "—"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">AI images</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {status?.aiVideoAvailable ? "✓" : "—"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">AI video</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+              <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                {status?.aiCopyProvider ? providerLabel(status.aiCopyProvider) : "—"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Copy provider</p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            Your publishing accounts
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Connect social accounts per site below. crawlspark.ai publishes using your authorized tokens — not shared app keys.
+          </p>
+          {site ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(["twitter", "linkedin", "facebook", "instagram", "pinterest", "email"] as const).map(
+                (platform) => {
+                  const conn = siteSocialConnections[platform];
+                  const connected =
+                    !!conn?.accessToken || !!conn?.accountId;
+                  const label =
+                    platform === "twitter"
+                      ? "X"
+                      : platform.charAt(0).toUpperCase() + platform.slice(1);
+                  return (
+                    <span
+                      key={platform}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                        connected
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
+                          : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                      }`}
+                    >
+                      {connected ? "✓ " : ""}
+                      {label}
+                      {platform === "email" && conn?.accountId
+                        ? `: ${conn.accountId}`
+                        : ""}
+                    </span>
+                  );
+                },
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+              Load a site in the domain card to see and connect accounts for that domain.
+            </p>
+          )}
+          {site && (
+            <p className="mt-3 text-xs text-slate-500">
+              {siteConnectionCount} account{siteConnectionCount === 1 ? "" : "s"} connected for{" "}
+              {site.domain}
+            </p>
+          )}
+        </div>
+      )}
 
       {isAdmin && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -218,7 +274,9 @@ export function SocialConnections() {
           Social publishing
         </h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Global connections (via env vars) are app-level fallbacks. For per-client (per domain), use the &quot;Social accounts for this site&quot; section in the domain card after loading a site. Clients authorize via standard OAuth — no developer account needed on their side.
+          {isAdmin
+            ? "Global env-var fallbacks are for app-level defaults. Users connect per-site accounts below via OAuth."
+            : "Authorize your social accounts for each crawled site. Tokens are stored privately for that domain only."}
         </p>
 
         {/* Per-user / per-site OAuth connect for regular users */}

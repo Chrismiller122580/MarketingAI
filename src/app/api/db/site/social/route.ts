@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { normalizeDomain } from "@/lib/crawl";
 
 export async function GET(request: Request) {
   const userId = await requireAuthUserId();
@@ -14,8 +15,15 @@ export async function GET(request: Request) {
   }
 
   try {
+    let lookup = domain;
+    try {
+      lookup = normalizeDomain(domain);
+    } catch {
+      /* use raw */
+    }
+
     const site = await prisma.site.findFirst({
-      where: { userId, domain },
+      where: { userId, OR: [{ domain: lookup }, { domain }] },
       include: {
         socialConnections: true,
       },

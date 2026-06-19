@@ -173,26 +173,60 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user, account, trigger }) {
-      if (user?.id) token.id = user.id;
-      if (user?.role) token.role = user.role as string;
+      const tt = token as ExtToken;
+      const SOCIAL_PROVIDERS = [
+        "twitter",
+        "linkedin",
+        "facebook",
+        "instagram",
+        "pinterest",
+      ];
 
-      // Propagate subscription fields on sign-in
-      const u = (user ?? {}) as unknown as ExtUser;
-      if (u.plan) (token as ExtToken).plan = u.plan;
-      if (u.subscriptionStatus !== undefined) (token as ExtToken).subscriptionStatus = u.subscriptionStatus;
-      if (u.subscriptionEndsAt !== undefined) (token as ExtToken).subscriptionEndsAt = u.subscriptionEndsAt;
+      // Only credentials login establishes identity — never replace id from OAuth
+      if (account?.provider === "credentials" && user?.id) {
+        token.id = user.id;
+        if (user.role) token.role = user.role as string;
+        const u = user as unknown as ExtUser;
+        if (u.plan) tt.plan = u.plan;
+        if (u.subscriptionStatus !== undefined) {
+          tt.subscriptionStatus = u.subscriptionStatus;
+        }
+        if (u.subscriptionEndsAt !== undefined) {
+          tt.subscriptionEndsAt = u.subscriptionEndsAt;
+        }
+      }
 
-      // Refresh plan from DB after Stripe checkout or billing changes
-      if (trigger === "update" && token.id) {
+      async function refreshSubscriptionFromDb(userId: string) {
         const fresh = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { plan: true, subscriptionStatus: true, subscriptionEndsAt: true },
+          where: { id: userId },
+          select: {
+            plan: true,
+            subscriptionStatus: true,
+            subscriptionEndsAt: true,
+            role: true,
+          },
         });
         if (fresh) {
-          (token as ExtToken).plan = fresh.plan;
-          (token as ExtToken).subscriptionStatus = fresh.subscriptionStatus;
-          (token as ExtToken).subscriptionEndsAt = fresh.subscriptionEndsAt?.toISOString() ?? null;
+          tt.plan = fresh.plan;
+          tt.subscriptionStatus = fresh.subscriptionStatus;
+          tt.subscriptionEndsAt =
+            fresh.subscriptionEndsAt?.toISOString() ?? null;
+          token.role = fresh.role;
         }
+      }
+
+      // Social OAuth is for linking tokens only — preserve paid plan from DB
+      if (
+        account &&
+        SOCIAL_PROVIDERS.includes(account.provider) &&
+        token.id
+      ) {
+        await refreshSubscriptionFromDb(token.id as string);
+      }
+
+      // Refresh plan from DB after Stripe checkout, billing, or session.update()
+      if (trigger === "update" && token.id) {
+        await refreshSubscriptionFromDb(token.id as string);
       }
 
       // Store OAuth tokens for social platforms (per user, will be linked to specific sites)

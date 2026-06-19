@@ -10,6 +10,7 @@ import {
 import { resolveInstagramAccount } from "@/lib/social/instagram";
 import { exchangeMetaLongLivedToken } from "@/lib/social/meta-credentials";
 import { resolvePinterestBoard } from "@/lib/social/pinterest";
+import { normalizeDomain } from "@/lib/crawl";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -34,16 +35,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "platform and siteDomain required" }, { status: 400 });
     }
 
-    // Find the site owned by this user
+    let normalizedDomain = siteDomain;
+    try {
+      normalizedDomain = normalizeDomain(siteDomain);
+    } catch {
+      /* use raw */
+    }
+
     const site = await prisma.site.findFirst({
       where: {
         userId: session.user.id,
-        domain: siteDomain,
+        OR: [{ domain: normalizedDomain }, { domain: siteDomain }],
       },
     });
 
     if (!site) {
-      return NextResponse.json({ error: "Site not found or not owned by you" }, { status: 404 });
+      return NextResponse.json(
+        {
+          error:
+            "Site not found. Crawl and save this domain first, then connect social accounts.",
+        },
+        { status: 404 },
+      );
     }
 
     let accessToken: string | undefined;

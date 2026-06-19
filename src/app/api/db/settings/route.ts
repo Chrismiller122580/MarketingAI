@@ -36,39 +36,42 @@ export async function GET() {
   }
 }
 
+function sanitizePatch(patch: Partial<UserSettings>): Partial<UserSettings> {
+  const {
+    brandVoice,
+    targetAudience,
+    defaultPlatforms,
+    includeHashtags,
+    emojiStyle,
+    preferAiImages,
+  } = patch;
+  return {
+    ...(brandVoice !== undefined && { brandVoice }),
+    ...(targetAudience !== undefined && { targetAudience }),
+    ...(defaultPlatforms !== undefined && { defaultPlatforms }),
+    ...(includeHashtags !== undefined && { includeHashtags }),
+    ...(emojiStyle !== undefined && { emojiStyle }),
+    ...(preferAiImages !== undefined && { preferAiImages }),
+  };
+}
+
 export async function PUT(request: Request) {
   const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;
 
   try {
     const body = await request.json();
-    const patch = body.settings as Partial<UserSettings>;
+    const patch = sanitizePatch(body.settings as Partial<UserSettings>);
 
     const settings = await prisma.userSettings.upsert({
       where: { userId },
       create: { userId, ...DEFAULTS, ...patch },
-      update: {
-        ...(patch.brandVoice !== undefined && {
-          brandVoice: patch.brandVoice,
-        }),
-        ...(patch.targetAudience !== undefined && {
-          targetAudience: patch.targetAudience,
-        }),
-        ...(patch.defaultPlatforms !== undefined && {
-          defaultPlatforms: patch.defaultPlatforms,
-        }),
-        ...(patch.includeHashtags !== undefined && {
-          includeHashtags: patch.includeHashtags,
-        }),
-        ...(patch.emojiStyle !== undefined && { emojiStyle: patch.emojiStyle }),
-        ...(patch.preferAiImages !== undefined && {
-          preferAiImages: patch.preferAiImages,
-        }),
-      },
+      update: patch,
     });
 
     return NextResponse.json({ settings: settingsToData(settings) });
   } catch (error) {
+    console.error("Settings PUT error", error);
     const message = error instanceof Error ? error.message : "Database error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
