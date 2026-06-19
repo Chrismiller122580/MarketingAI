@@ -5,12 +5,14 @@ import { useSession } from "next-auth/react";
 import {
   PLAN_DISPLAY,
   PRICING,
+  STRIPE_PRICING,
   getExplorerTxUrl,
   getNetworkLabel,
   getReceiverAddress,
   isXrpNetwork,
   type PlanKey,
 } from "@/lib/billing";
+import { InlineLoading } from "./loading-indicator";
 import {
   connectXrpWallet,
   detectXrpWallets,
@@ -25,8 +27,9 @@ type PaymentRecord = {
   amount: string;
   currency: string;
   network: string;
+  provider?: string;
   txHash: string | null;
-  reference: string;
+  reference: string | null;
   status: string;
   confirmedAt: string | null;
   createdAt: string;
@@ -55,6 +58,10 @@ export function BillingPanel() {
   const [walletSession, setWalletSession] = useState<XrpWalletSession | null>(null);
   const [walletConnecting, setWalletConnecting] = useState(false);
   const [walletPaying, setWalletPaying] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState<PlanKey | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [stripeConfigured, setStripeConfigured] = useState(false);
+  const [hasStripeSub, setHasStripeSub] = useState(false);
 
   const isPaid = currentPlan !== "free";
   const receiver = getReceiverAddress();
@@ -67,6 +74,72 @@ export function BillingPanel() {
       .then(setDetectedWallets)
       .catch(() => setDetectedWallets({ crossmark: false, gem: false }));
   }, [showModal, isXrp]);
+
+  useEffect(() => {
+    fetch("/api/billing/stripe/status")
+      .then((r) => r.json())
+      .then((data) => {
+        setStripeConfigured(!!data.stripeConfigured);
+        setHasStripeSub(!!data.stripeSubscriptionId);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("stripe") === "success") {
+      updateSession().then(() => {
+        setMessage("Stripe subscription active! Your plan has been upgraded.");
+        window.history.replaceState({}, "", "/billing");
+        fetch("/api/billing/stripe/status")
+          .then((r) => r.json())
+          .then((data) => {
+            setStripeConfigured(!!data.stripeConfigured);
+            setHasStripeSub(!!data.stripeSubscriptionId);
+          })
+          .catch(() => {});
+      });
+    } else if (params.get("stripe") === "cancelled") {
+      setMessage("Checkout cancelled. You can try again anytime.");
+      window.history.replaceState({}, "", "/billing");
+    }
+  }, [updateSession]);
+
+  async function startStripeCheckout(plan: PlanKey) {
+    setStripeLoading(plan);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/billing/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Checkout failed");
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Stripe checkout failed");
+    } finally {
+      setStripeLoading(null);
+    }
+  }
+
+  async function openStripePortal() {
+    setPortalLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Portal failed");
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to open billing portal");
+    } finally {
+      setPortalLoading(false);
+    }
+  }
 
   async function openPay(plan: PlanKey) {
     setError(null);
@@ -200,6 +273,17 @@ export function BillingPanel() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+          {message}
+        </div>
+      )}
+      {error && !showModal && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40">
+          {error}
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-start justify-between">
           <div>
@@ -239,54 +323,90 @@ export function BillingPanel() {
           </button>
         </div>
 
+        {hasStripeSub && (
+          <button
+            type="button"
+            onClick={openStripePortal}
+            disabled={portalLoading}
+            className="mt-4 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            {portalLoading ? (
+              <InlineLoading label="Opening portal…" />
+            ) : (
+              "Manage Stripe subscription"
+            )}
+          </button>
+        )}
+
         {!isPaid && (
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             {(["pro", "enterprise"] as const).map((planKey) => {
-              const p = PRICING[planKey];
+              const crypto = PRICING[planKey];
+              const stripe = STRIPE_PRICING[planKey];
               return (
                 <div
                   key={planKey}
                   className="rounded-xl border border-slate-200 p-5 dark:border-slate-700"
                 >
-                  <div className="flex items-baseline justify-between">
-                    <div>
-                      <div className="text-lg font-semibold">{p.label}</div>
-                      <div className="text-3xl font-bold tracking-tighter">
-                        {p.amount} {p.currency}
-                        <span className="text-base font-normal text-slate-500">/mo</span>
-                      </div>
+                  <div className="text-lg font-semibold">{crypto.label}</div>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <div className="text-2xl font-bold tracking-tighter">
+                      ${stripe.amount}
+                      <span className="text-sm font-normal text-slate-500">/mo</span>
                     </div>
-                    <div className="text-right text-xs text-emerald-600 dark:text-emerald-400">
-                      XRP
+                    <div className="text-sm text-slate-500 dark:text-slate-400">
+                      or {crypto.amount} {crypto.currency}/mo
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                    {p.description}
+                    {crypto.description}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => openPay(planKey)}
-                    className="mt-4 w-full rounded-xl bg-gradient-to-r from-crawl-700 to-spark-500 px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105 active:brightness-95"
-                  >
-                    Pay with XRP
-                  </button>
+                  <div className="mt-4 flex flex-col gap-2">
+                    {stripeConfigured && (
+                      <button
+                        type="button"
+                        onClick={() => startStripeCheckout(planKey)}
+                        disabled={!!stripeLoading}
+                        className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                      >
+                        {stripeLoading === planKey ? (
+                          <InlineLoading label="Redirecting to Stripe…" />
+                        ) : (
+                          "Subscribe with card"
+                        )}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => openPay(planKey)}
+                      className="w-full rounded-xl bg-gradient-to-r from-crawl-700 to-spark-500 px-4 py-2.5 text-sm font-semibold text-white hover:brightness-105 active:brightness-95"
+                    >
+                      Pay with XRP
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
 
-        {isPaid && (
+        {isPaid && !hasStripeSub && (
           <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">
             Thank you for being a {currentDisplay.label} customer. Renew with XRP
             before your subscription ends.
+          </div>
+        )}
+
+        {isPaid && hasStripeSub && (
+          <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            Your {currentDisplay.label} plan renews automatically via Stripe.
           </div>
         )}
       </div>
 
       {myPayments.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h3 className="mb-3 text-sm font-semibold">Your recent crypto payments</h3>
+          <h3 className="mb-3 text-sm font-semibold">Your recent payments</h3>
           <div className="space-y-2 text-sm">
             {myPayments.slice(0, 5).map((p) => (
               <div
@@ -295,8 +415,15 @@ export function BillingPanel() {
               >
                 <div>
                   <span className="font-medium">{p.plan}</span> • {p.amount}{" "}
-                  {p.currency} on {getNetworkLabel(p.network)}
-                  <div className="text-[10px] text-slate-400">Ref: {p.reference}</div>
+                  {p.currency}
+                  {p.provider === "stripe" ? (
+                    <span className="text-slate-500"> via Stripe</span>
+                  ) : (
+                    <span> on {getNetworkLabel(p.network)}</span>
+                  )}
+                  {p.reference && (
+                    <div className="text-[10px] text-slate-400">Ref: {p.reference}</div>
+                  )}
                 </div>
                 <div className="text-right">
                   <span

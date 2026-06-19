@@ -290,13 +290,13 @@ export function LandingPage() {
         <section id="pricing" className="border-t border-slate-200 dark:border-slate-800 px-6 py-24 bg-slate-50 dark:bg-slate-950/50">
           <div className="mx-auto max-w-5xl">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Simple, crypto-powered pricing</h2>
-              <p className="mt-3 text-slate-600 dark:text-slate-400">Pay with XRP. Connect your wallet — verified payments activate instantly.</p>
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Simple, flexible pricing</h2>
+              <p className="mt-3 text-slate-600 dark:text-slate-400">Subscribe with card via Stripe or pay with XRP — your choice.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {[
                 { name: "Free", price: "0", features: ["Basic generations", "1 site crawl", "Community support", "Manual publishing"], cta: "Get started", href: "/signup" },
-                { name: "Pro", price: "29", features: ["Unlimited generations", "Unlimited sites", "Priority AI", "Content calendar & auto-publish", "Crypto billing"], cta: "Upgrade to Pro", href: "/signup", popular: true },
+                { name: "Pro", price: "29", features: ["Unlimited generations", "Unlimited sites", "Priority AI", "Content calendar & auto-publish", "Stripe or XRP billing"], cta: "Upgrade to Pro", href: "/signup", popular: true },
                 { name: "Enterprise", price: "99", features: ["Everything in Pro", "Priority support", "Custom onboarding", "Volume pricing", "Dedicated account manager"], cta: "Contact sales", href: "/signup" },
               ].map((tier) => (
                 <div key={tier.name} className={`card p-6 flex flex-col ${tier.popular ? 'ring-2 ring-amber-500' : ''}`}>
@@ -315,7 +315,7 @@ export function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="text-center text-xs mt-6 text-slate-500">Billed in XRP on XRPL. Plans managed in your Billing page after signup.</p>
+            <p className="text-center text-xs mt-6 text-slate-500">Card or XRP billing. Plans managed in your Billing page after signup.</p>
           </div>
         </section>
 

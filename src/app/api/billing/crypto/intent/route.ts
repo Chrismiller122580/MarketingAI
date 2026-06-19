@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     const payment = await prisma.payment.create({
       data: {
         userId: userId as string,
+        provider: "crypto",
         plan,
         amount: pricing.amount,
         currency: pricing.currency,

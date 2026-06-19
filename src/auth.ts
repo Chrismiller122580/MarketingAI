@@ -172,15 +172,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   ],
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (user?.id) token.id = user.id;
       if (user?.role) token.role = user.role as string;
 
-      // Propagate subscription fields
+      // Propagate subscription fields on sign-in
       const u = (user ?? {}) as unknown as ExtUser;
       if (u.plan) (token as ExtToken).plan = u.plan;
       if (u.subscriptionStatus !== undefined) (token as ExtToken).subscriptionStatus = u.subscriptionStatus;
       if (u.subscriptionEndsAt !== undefined) (token as ExtToken).subscriptionEndsAt = u.subscriptionEndsAt;
+
+      // Refresh plan from DB after Stripe checkout or billing changes
+      if (trigger === "update" && token.id) {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { plan: true, subscriptionStatus: true, subscriptionEndsAt: true },
+        });
+        if (fresh) {
+          (token as ExtToken).plan = fresh.plan;
+          (token as ExtToken).subscriptionStatus = fresh.subscriptionStatus;
+          (token as ExtToken).subscriptionEndsAt = fresh.subscriptionEndsAt?.toISOString() ?? null;
+        }
+      }
 
       // Store OAuth tokens for social platforms (per user, will be linked to specific sites)
       if (account?.provider === "twitter") {

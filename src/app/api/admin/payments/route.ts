@@ -22,6 +22,7 @@ export async function GET() {
       payments: payments.map((p) => ({
         id: p.id,
         user: p.user,
+        provider: p.provider,
         plan: p.plan,
         amount: p.amount.toString(),
         currency: p.currency,

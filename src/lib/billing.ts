@@ -11,6 +11,23 @@ const DEFAULT_CURRENCY =
 
 const DEFAULT_XRP_RECEIVER = "rNBYkS1ZHSekLLoFHGAvbTtgAaXXi9Fm71";
 
+export const STRIPE_PRICING = {
+  pro: {
+    amount: Number(process.env.STRIPE_PRICE_PRO_AMOUNT ?? 29),
+    currency: "USD",
+    label: "Pro",
+    description: "Unlimited generations, priority support, advanced features",
+    monthly: true,
+  },
+  enterprise: {
+    amount: Number(process.env.STRIPE_PRICE_ENTERPRISE_AMOUNT ?? 99),
+    currency: "USD",
+    label: "Enterprise",
+    description: "Everything in Pro + custom brand training, API access, dedicated support",
+    monthly: true,
+  },
+} as const;
+
 export const PRICING = {
   pro: {
     amount: Number(process.env.CRYPTO_PRICE_PRO ?? 29),

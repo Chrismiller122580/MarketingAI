@@ -15,6 +15,21 @@ export async function confirmPaymentAndUpgrade(paymentId: string) {
     return { ok: false as const, error: "Payment already confirmed" };
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: payment.userId },
+    select: { stripeSubscriptionId: true, subscriptionStatus: true },
+  });
+
+  if (
+    user?.stripeSubscriptionId &&
+    user.subscriptionStatus === "active"
+  ) {
+    return {
+      ok: false as const,
+      error: "User has an active Stripe subscription. Manage billing via Stripe portal.",
+    };
+  }
+
   const now = new Date();
   const endsAt = new Date(now.getTime() + SUBSCRIPTION_DAYS * 24 * 60 * 60 * 1000);
 

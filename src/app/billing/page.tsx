@@ -9,20 +9,20 @@ export default function BillingPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Billing &amp; Payments</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Manage your subscription and view crypto payment history. Pay with XRP via Crossmark or Gem Wallet.
+            Subscribe with card via Stripe or pay with XRP. Manage your plan and view payment history.
           </p>
         </div>
 
         <BillingPanel />
 
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-600 dark:text-slate-400 shadow-sm">
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">How crypto billing works</h3>
+          <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">How billing works</h3>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Choose Pro or Enterprise and click “Pay with XRP”.</li>
-            <li>Connect Crossmark or Gem Wallet and pay in one click, or send manually to the displayed address.</li>
-            <li>After the transaction confirms, the tx hash is auto-submitted (or paste it manually).</li>
-            <li>Valid XRP payments auto-activate your plan; others are reviewed by an admin.</li>
-            <li>Your current plan and end date are shown above. Renew before expiry to keep access.</li>
+            <li><strong>Card (Stripe):</strong> Click “Subscribe with card” — checkout opens on Stripe. Your plan renews monthly and syncs automatically.</li>
+            <li><strong>XRP:</strong> Click “Pay with XRP”, connect Crossmark or Gem Wallet, or send manually and submit the transaction hash.</li>
+            <li>Valid XRP payments auto-activate for 30 days; others are reviewed by an admin.</li>
+            <li>Stripe subscribers can manage or cancel via “Manage Stripe subscription”.</li>
+            <li>Your current plan and end date are shown above.</li>
           </ul>
           <p className="mt-3 text-xs">Questions? Contact support from your account or the admin team.</p>
         </div>

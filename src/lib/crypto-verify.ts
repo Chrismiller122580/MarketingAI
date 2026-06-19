@@ -155,7 +155,7 @@ export async function verifyCryptoPayment(payment: {
   txHash: string | null;
   network: string;
   amount: { toString(): string };
-  reference: string;
+  reference: string | null;
   userId: string;
 }): Promise<PaymentVerification> {
   if (!payment.txHash?.trim()) {
@@ -182,7 +182,7 @@ export async function verifyCryptoPayment(payment: {
     if (!isValidXrpTxHash(cleanTx)) {
       return { valid: false, error: "Invalid XRPL transaction hash" };
     }
-    return verifyXrpPayment(cleanTx, receiver, expectedAmount, payment.reference);
+    return verifyXrpPayment(cleanTx, receiver, expectedAmount, payment.reference ?? undefined);
   }
 
   if (payment.network === "base" || payment.network === "ethereum") {
