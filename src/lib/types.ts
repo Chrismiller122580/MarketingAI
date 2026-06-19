@@ -106,6 +106,11 @@ export type ImageOverlayTextLayer = {
   fontStyle?: "normal" | "bold";
   align?: "left" | "center" | "right";
   width?: number;
+  rotation?: number;
+  opacity?: number;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOpacity?: number;
 };
 
 export type ImageOverlayImageLayer = {
@@ -117,9 +122,27 @@ export type ImageOverlayImageLayer = {
   width: number;
   height: number;
   opacity: number;
+  rotation?: number;
 };
 
-export type ImageOverlayLayer = ImageOverlayTextLayer | ImageOverlayImageLayer;
+export type ImageOverlayShapeLayer = {
+  type: "shape";
+  id: string;
+  shape: "rect" | "pill";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  opacity: number;
+  cornerRadius?: number;
+  rotation?: number;
+};
+
+export type ImageOverlayLayer =
+  | ImageOverlayTextLayer
+  | ImageOverlayImageLayer
+  | ImageOverlayShapeLayer;
 
 export type PostMedia = {
   url: string;
