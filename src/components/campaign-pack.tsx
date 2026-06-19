@@ -10,6 +10,7 @@ import { usePosts } from "@/context/posts-context";
 import type { Platform, SavedPost, VisualTargeting } from "@/lib/types";
 import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
+import { LoadingOverlay } from "./loading-indicator";
 
 const ALL_PLATFORMS: { value: Platform; label: string }[] = [
   { value: "instagram", label: "Instagram" },
@@ -97,6 +98,13 @@ export function CampaignPack() {
   }
 
   return (
+    <>
+    <LoadingOverlay
+      show={loading}
+      label={`Generating ${maxPosts}-post campaign pack…`}
+      sublabel="Smart-matching pages, business context, and dual AI copy"
+      progress={{ current: 0, total: maxPosts }}
+    />
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
       <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -247,5 +255,6 @@ export function CampaignPack() {
         )}
       </div>
     </div>
+    </>
   );
 }

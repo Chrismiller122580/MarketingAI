@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { GeneratedPost, Platform } from "@/lib/types";
+import { Spinner } from "./loading-indicator";
 
 const platformLabels: Record<Platform, string> = {
   instagram: "Instagram",
@@ -74,11 +75,24 @@ export function PostPreview({
             <p className="text-xs text-slate-500 dark:text-slate-400">{post.contentType}</p>
           </div>
         </div>
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeColor}`}
-        >
-          {badgeLabel}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {post.selectedProvider && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                post.selectedProvider === "openai"
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                  : "bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+              }`}
+            >
+              {post.selectedProvider === "openai" ? "GPT" : "Grok"}
+            </span>
+          )}
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeColor}`}
+          >
+            {badgeLabel}
+          </span>
+        </div>
       </div>
 
       <div className={`relative w-full overflow-hidden bg-slate-100 dark:bg-slate-800 ${mediaAspect}`}>
@@ -102,7 +116,7 @@ export function PostPreview({
 
         {videoProcessing && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <Spinner size="lg" className="border-white" />
             <p className="mt-3 text-sm font-medium text-white">
               Generating video ad…
             </p>

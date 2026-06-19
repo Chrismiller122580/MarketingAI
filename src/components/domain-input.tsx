@@ -1,6 +1,7 @@
 "use client";
 
 import { useSite } from "@/context/site-context";
+import { InlineLoading } from "./loading-indicator";
 
 export function DomainInput({ compact = false }: { compact?: boolean }) {
   const {
@@ -38,7 +39,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           disabled={isLoading}
           className="h-9 rounded-lg bg-amber-600 px-3 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-50"
         >
-          {isLoading ? "…" : "Crawl"}
+          {isLoading ? <InlineLoading label="Crawling…" /> : "Crawl"}
         </button>
       </form>
     );
@@ -89,9 +90,24 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           disabled={isLoading || !domainInput.trim()}
           className="h-11 shrink-0 rounded-lg bg-amber-600 px-6 text-sm font-medium text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isLoading ? "Analyzing site…" : site ? "Re-crawl site" : "Crawl site"}
+          {isLoading ? (
+            <InlineLoading label="Analyzing site & business model…" />
+          ) : site ? (
+            "Re-crawl site"
+          ) : (
+            "Crawl site"
+          )}
         </button>
       </form>
+
+      {isLoading && (
+        <div className="mt-3 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+          <span>
+            Crawling pages, extracting brand voice, and detecting business model…
+          </span>
+        </div>
+      )}
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
@@ -100,7 +116,13 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           <span>✓</span>
           <span>
             <strong>{site.brand.name}</strong> — {site.pages.length} pages,{" "}
-            {site.images.length} images, {site.brand.keywords.length} keywords
+            {site.images.length} images
+            {site.brand.businessModel && (
+              <>
+                , <span className="capitalize">{site.brand.businessModel.type}</span>{" "}
+                ({site.brand.businessModel.market})
+              </>
+            )}
           </span>
           <span
             className="rounded-full px-2 py-0.5 text-xs font-medium"

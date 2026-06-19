@@ -1,4 +1,9 @@
+import { enhanceWithDualAi, getAvailableAiProviders } from "./ai-dual";
 import { generateAiImage } from "./ai-image";
+import {
+  buildBusinessInsights,
+  suggestVisualTargeting,
+} from "./business-context";
 import { pickBestImage, buildBrandedImageUrl } from "./image-matcher";
 import {
   describeVisualTargeting,
@@ -38,10 +43,72 @@ function getSettings(request: GenerateRequest): UserSettings {
   return { ...DEFAULT_SETTINGS, ...request.settings };
 }
 
-function pickPage(site: SiteData, sourcePageUrl?: string): SitePage {
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2);
+}
+
+function scorePageRelevance(
+  page: SitePage,
+  prompt: string,
+  contentType: ContentType,
+): number {
+  let score = 0;
+  const promptTokens = new Set(tokenize(prompt));
+
+  const pageText = `${page.title} ${page.description} ${page.headings.join(" ")} ${page.excerpt}`;
+  const pageTokens = tokenize(pageText);
+
+  for (const token of pageTokens) {
+    if (promptTokens.has(token)) score += 8;
+  }
+
+  if (page.path === "/") score += 15;
+  if (page.images.length > 0) score += page.images.length * 3;
+  if (page.description.length > 50) score += 10;
+
+  const typeBoost: Partial<Record<ContentType, RegExp>> = {
+    "Product Description": /product|pricing|features|plan/i,
+    "Blog Intro": /blog|article|news|insights/i,
+    "Ad Headline": /pricing|demo|trial|get started|sign up/i,
+    "Email Copy": /about|contact|team/i,
+    "Video Ad": /video|demo|showcase/i,
+  };
+  const pattern = typeBoost[contentType];
+  if (pattern?.test(pageText)) score += 25;
+
+  if (siteBusinessKeywordsMatch(page, prompt)) score += 12;
+
+  return score;
+}
+
+function siteBusinessKeywordsMatch(page: SitePage, prompt: string): boolean {
+  const combined = `${page.title} ${page.description}`.toLowerCase();
+  return tokenize(prompt).some((t) => combined.includes(t));
+}
+
+function pickPage(
+  site: SiteData,
+  sourcePageUrl?: string,
+  prompt = "",
+  contentType: ContentType = "Social Post",
+): SitePage {
   if (sourcePageUrl) {
     return site.pages.find((p) => p.url === sourcePageUrl) ?? site.pages[0];
   }
+
+  if (prompt.trim()) {
+    const scored = site.pages.map((page) => ({
+      page,
+      score: scorePageRelevance(page, prompt, contentType),
+    }));
+    scored.sort((a, b) => b.score - a.score);
+    if (scored[0] && scored[0].score > 0) return scored[0].page;
+  }
+
   return site.pages.find((p) => p.path === "/") ?? site.pages[0];
 }
 
@@ -94,6 +161,15 @@ function truncate(text: string, limit: number): string {
   return text.slice(0, limit - 1).trimEnd() + "…";
 }
 
+function businessHook(site: SiteData): string {
+  const bm = site.brand.businessModel;
+  if (!bm) return "";
+  if (bm.painPoints.length > 0) {
+    return `Tired of ${bm.painPoints[0].toLowerCase()}? `;
+  }
+  return "";
+}
+
 function socialPost(
   site: SiteData,
   page: SitePage,
@@ -105,8 +181,12 @@ function socialPost(
   const body = page.description || page.excerpt.slice(0, 200);
   const cta = `→ ${site.domain}${page.path === "/" ? "" : page.path}`;
   const prefix = emojiPrefix(settings.emojiStyle, platform);
+  const bm = site.brand.businessModel;
 
-  let post = `${prefix}${h}\n\n${body}`;
+  let post = `${prefix}${businessHook(site)}${h}\n\n${body}`;
+  if (bm?.valueProposition) {
+    post += `\n\n${bm.valueProposition}`;
+  }
   if (settings.targetAudience) {
     post += `\n\nBuilt for ${settings.targetAudience}.`;
   }
@@ -218,10 +298,12 @@ function buildInsights(
   imageSource: GeneratedPost["image"]["source"],
   platform: Platform,
   settings: UserSettings,
+  aiProviders: string[],
 ): string[] {
   const insights = [
-    `Matched content from "${page.title}" (${page.path}).`,
+    `Smart-matched page "${page.title}" (${page.path}) to your brief.`,
     `Brand tone: ${site.brand.tone}. Voice: ${settings.brandVoice.slice(0, 60)}…`,
+    ...buildBusinessInsights(site.brand),
     `Keywords: ${site.brand.keywords.slice(0, 5).join(", ")}.`,
     imageSource === "site"
       ? "Used highest-scoring image from crawled pages."
@@ -230,6 +312,15 @@ function buildInsights(
         : "Generated branded visual — no suitable site image found.",
     `Optimized for ${platform} (${PLATFORM_LIMITS[platform]} chars).`,
   ];
+
+  if (aiProviders.length === 2) {
+    insights.push(
+      "Compared GPT-4o mini and Grok 3 mini — picked the best fit for your business goal.",
+    );
+  } else if (aiProviders.length === 1) {
+    insights.push(`AI-enhanced with ${aiProviders[0] === "openai" ? "GPT-4o mini" : "Grok 3 mini"}.`);
+  }
+
   return insights;
 }
 
@@ -299,7 +390,7 @@ export async function generateSmartPost(
 ): Promise<GeneratedPost> {
   const settings = getSettings(request);
   const { site, contentType, platform, prompt = "", sourcePageUrl } = request;
-  const page = pickPage(site, sourcePageUrl);
+  const page = pickPage(site, sourcePageUrl, prompt, contentType);
   const text =
     platform === "email" && contentType === "Social Post"
       ? emailCopy(site, page, platform, prompt, settings)
@@ -310,19 +401,43 @@ export async function generateSmartPost(
   const isVideoAd = contentType === "Video Ad";
   const preferAi =
     isVideoAd || (request.preferAiImage ?? settings.preferAiImages ?? false);
+
+  const effectiveTargeting = suggestVisualTargeting(
+    site.brand,
+    platform,
+    request.visualTargeting,
+  );
+
   const image = await resolveImage(
     site,
     page,
     platform,
     context,
     preferAi,
-    request.visualTargeting,
+    effectiveTargeting,
   );
 
-  const aiEnhanced = await tryAiEnhancement(request, text, page, settings);
-  const finalText = aiEnhanced ?? text;
+  const { variants, recommendation } = await enhanceWithDualAi(
+    request,
+    text,
+    page,
+    settings,
+  );
 
-  const insights = buildInsights(site, page, image.source, platform, settings);
+  const selectedVariant =
+    variants.find((v) => v.provider === recommendation) ?? variants[0];
+  const finalText = selectedVariant?.text ?? text;
+
+  const aiProviders = getAvailableAiProviders();
+  const insights = buildInsights(
+    site,
+    page,
+    image.source,
+    platform,
+    settings,
+    aiProviders,
+  );
+
   if (preferAi && image.source !== "ai") {
     insights.push(
       "AI image generation failed — using branded placeholder. Check OPENAI_API_KEY or XAI_API_KEY on the server.",
@@ -333,9 +448,13 @@ export async function generateSmartPost(
       "AI video ad — short-form vertical/horizontal creative generated from your brand.",
     );
   }
-  if (hasActiveVisualTargeting(request.visualTargeting)) {
+  if (hasActiveVisualTargeting(effectiveTargeting)) {
     insights.push(
-      `Visual direction: ${describeVisualTargeting(request.visualTargeting).join(", ")}.`,
+      `Visual direction: ${describeVisualTargeting(effectiveTargeting).join(", ")}.`,
+    );
+  } else if (preferAi && site.brand.businessModel) {
+    insights.push(
+      `Auto-targeted visuals for ${site.brand.businessModel.type} business on ${platform}.`,
     );
   }
 
@@ -350,6 +469,9 @@ export async function generateSmartPost(
     sourcePage: page.path,
     characterCount: finalText.length,
     createdAt: new Date().toISOString(),
+    aiVariants: variants.length > 0 ? variants : undefined,
+    selectedProvider: selectedVariant?.provider,
+    aiRecommendation: recommendation,
   };
 }
 
@@ -398,49 +520,3 @@ export async function generateCampaignPack(
   return posts;
 }
 
-async function tryAiEnhancement(
-  request: GenerateRequest,
-  draft: string,
-  page: SitePage,
-  settings: UserSettings,
-): Promise<string | null> {
-  const apiKey = process.env.XAI_API_KEY || process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const baseUrl = process.env.XAI_API_KEY
-    ? "https://api.x.ai/v1/chat/completions"
-    : "https://api.openai.com/v1/chat/completions";
-
-  const model = process.env.XAI_API_KEY ? "grok-3-mini" : "gpt-4o-mini";
-  const tone = settings.brandVoice || request.site.brand.tone;
-
-  const systemPrompt = `You are an expert marketing copywriter. Rewrite the draft to be compelling and on-brand for ${request.platform}. Brand: ${request.site.brand.name}. Voice: ${tone}. Audience: ${settings.targetAudience}. Return only the final copy.`;
-
-  try {
-    const response = await fetch(baseUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Page: ${page.title}\nDraft:\n${draft}${request.prompt ? `\nFocus: ${request.prompt}` : ""}`,
-          },
-        ],
-        max_tokens: 600,
-        temperature: 0.7,
-      }),
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content?.trim() || null;
-  } catch {
-    return null;
-  }
-}

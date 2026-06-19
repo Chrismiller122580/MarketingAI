@@ -7,6 +7,26 @@ export type SiteImage = {
   score: number;
 };
 
+export type BusinessModelType =
+  | "saas"
+  | "ecommerce"
+  | "services"
+  | "agency"
+  | "media"
+  | "local"
+  | "nonprofit"
+  | "other";
+
+export type BusinessModel = {
+  type: BusinessModelType;
+  market: "b2b" | "b2c" | "both";
+  valueProposition: string;
+  revenueModel: string;
+  conversionGoal: string;
+  differentiators: string[];
+  painPoints: string[];
+};
+
 export type BrandProfile = {
   name: string;
   tagline: string;
@@ -14,6 +34,15 @@ export type BrandProfile = {
   tone: string;
   topics: string[];
   themeColor: string;
+  businessModel?: BusinessModel;
+};
+
+export type AiProvider = "openai" | "xai";
+
+export type AiVariant = {
+  provider: AiProvider;
+  text: string;
+  label: string;
 };
 
 export type SitePage = {
@@ -94,6 +123,9 @@ export type GeneratedPost = {
   publishStatus?: PublishStatus;
   publishedAt?: string;
   publishUrl?: string;
+  aiVariants?: AiVariant[];
+  selectedProvider?: AiProvider;
+  aiRecommendation?: AiProvider;
 };
 
 export type SavedPost = GeneratedPost & {

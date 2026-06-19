@@ -75,7 +75,7 @@ export function VisualTargetingPicker({
           Visual direction
         </p>
         <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-          Guide AI image and video generation — subject, audience, mood, and setting.
+          Auto-targeted from your business model and platform — override any chip to customize.
         </p>
       </div>
 

@@ -29,6 +29,42 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
           </div>
         </div>
 
+        {site.brand.businessModel && (
+          <div className="rounded-lg border border-violet-100 bg-violet-50/50 p-4 dark:border-violet-900 dark:bg-violet-950/30">
+            <p className="text-xs font-medium uppercase tracking-wider text-violet-600 dark:text-violet-400">
+              Business model
+            </p>
+            <div className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+              <p>
+                <span className="font-medium capitalize">{site.brand.businessModel.type}</span>
+                {" · "}
+                <span className="uppercase">{site.brand.businessModel.market}</span>
+              </p>
+              <p className="text-xs leading-relaxed">{site.brand.businessModel.valueProposition}</p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="rounded-full bg-white px-2 py-0.5 text-xs dark:bg-slate-900">
+                  {site.brand.businessModel.revenueModel}
+                </span>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                  Goal: {site.brand.businessModel.conversionGoal}
+                </span>
+              </div>
+              {site.brand.businessModel.differentiators.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {site.brand.businessModel.differentiators.map((d) => (
+                    <span
+                      key={d}
+                      className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Detected tone

@@ -46,7 +46,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     steps: [
       "Go to console.x.ai → API keys → Create key.",
       "Add XAI_API_KEY to .env or Vercel env vars.",
-      "If both OpenAI and xAI are set, xAI is preferred for copy generation.",
+      "If both OpenAI and xAI are set, both write copy in parallel — the app compares and recommends the best variant.",
       "Redeploy after adding the key.",
     ],
     docsUrl: "https://console.x.ai/",

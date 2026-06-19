@@ -9,7 +9,17 @@ import { usePosts } from "@/context/posts-context";
 import { PostPreview } from "./post-preview";
 import { BrandInsights } from "./brand-insights";
 import { PublishPanel } from "./publish-panel";
-import type { ContentType, GeneratedPost, Platform, SavedPost, VisualTargeting } from "@/lib/types";
+import { AiVariantPicker } from "./ai-variant-picker";
+import { LoadingOverlay } from "./loading-indicator";
+import type {
+  AiProvider,
+  ContentType,
+  GeneratedPost,
+  Platform,
+  SavedPost,
+  VisualTargeting,
+} from "@/lib/types";
+import { suggestVisualTargeting } from "@/lib/business-context";
 import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
 
@@ -55,6 +65,7 @@ export function ContentGenerator() {
   const [videoDuration, setVideoDuration] = useState<5 | 10>(5);
   const [visualTargeting, setVisualTargeting] =
     useState<VisualTargeting>(DEFAULT_VISUAL_TARGETING);
+  const [loadingStage, setLoadingStage] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isVideoAd = contentType === "Video Ad";
@@ -73,6 +84,13 @@ export function ContentGenerator() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!site) return;
+    setVisualTargeting((prev) =>
+      suggestVisualTargeting(site.brand, platform, prev),
+    );
+  }, [site, platform]);
 
   async function pollVideoStatus(
     jobId: string,
@@ -133,8 +151,20 @@ export function ContentGenerator() {
     setLoading(true);
     setVideoLoading(false);
     setError(null);
+    setLoadingStage(
+      isVideoAd
+        ? "Crafting video script and visuals…"
+        : "Analyzing business model and matching pages…",
+    );
 
     try {
+      setTimeout(() => {
+        setLoadingStage((s) =>
+          s.includes("Analyzing")
+            ? "Comparing GPT and Grok for best copy…"
+            : s,
+        );
+      }, 1200);
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -180,11 +210,35 @@ export function ContentGenerator() {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
       setLoading(false);
+      setLoadingStage("");
+    }
+  }
+
+  function handleVariantSelect(provider: AiProvider, text: string) {
+    if (!post) return;
+    const updated = {
+      ...post,
+      text,
+      selectedProvider: provider,
+      characterCount: text.length,
+    };
+    setPost(updated);
+    if (savedPost) {
+      setSavedPost({ ...savedPost, ...updated });
     }
   }
 
   return (
     <div className="space-y-6">
+      <LoadingOverlay
+        show={loading}
+        label={loadingStage || "Generating content…"}
+        sublabel={
+          isVideoAd
+            ? "Building script, image, and starting video render"
+            : "Smart-matching pages, visuals, and dual AI copy"
+        }
+      />
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -192,7 +246,9 @@ export function ContentGenerator() {
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {site
-              ? `Smart copy + ${isVideoAd ? "video ads" : "images"} from ${site.pages.length} pages and ${site.images.length} images`
+              ? site.brand.businessModel
+                ? `${site.brand.businessModel.type.toUpperCase()} · ${site.brand.businessModel.market.toUpperCase()} — smart copy + ${isVideoAd ? "video ads" : "images"} from ${site.pages.length} pages`
+                : `Smart copy + ${isVideoAd ? "video ads" : "images"} from ${site.pages.length} pages and ${site.images.length} images`
               : "Crawl a domain to unlock intelligent content generation"}
           </p>
         </div>
@@ -369,6 +425,15 @@ export function ContentGenerator() {
           </button>
         </div>
       </div>
+
+      {post?.aiVariants && post.aiVariants.length > 1 && (
+        <AiVariantPicker
+          variants={post.aiVariants}
+          selected={post.selectedProvider ?? post.aiVariants[0].provider}
+          recommendation={post.aiRecommendation}
+          onSelect={handleVariantSelect}
+        />
+      )}
 
       {post && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
