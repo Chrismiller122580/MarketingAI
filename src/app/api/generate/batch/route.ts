@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateCampaignPack } from "@/lib/smart-generator";
 import type { BatchGenerateRequest } from "@/lib/types";
 import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
+import { getPromptPreferences } from "@/lib/learning-preferences";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
@@ -26,13 +27,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const promptPreferences = await getPromptPreferences(userId as string);
+
     const batchRequest: BatchGenerateRequest = {
       site: body.site,
-      settings: body.settings,
+      settings: {
+        ...body.settings,
+        promptPreferences: promptPreferences ?? body.settings?.promptPreferences,
+      },
       prompt: body.prompt ?? "",
       platforms: body.platforms,
       maxPosts: Math.min(body.maxPosts ?? 9, 20),
       preferAiImage: body.preferAiImage,
+      visualTargeting: body.visualTargeting,
     };
 
     const posts = await generateCampaignPack(batchRequest);

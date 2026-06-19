@@ -91,6 +91,7 @@ async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
       method: "api",
       message: "Published to X/Twitter successfully.",
       url: tweetId ? `https://twitter.com/i/web/status/${tweetId}` : undefined,
+      externalId: tweetId,
       publishedAt: new Date().toISOString(),
     };
   } catch {
@@ -151,11 +152,14 @@ async function publishLinkedIn(ctx: PublishContext): Promise<PublishResult> {
       };
     }
 
+    const linkedInId = response.headers.get("x-restli-id") ?? undefined;
+
     return {
       success: true,
       platform: "linkedin",
       method: "api",
       message: "Published to LinkedIn successfully.",
+      externalId: linkedInId,
       publishedAt: new Date().toISOString(),
     };
   } catch {
@@ -221,6 +225,7 @@ async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
       method: "api",
       message: `Published ${methodLabel} to Facebook successfully.`,
       url: result.id ? `https://facebook.com/${result.id}` : undefined,
+      externalId: result.id,
       publishedAt: new Date().toISOString(),
     };
   } catch {
@@ -276,6 +281,7 @@ async function publishInstagram(ctx: PublishContext): Promise<PublishResult> {
       method: "api",
       message: "Published to Instagram successfully.",
       url: result.id ? `https://www.instagram.com/p/${result.id}` : undefined,
+      externalId: result.id,
       publishedAt: new Date().toISOString(),
     };
   } catch {
@@ -401,6 +407,7 @@ async function publishPinterest(ctx: PublishContext): Promise<PublishResult> {
       method: "api",
       message: "Published to Pinterest successfully.",
       url: data.id ? `https://pinterest.com/pin/${data.id}` : undefined,
+      externalId: data.id as string | undefined,
       publishedAt: new Date().toISOString(),
     };
   } catch {

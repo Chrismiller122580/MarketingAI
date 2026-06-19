@@ -3,6 +3,7 @@ import { generateSmartPost } from "@/lib/smart-generator";
 import { startVideoGeneration } from "@/lib/video-generator";
 import type { GenerateRequest } from "@/lib/types";
 import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
+import { getPromptPreferences } from "@/lib/learning-preferences";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
@@ -29,13 +30,18 @@ export async function POST(request: Request) {
 
     const contentType = body.contentType ?? "Social Post";
 
+    const promptPreferences = await getPromptPreferences(userId as string);
+
     const generateRequest: GenerateRequest = {
       site: body.site,
       contentType,
       platform: body.platform ?? "instagram",
       prompt: body.prompt ?? "",
       sourcePageUrl: body.sourcePageUrl,
-      settings: body.settings,
+      settings: {
+        ...body.settings,
+        promptPreferences: promptPreferences ?? body.settings?.promptPreferences,
+      },
       preferAiImage: body.preferAiImage,
       videoDuration: body.videoDuration,
       visualTargeting: body.visualTargeting,

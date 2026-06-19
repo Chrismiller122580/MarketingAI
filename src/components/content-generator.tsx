@@ -1,6 +1,7 @@
 "use client";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
@@ -22,6 +23,12 @@ import type {
 import { suggestVisualTargeting } from "@/lib/business-context";
 import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
+
+const VisualPostEditor = dynamic(
+  () =>
+    import("./visual-post-editor").then((m) => m.VisualPostEditor),
+  { ssr: false },
+);
 
 const contentTypes: ContentType[] = [
   "Social Post",
@@ -66,6 +73,7 @@ export function ContentGenerator() {
   const [visualTargeting, setVisualTargeting] =
     useState<VisualTargeting>(DEFAULT_VISUAL_TARGETING);
   const [loadingStage, setLoadingStage] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isVideoAd = contentType === "Video Ad";
@@ -214,6 +222,17 @@ export function ContentGenerator() {
     }
   }
 
+  function handleVisualSave(image: GeneratedPost["image"]) {
+    if (!post) return;
+    const updated = { ...post, image };
+    setPost(updated);
+    if (savedPost) {
+      const next = { ...savedPost, image };
+      setSavedPost(next);
+      updatePostMedia(savedPost.id, image).catch(() => {});
+    }
+  }
+
   function handleVariantSelect(provider: AiProvider, text: string) {
     if (!post) return;
     const updated = {
@@ -224,7 +243,17 @@ export function ContentGenerator() {
     };
     setPost(updated);
     if (savedPost) {
-      setSavedPost({ ...savedPost, ...updated });
+      const next = { ...savedPost, ...updated };
+      setSavedPost(next);
+      fetch(`/api/db/posts/${savedPost.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          selectedProvider: provider,
+          aiVariants: post.aiVariants,
+        }),
+      }).catch(() => {});
     }
   }
 
@@ -451,6 +480,17 @@ export function ContentGenerator() {
         </div>
       )}
 
+      {editorOpen && savedPost && site && (
+        <VisualPostEditor
+          post={post ?? savedPost}
+          postId={savedPost.id}
+          brandName={site.brand.name}
+          themeColor={site.brand.themeColor}
+          onSave={handleVisualSave}
+          onClose={() => setEditorOpen(false)}
+        />
+      )}
+
       {post && (
         <div className="flex flex-wrap gap-2">
           <button
@@ -460,6 +500,15 @@ export function ContentGenerator() {
           >
             Copy caption
           </button>
+          {!post.image.videoUrl && !isVideoAd && savedPost && (
+            <button
+              type="button"
+              onClick={() => setEditorOpen(true)}
+              className="rounded-lg bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100"
+            >
+              Customize visual
+            </button>
+          )}
           {post.image.videoUrl ? (
             <a
               href={post.image.videoUrl}

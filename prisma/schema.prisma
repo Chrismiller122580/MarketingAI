@@ -127,9 +127,14 @@ model Post {
   scheduledFor   String?
   publishStatus  String    @default("draft")
   publishedAt    DateTime?
-  publishUrl     String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  publishUrl       String?
+  externalPostId   String?
+  performance      Json?
+  aiVariants       Json?
+  selectedProvider String?
+  originalText     String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model CampaignPack {
@@ -150,8 +155,9 @@ model UserSettings {
   defaultPlatforms String[]
   includeHashtags  Boolean  @default(true)
   emojiStyle       String   @default("light")
-  preferAiImages   Boolean  @default(false)
-  updatedAt        DateTime @updatedAt
+  preferAiImages    Boolean  @default(false)
+  promptPreferences Json?
+  updatedAt         DateTime @updatedAt
 }
 
 model Payment {

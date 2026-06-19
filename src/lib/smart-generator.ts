@@ -1,4 +1,10 @@
 import { enhanceWithDualAi, getAvailableAiProviders } from "./ai-dual";
+import {
+  planCampaign,
+  planItemContentType,
+  planItemToPrompt,
+} from "./campaign-planner";
+import { rankPagesBySimilarity } from "./embeddings";
 import { generateAiImage } from "./ai-image";
 import {
   buildBusinessInsights,
@@ -90,17 +96,21 @@ function siteBusinessKeywordsMatch(page: SitePage, prompt: string): boolean {
   return tokenize(prompt).some((t) => combined.includes(t));
 }
 
-function pickPage(
+async function pickPage(
   site: SiteData,
   sourcePageUrl?: string,
   prompt = "",
   contentType: ContentType = "Social Post",
-): SitePage {
+): Promise<SitePage> {
   if (sourcePageUrl) {
     return site.pages.find((p) => p.url === sourcePageUrl) ?? site.pages[0];
   }
 
-  if (prompt.trim()) {
+  const query = [prompt, contentType].filter(Boolean).join(" — ");
+  if (query.trim()) {
+    const semantic = await rankPagesBySimilarity(site.pages, query);
+    if (semantic[0] && semantic[0].score > 0.3) return semantic[0].page;
+
     const scored = site.pages.map((page) => ({
       page,
       score: scorePageRelevance(page, prompt, contentType),
@@ -110,6 +120,20 @@ function pickPage(
   }
 
   return site.pages.find((p) => p.path === "/") ?? site.pages[0];
+}
+
+async function getRelatedPages(
+  site: SiteData,
+  page: SitePage,
+  prompt: string,
+  contentType: ContentType,
+): Promise<SitePage[]> {
+  const query = [prompt, contentType, page.title].filter(Boolean).join(" — ");
+  const ranked = await rankPagesBySimilarity(site.pages, query);
+  return ranked
+    .filter((r) => r.page.url !== page.url && r.score > 0.25)
+    .slice(0, 3)
+    .map((r) => r.page);
 }
 
 function emojiPrefix(style: UserSettings["emojiStyle"], platform: Platform): string {
@@ -300,9 +324,12 @@ function buildInsights(
   settings: UserSettings,
   aiProviders: string[],
 ): string[] {
+  const matchType = page.embedding ? "Semantic match" : "Smart-matched";
   const insights = [
-    `Smart-matched page "${page.title}" (${page.path}) to your brief.`,
-    `Brand tone: ${site.brand.tone}. Voice: ${settings.brandVoice.slice(0, 60)}…`,
+    `${matchType} for page "${page.title}" (${page.path}).`,
+    site.brand.synthesis
+      ? `Brand voice: ${site.brand.synthesis.voiceGuide.slice(0, 80)}…`
+      : `Brand tone: ${site.brand.tone}. Voice: ${settings.brandVoice.slice(0, 60)}…`,
     ...buildBusinessInsights(site.brand),
     `Keywords: ${site.brand.keywords.slice(0, 5).join(", ")}.`,
     imageSource === "site"
@@ -390,7 +417,8 @@ export async function generateSmartPost(
 ): Promise<GeneratedPost> {
   const settings = getSettings(request);
   const { site, contentType, platform, prompt = "", sourcePageUrl } = request;
-  const page = pickPage(site, sourcePageUrl, prompt, contentType);
+  const page = await pickPage(site, sourcePageUrl, prompt, contentType);
+  const relatedPages = await getRelatedPages(site, page, prompt, contentType);
   const text =
     platform === "email" && contentType === "Social Post"
       ? emailCopy(site, page, platform, prompt, settings)
@@ -422,6 +450,7 @@ export async function generateSmartPost(
     text,
     page,
     settings,
+    relatedPages,
   );
 
   const selectedVariant =
@@ -472,6 +501,7 @@ export async function generateSmartPost(
     aiVariants: variants.length > 0 ? variants : undefined,
     selectedProvider: selectedVariant?.provider,
     aiRecommendation: recommendation,
+    originalText: finalText,
   };
 }
 
@@ -482,39 +512,42 @@ export async function generateCampaignPack(
     site,
     settings,
     prompt = "",
-    platforms = settings?.defaultPlatforms ?? DEFAULT_SETTINGS.defaultPlatforms,
     maxPosts = 9,
   } = request;
 
+  const plan = await planCampaign(request);
   const posts: SavedPost[] = [];
-  const pages = site.pages.slice(0, Math.ceil(maxPosts / platforms.length));
 
-  for (const page of pages) {
-    for (const platform of platforms) {
-      if (posts.length >= maxPosts) break;
+  for (const item of plan.items.slice(0, maxPosts)) {
+    const page = site.pages.find((p) => p.path === item.pagePath);
+    if (!page) continue;
 
-      const post = await generateSmartPost({
-        site,
-        contentType: "Social Post",
-        platform,
-        prompt,
-        sourcePageUrl: page.url,
-        settings,
-        preferAiImage: request.preferAiImage ?? settings?.preferAiImages,
-        visualTargeting: request.visualTargeting,
-      });
+    const itemPrompt = planItemToPrompt(item, prompt);
+    const post = await generateSmartPost({
+      site,
+      contentType: planItemContentType(),
+      platform: item.platform,
+      prompt: itemPrompt,
+      sourcePageUrl: page.url,
+      settings,
+      preferAiImage: request.preferAiImage ?? settings?.preferAiImages,
+      visualTargeting: request.visualTargeting,
+    });
 
-      const dayOffset = posts.length;
-      const scheduled = new Date();
-      scheduled.setDate(scheduled.getDate() + dayOffset);
+    const scheduled = new Date();
+    scheduled.setDate(scheduled.getDate() + item.dayOffset);
 
-      posts.push({
-        ...post,
-        id: `${Date.now()}-${posts.length}`,
-        createdAt: new Date().toISOString(),
-        scheduledFor: scheduled.toISOString().split("T")[0],
-      });
-    }
+    posts.push({
+      ...post,
+      id: `${Date.now()}-${posts.length}`,
+      createdAt: new Date().toISOString(),
+      scheduledFor: scheduled.toISOString().split("T")[0],
+      insights: [
+        `Campaign: ${plan.theme} (${plan.source === "ai" ? "AI-planned" : "smart calendar"}).`,
+        `Angle: ${item.angle} on ${item.platform}.`,
+        ...post.insights,
+      ],
+    });
   }
 
   return posts;

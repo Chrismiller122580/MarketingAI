@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
 import { postToSaved } from "@/lib/db-mappers";
+import { extractExternalId } from "@/lib/extract-external-id";
 import { publishPost as publishToSocial } from "@/lib/social/publishers";
-import type { PublishResult, SavedPost } from "@/lib/types";
+import type { Platform, PublishResult, SavedPost } from "@/lib/types";
 
 export async function buildPublishContext(
   post: {
@@ -62,12 +63,19 @@ export async function publishPostRecord(
     ...extraCtx,
   });
 
+  const platform = post.platform as Platform;
+  const externalPostId =
+    result.externalId ??
+    extractExternalId(platform, result.url) ??
+    null;
+
   const updated = await prisma.post.update({
     where: { id: postId },
     data: {
       publishStatus: result.success ? "published" : "failed",
       publishedAt: result.publishedAt ? new Date(result.publishedAt) : new Date(),
       publishUrl: result.url ?? null,
+      externalPostId,
     },
   });
 

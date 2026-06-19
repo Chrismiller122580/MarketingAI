@@ -3,7 +3,9 @@ import { prisma } from "@/lib/db";
 import { postToSaved } from "@/lib/db-mappers";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { auth } from "@/auth";
+import { recordVariantPick } from "@/lib/learning-preferences";
 import { publishPostRecord } from "@/lib/publish-post";
+import type { AiProvider, AiVariant } from "@/lib/types";
 
 async function getOwnedPost(id: string, userId: string) {
   return prisma.post.findFirst({ where: { id, userId } });
@@ -24,6 +26,16 @@ export async function PATCH(
     }
 
     const body = await request.json();
+
+    if (body.selectedProvider && body.text) {
+      await recordVariantPick(
+        userId,
+        body.selectedProvider as AiProvider,
+        body.text as string,
+        body.aiVariants as AiVariant[] | undefined,
+      );
+    }
+
     const updated = await prisma.post.update({
       where: { id },
       data: {
@@ -35,6 +47,14 @@ export async function PATCH(
         ...(body.publishedAt && { publishedAt: new Date(body.publishedAt) }),
         ...(body.publishUrl !== undefined && { publishUrl: body.publishUrl }),
         ...(body.image !== undefined && { image: body.image }),
+        ...(body.text !== undefined && {
+          text: body.text,
+          characterCount: String(body.text).length,
+        }),
+        ...(body.selectedProvider !== undefined && {
+          selectedProvider: body.selectedProvider,
+        }),
+        ...(body.aiVariants !== undefined && { aiVariants: body.aiVariants }),
       },
     });
 

@@ -27,6 +27,14 @@ export type BusinessModel = {
   painPoints: string[];
 };
 
+export type BrandSynthesis = {
+  voiceGuide: string;
+  messagingPillars: string[];
+  contentThemes: string[];
+  doNotSay: string[];
+  audiencePersona: string;
+};
+
 export type BrandProfile = {
   name: string;
   tagline: string;
@@ -35,6 +43,7 @@ export type BrandProfile = {
   topics: string[];
   themeColor: string;
   businessModel?: BusinessModel;
+  synthesis?: BrandSynthesis;
 };
 
 export type AiProvider = "openai" | "xai";
@@ -54,6 +63,7 @@ export type SitePage = {
   excerpt: string;
   images: SiteImage[];
   ogImage?: string;
+  embedding?: number[];
 };
 
 export type SiteData = {
@@ -84,11 +94,41 @@ export type ContentType =
 
 export type VideoAspectRatio = "9:16" | "16:9" | "1:1";
 
+export type ImageOverlayTextLayer = {
+  type: "text";
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+  fontFamily: string;
+  fontStyle?: "normal" | "bold";
+  align?: "left" | "center" | "right";
+  width?: number;
+};
+
+export type ImageOverlayImageLayer = {
+  type: "image";
+  id: string;
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity: number;
+};
+
+export type ImageOverlayLayer = ImageOverlayTextLayer | ImageOverlayImageLayer;
+
 export type PostMedia = {
   url: string;
-  source: "site" | "branded" | "ai";
+  source: "site" | "branded" | "ai" | "edited";
   alt: string;
   originalUrl?: string;
+  editedUrl?: string;
+  originalBaseUrl?: string;
+  overlays?: ImageOverlayLayer[];
   videoUrl?: string;
   videoStatus?: "processing" | "ready" | "failed";
   videoJobId?: string;
@@ -98,6 +138,13 @@ export type PostMedia = {
 
 export type PublishStatus = "draft" | "scheduled" | "published" | "failed";
 
+export type PromptPreferences = {
+  preferredProvider?: AiProvider;
+  providerCounts?: Partial<Record<AiProvider, number>>;
+  styleHints?: string[];
+  avgCaptionLength?: number;
+};
+
 export type UserSettings = {
   brandVoice: string;
   targetAudience: string;
@@ -105,6 +152,19 @@ export type UserSettings = {
   includeHashtags: boolean;
   emojiStyle: "none" | "light" | "heavy";
   preferAiImages: boolean;
+  promptPreferences?: PromptPreferences;
+};
+
+export type ContentGapAnalysis = {
+  underusedPages: { path: string; title: string }[];
+  missingPlatforms: Platform[];
+  uncoveredThemes: string[];
+  recommendations: string[];
+  platformBreakdown: Partial<Record<Platform, number>>;
+  totalPosts: number;
+  publishedPosts: number;
+  pageCount: number;
+  performance?: PerformanceSummary;
 };
 
 export type GeneratedPost = {
@@ -123,14 +183,18 @@ export type GeneratedPost = {
   publishStatus?: PublishStatus;
   publishedAt?: string;
   publishUrl?: string;
+  externalPostId?: string;
+  performance?: PostPerformance;
   aiVariants?: AiVariant[];
   selectedProvider?: AiProvider;
   aiRecommendation?: AiProvider;
+  originalText?: string;
 };
 
 export type SavedPost = GeneratedPost & {
   id: string;
   createdAt: string;
+  originalText?: string;
 };
 
 export type CampaignPack = {
@@ -181,12 +245,47 @@ export type PublishRequest = {
   twitterAccessToken?: string; // optional per-user token
 };
 
+export type PostPerformance = {
+  impressions?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  clicks?: number;
+  engagementRate?: number;
+  fetchedAt?: string;
+  source?: "api" | "unavailable";
+};
+
+export type PerformanceSummary = {
+  totalPublished: number;
+  withMetrics: number;
+  totalImpressions: number;
+  totalEngagements: number;
+  avgEngagementRate: number;
+  topPlatform?: Platform;
+  topPostId?: string;
+  platformStats: Partial<
+    Record<
+      Platform,
+      {
+        posts: number;
+        impressions: number;
+        engagements: number;
+        avgEngagementRate: number;
+      }
+    >
+  >;
+  recommendations: string[];
+  lastSyncedAt?: string;
+};
+
 export type PublishResult = {
   success: boolean;
   platform: Platform;
   method: "api" | "share_link" | "scheduled";
   message: string;
   url?: string;
+  externalId?: string;
   publishedAt?: string;
 };
 

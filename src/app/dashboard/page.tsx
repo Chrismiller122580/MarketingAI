@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { ContentStrategyPanel } from "@/components/content-strategy-panel";
 import { DomainInput } from "@/components/domain-input";
 import { QuickActions } from "@/components/quick-actions";
 import { StatsCards } from "@/components/stats-cards";
@@ -11,6 +12,7 @@ export default function DashboardPage() {
         <DomainInput />
         <QuickActions />
         <StatsCards />
+        <ContentStrategyPanel />
         <ContentCalendar />
       </div>
     </AppShell>

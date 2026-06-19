@@ -72,6 +72,49 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
           <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{site.brand.tone}</p>
         </div>
 
+        {site.brand.synthesis && (
+          <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+            <p className="text-xs font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              AI brand voice
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+              {site.brand.synthesis.voiceGuide}
+            </p>
+            {site.brand.synthesis.audiencePersona && (
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                Audience: {site.brand.synthesis.audiencePersona}
+              </p>
+            )}
+            {site.brand.synthesis.messagingPillars.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {site.brand.synthesis.messagingPillars.map((pillar) => (
+                  <span
+                    key={pillar}
+                    className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-slate-900 dark:text-amber-300"
+                  >
+                    {pillar}
+                  </span>
+                ))}
+              </div>
+            )}
+            {site.brand.synthesis.contentThemes.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-medium text-slate-500">Content themes</p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {site.brand.synthesis.contentThemes.map((theme) => (
+                    <span
+                      key={theme}
+                      className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                    >
+                      {theme}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Brand keywords

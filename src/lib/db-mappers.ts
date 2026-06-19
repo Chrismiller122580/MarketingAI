@@ -37,6 +37,11 @@ export function postToSaved(row: {
   publishStatus: string;
   publishedAt: Date | null;
   publishUrl: string | null;
+  externalPostId?: string | null;
+  performance?: unknown;
+  aiVariants?: unknown;
+  selectedProvider?: string | null;
+  originalText?: string | null;
   createdAt: Date;
 }): SavedPost {
   return {
@@ -54,6 +59,11 @@ export function postToSaved(row: {
     publishStatus: row.publishStatus as SavedPost["publishStatus"],
     publishedAt: row.publishedAt?.toISOString(),
     publishUrl: row.publishUrl ?? undefined,
+    externalPostId: row.externalPostId ?? undefined,
+    performance: row.performance as SavedPost["performance"],
+    aiVariants: row.aiVariants as SavedPost["aiVariants"],
+    selectedProvider: row.selectedProvider as SavedPost["selectedProvider"],
+    originalText: row.originalText ?? undefined,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -79,6 +89,7 @@ export function settingsToData(row: {
   includeHashtags: boolean;
   emojiStyle: string;
   preferAiImages: boolean;
+  promptPreferences?: unknown;
 }): UserSettings {
   return {
     brandVoice: row.brandVoice,
@@ -87,6 +98,7 @@ export function settingsToData(row: {
     includeHashtags: row.includeHashtags,
     emojiStyle: row.emojiStyle as UserSettings["emojiStyle"],
     preferAiImages: row.preferAiImages,
+    promptPreferences: row.promptPreferences as UserSettings["promptPreferences"],
   };
 }
 
@@ -109,5 +121,8 @@ export function postFromGenerated(
     publishStatus: post.publishStatus ?? "draft",
     publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
     publishUrl: post.publishUrl ?? null,
+    ...(post.aiVariants && { aiVariants: post.aiVariants }),
+    ...(post.selectedProvider && { selectedProvider: post.selectedProvider }),
+    originalText: post.originalText ?? post.text,
   };
 }

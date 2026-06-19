@@ -102,7 +102,7 @@ export function CampaignPack() {
     <LoadingOverlay
       show={loading}
       label={`Generating ${maxPosts}-post campaign pack…`}
-      sublabel="Smart-matching pages, business context, and dual AI copy"
+      sublabel="AI plans your calendar, then generates posts with matched pages and dual AI copy"
       progress={{ current: 0, total: maxPosts }}
     />
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
@@ -111,8 +111,8 @@ export function CampaignPack() {
           Campaign Pack Generator
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Generate a full week of posts across platforms — each with matched
-          images and scheduled dates.
+          AI plans a strategic content calendar, then generates posts with
+          matched pages, images, and staggered schedule dates.
         </p>
       </div>
 

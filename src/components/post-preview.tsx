@@ -49,19 +49,23 @@ export function PostPreview({
 
   const badgeLabel = hasVideo
     ? "AI video"
-    : post.image.source === "site"
-      ? "Site image"
-      : post.image.source === "ai"
-        ? "AI generated"
-        : "Branded visual";
+    : post.image.source === "edited"
+      ? "Custom visual"
+      : post.image.source === "site"
+        ? "Site image"
+        : post.image.source === "ai"
+          ? "AI generated"
+          : "Branded visual";
 
   const badgeColor = hasVideo
     ? "bg-violet-50 text-violet-700"
-    : post.image.source === "site"
-      ? "bg-emerald-50 text-emerald-700"
-      : post.image.source === "ai"
-        ? "bg-teal-50 text-teal-700"
-        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
+    : post.image.source === "edited"
+      ? "bg-fuchsia-50 text-fuchsia-700"
+      : post.image.source === "site"
+        ? "bg-emerald-50 text-emerald-700"
+        : post.image.source === "ai"
+          ? "bg-teal-50 text-teal-700"
+          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300";
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">

@@ -1,16 +1,27 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Image from "next/image";
+import { useState } from "react";
 import { usePosts } from "@/context/posts-context";
+import { useSite } from "@/context/site-context";
 import { PublishPanel } from "./publish-panel";
-import type { SavedPost } from "@/lib/types";
+import type { PostMedia, SavedPost } from "@/lib/types";
+
+const VisualPostEditor = dynamic(
+  () =>
+    import("./visual-post-editor").then((m) => m.VisualPostEditor),
+  { ssr: false },
+);
 
 function PostCard({
   post,
   onDelete,
+  onEditVisual,
 }: {
   post: SavedPost;
   onDelete: () => void;
+  onEditVisual: () => void;
 }) {
   const statusColors: Record<string, string> = {
     draft: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300",
@@ -61,6 +72,15 @@ function PostCard({
         </div>
         <p className="mt-2 line-clamp-3 text-sm text-slate-700 dark:text-slate-300">{post.text}</p>
         <div className="mt-3 flex flex-wrap gap-2">
+          {!post.image.videoUrl && post.contentType !== "Video Ad" && (
+            <button
+              type="button"
+              onClick={onEditVisual}
+              className="text-xs font-medium text-violet-600 hover:text-violet-700"
+            >
+              Edit visual
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigator.clipboard.writeText(post.text)}
@@ -104,8 +124,10 @@ function PostCard({
 }
 
 export function PostsLibrary() {
-  const { posts, packs, deletePost, deletePack, clearAll, publishPost } =
+  const { site } = useSite();
+  const { posts, packs, deletePost, deletePack, clearAll, publishPost, updatePostMedia } =
     usePosts();
+  const [editingPost, setEditingPost] = useState<SavedPost | null>(null);
 
   async function publishAllScheduled() {
     const scheduled = posts.filter(
@@ -199,10 +221,24 @@ export function PostsLibrary() {
                 key={post.id}
                 post={post}
                 onDelete={() => deletePost(post.id)}
+                onEditVisual={() => setEditingPost(post)}
               />
             ))}
           </div>
         </div>
+      )}
+
+      {editingPost && site && (
+        <VisualPostEditor
+          post={editingPost}
+          postId={editingPost.id}
+          brandName={site.brand.name}
+          themeColor={site.brand.themeColor}
+          onSave={(image: PostMedia) => {
+            updatePostMedia(editingPost.id, image).catch(() => {});
+          }}
+          onClose={() => setEditingPost(null)}
+        />
       )}
     </div>
   );

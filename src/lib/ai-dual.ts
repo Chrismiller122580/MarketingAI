@@ -1,3 +1,6 @@
+import { callProvider } from "./ai-client";
+import { formatVoiceGuide } from "./brand-synthesis";
+import { formatPromptPreferences } from "./learning-preferences";
 import {
   formatBusinessContext,
   platformCopyHint,
@@ -22,60 +25,24 @@ const PROVIDER_LABELS: Record<AiProvider, string> = {
   xai: "Grok 3 mini",
 };
 
-async function callProvider(
-  provider: AiProvider,
-  systemPrompt: string,
-  userMessage: string,
-): Promise<string | null> {
-  const apiKey =
-    provider === "xai" ? process.env.XAI_API_KEY : process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const baseUrl =
-    provider === "xai"
-      ? "https://api.x.ai/v1/chat/completions"
-      : "https://api.openai.com/v1/chat/completions";
-  const model = provider === "xai" ? "grok-3-mini" : "gpt-4o-mini";
-
-  try {
-    const response = await fetch(baseUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        max_tokens: 600,
-        temperature: 0.7,
-      }),
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content?.trim() || null;
-  } catch {
-    return null;
-  }
-}
-
 function buildSystemPrompt(
   request: GenerateRequest,
   settings: UserSettings,
   platform: Platform,
   contentType: ContentType,
 ): string {
-  const tone = settings.brandVoice || request.site.brand.tone;
+  const voice = formatVoiceGuide(request.site.brand);
+  const audience =
+    request.site.brand.synthesis?.audiencePersona || settings.targetAudience;
   const businessCtx = formatBusinessContext(request.site.brand);
   const platformHint = platformCopyHint(platform);
 
+  const userPrefs = formatPromptPreferences(settings.promptPreferences);
+
   return `You are an expert marketing copywriter specializing in ${contentType} for ${platform}.
-Brand: ${request.site.brand.name}. Voice: ${tone}. Audience: ${settings.targetAudience}.
+Brand: ${request.site.brand.name}. Voice: ${voice}. Audience: ${audience}.
 ${businessCtx ? `Business context: ${businessCtx}. ` : ""}
+${userPrefs ? `${userPrefs} ` : ""}
 Platform style: ${platformHint}
 Write copy that drives the business conversion goal. Return only the final copy — no explanations.`;
 }
@@ -84,10 +51,22 @@ function buildUserMessage(
   request: GenerateRequest,
   draft: string,
   page: SitePage,
+  relatedPages?: SitePage[],
 ): string {
+  const relatedBlock =
+    relatedPages && relatedPages.length > 0
+      ? `\n\nRelated site content for factual grounding:\n${relatedPages
+          .map(
+            (p) =>
+              `- ${p.title}: ${p.description || p.excerpt.slice(0, 150)}`,
+          )
+          .join("\n")}`
+      : "";
+
   return `Page: ${page.title}
+Description: ${page.description || page.excerpt.slice(0, 200)}
 Draft:
-${draft}${request.prompt ? `\nCampaign brief: ${request.prompt}` : ""}`;
+${draft}${request.prompt ? `\nCampaign brief: ${request.prompt}` : ""}${relatedBlock}`;
 }
 
 async function pickRecommendation(
@@ -148,6 +127,7 @@ export async function enhanceWithDualAi(
   draft: string,
   page: SitePage,
   settings: UserSettings,
+  relatedPages?: SitePage[],
 ): Promise<EnhancementResult> {
   const hasOpenAi = !!process.env.OPENAI_API_KEY;
   const hasXai = !!process.env.XAI_API_KEY;
@@ -162,7 +142,7 @@ export async function enhanceWithDualAi(
     request.platform,
     request.contentType,
   );
-  const userMessage = buildUserMessage(request, draft, page);
+  const userMessage = buildUserMessage(request, draft, page, relatedPages);
 
   const tasks: Promise<{ provider: AiProvider; text: string | null }>[] = [];
   if (hasOpenAi) {

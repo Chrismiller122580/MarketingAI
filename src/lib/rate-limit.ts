@@ -12,6 +12,7 @@ export const RATE_LIMITS = {
   crawl: { max: 30, windowMs: WINDOW_MS },   // generous for paid users
   generate: { max: 200, windowMs: WINDOW_MS }, // single + batch calls
   video: { max: 10, windowMs: WINDOW_MS }, // AI video ads are expensive
+  metrics: { max: 20, windowMs: WINDOW_MS }, // social metrics refresh
 };
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;

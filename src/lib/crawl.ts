@@ -1,5 +1,7 @@
 import * as cheerio from "cheerio";
 import { analyzeBrand } from "./brand-analyzer";
+import { synthesizeBrand } from "./brand-synthesis";
+import { embedPages } from "./embeddings";
 import { dedupeImages, extractImages } from "./image-extractor";
 import { fetchSitemapUrls } from "./sitemap";
 import type { SiteData, SitePage } from "./types";
@@ -213,11 +215,17 @@ export async function crawlDomain(domainInput: string): Promise<SiteData> {
   const sortedPages = pages.sort((a, b) => a.path.localeCompare(b.path));
   const allImages = dedupeImages(sortedPages.flatMap((p) => p.images));
 
+  const heuristicBrand = analyzeBrand(origin, sortedPages, themeColor);
+  const [brand, embeddedPages] = await Promise.all([
+    synthesizeBrand(heuristicBrand, sortedPages),
+    embedPages(sortedPages),
+  ]);
+
   return {
     domain: origin,
     crawledAt: new Date().toISOString(),
-    brand: analyzeBrand(origin, sortedPages, themeColor),
-    pages: sortedPages,
+    brand,
+    pages: embeddedPages,
     images: allImages,
   };
 }
