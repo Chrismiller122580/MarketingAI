@@ -92,6 +92,30 @@ export type ContentType =
   | "Product Description"
   | "Video Ad";
 
+export type ContentAngle =
+  | "auto"
+  | "question-hook"
+  | "bold-claim"
+  | "story"
+  | "myth-buster"
+  | "before-after"
+  | "stat-led"
+  | "contrarian"
+  | "how-to"
+  | "social-proof";
+
+export type PostHistorySnapshot = {
+  text: string;
+  sourcePage?: string;
+  platform: Platform;
+};
+
+export type UniquenessReport = {
+  score: number;
+  tips: string[];
+  angle?: ContentAngle;
+};
+
 export type VideoAspectRatio = "9:16" | "16:9" | "1:1";
 
 export type ImageOverlayTextLayer = {
@@ -212,6 +236,8 @@ export type GeneratedPost = {
   selectedProvider?: AiProvider;
   aiRecommendation?: AiProvider;
   originalText?: string;
+  contentAngle?: ContentAngle;
+  uniqueness?: UniquenessReport;
 };
 
 export type SavedPost = GeneratedPost & {
@@ -241,6 +267,8 @@ export type GenerateRequest = {
   preferAiImage?: boolean;
   videoDuration?: 5 | 10;
   visualTargeting?: VisualTargeting;
+  contentAngle?: ContentAngle;
+  existingPosts?: PostHistorySnapshot[];
 };
 
 export type VideoJobStatus = {
@@ -260,6 +288,9 @@ export type BatchGenerateRequest = {
   maxPosts?: number;
   preferAiImage?: boolean;
   visualTargeting?: VisualTargeting;
+  contentAngle?: ContentAngle;
+  existingPosts?: PostHistorySnapshot[];
+  varyAngles?: boolean;
 };
 
 export type PublishRequest = {

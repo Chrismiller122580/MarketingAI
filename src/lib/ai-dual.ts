@@ -5,6 +5,8 @@ import {
   formatBusinessContext,
   platformCopyHint,
 } from "./business-context";
+import { getAngleLabel } from "./content-angles";
+import { buildUniquenessInstructions } from "./content-uniqueness";
 import type {
   AiProvider,
   AiVariant,
@@ -38,13 +40,21 @@ function buildSystemPrompt(
   const platformHint = platformCopyHint(platform);
 
   const userPrefs = formatPromptPreferences(settings.promptPreferences);
+  const angle = request.contentAngle ?? "auto";
+  const uniqueness = buildUniquenessInstructions(
+    request.existingPosts ?? [],
+    angle,
+    request.site,
+  );
 
   return `You are an expert marketing copywriter specializing in ${contentType} for ${platform}.
 Brand: ${request.site.brand.name}. Voice: ${voice}. Audience: ${audience}.
 ${businessCtx ? `Business context: ${businessCtx}. ` : ""}
 ${userPrefs ? `${userPrefs} ` : ""}
 Platform style: ${platformHint}
-Write copy that drives the business conversion goal. Return only the final copy — no explanations.`;
+${uniqueness}
+${angle !== "auto" ? `Required creative angle: ${getAngleLabel(angle)}.` : "Pick the freshest creative angle that stands out from typical posts."}
+Write scroll-stopping copy that feels original — never generic. Return only the final copy — no explanations.`;
 }
 
 function buildUserMessage(
@@ -103,7 +113,7 @@ async function pickRecommendation(
         messages: [
           {
             role: "system",
-            content: `You are a marketing director. Pick the best copy variant for ${request.platform}. Business goal: ${goal}. Audience: ${settings.targetAudience}. Reply with only "A" or "B".`,
+            content: `You are a marketing director. Pick the best copy variant for ${request.platform}. Business goal: ${goal}. Audience: ${settings.targetAudience}. Prefer the more original, scroll-stopping hook — avoid generic marketing language. Reply with only "A" or "B".`,
           },
           { role: "user", content: variantBlock },
         ],

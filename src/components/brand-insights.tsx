@@ -2,6 +2,7 @@
 
 import { useSite } from "@/context/site-context";
 import type { GeneratedPost } from "@/lib/types";
+import { UniquenessBadge } from "./uniqueness-badge";
 
 export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
   const { site } = useSite();
@@ -151,6 +152,8 @@ export function BrandInsights({ post }: { post?: GeneratedPost | null }) {
             <p className="text-xs text-slate-500 dark:text-slate-400">Topics</p>
           </div>
         </div>
+
+        {post?.uniqueness && <UniquenessBadge report={post.uniqueness} />}
 
         {post && (
           <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-4">

@@ -14,6 +14,7 @@ import { AiVariantPicker } from "./ai-variant-picker";
 import { LoadingOverlay } from "./loading-indicator";
 import type {
   AiProvider,
+  ContentAngle,
   ContentType,
   GeneratedPost,
   Platform,
@@ -22,6 +23,7 @@ import type {
 } from "@/lib/types";
 import { suggestVisualTargeting } from "@/lib/business-context";
 import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
+import { ContentAnglePicker } from "./content-angle-picker";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
 
 const VisualPostEditor = dynamic(
@@ -52,7 +54,7 @@ export function ContentGenerator() {
   const { data: session } = useSession();
   const { site } = useSite();
   const { settings } = useSettings();
-  const { savePost, updatePostMedia } = usePosts();
+  const { posts, savePost, updatePostMedia } = usePosts();
 
   const su = (session?.user ?? {}) as Record<string, unknown>;
   const userPlan = (su.plan as string) || "free";
@@ -74,7 +76,14 @@ export function ContentGenerator() {
     useState<VisualTargeting>(DEFAULT_VISUAL_TARGETING);
   const [loadingStage, setLoadingStage] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
+  const [contentAngle, setContentAngle] = useState<ContentAngle>("auto");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const postHistory = posts.map((p) => ({
+    text: p.text,
+    sourcePage: p.sourcePage,
+    platform: p.platform,
+  }));
 
   const isVideoAd = contentType === "Video Ad";
   const usesAiVisuals = isVideoAd || preferAiImage;
@@ -84,6 +93,10 @@ export function ContentGenerator() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("type") === "video") {
       setContentType("Video Ad");
+    }
+    const angle = params.get("angle");
+    if (angle) {
+      setContentAngle(angle as ContentAngle);
     }
   }, []);
 
@@ -186,6 +199,8 @@ export function ContentGenerator() {
           preferAiImage: isVideoAd ? true : preferAiImage,
           videoDuration: isVideoAd ? videoDuration : undefined,
           visualTargeting: usesAiVisuals ? visualTargeting : undefined,
+          contentAngle,
+          existingPosts: postHistory,
         }),
       });
 
@@ -410,6 +425,21 @@ export function ContentGenerator() {
               value={visualTargeting}
               onChange={setVisualTargeting}
             />
+          )}
+
+          {site && !isVideoAd && (
+            <>
+              <ContentAnglePicker
+                value={contentAngle}
+                onChange={setContentAngle}
+              />
+              {postHistory.length > 0 && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Avoiding repetition across {postHistory.length} post
+                  {postHistory.length === 1 ? "" : "s"} in your library.
+                </p>
+              )}
+            </>
           )}
 
           <div>

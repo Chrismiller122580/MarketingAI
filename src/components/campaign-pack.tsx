@@ -1,14 +1,16 @@
 "use client";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import { useSettings } from "@/context/settings-context";
 import { usePosts } from "@/context/posts-context";
-import type { Platform, SavedPost, VisualTargeting } from "@/lib/types";
+import type { ContentAngle, Platform, SavedPost, VisualTargeting } from "@/lib/types";
+import { suggestVisualTargeting } from "@/lib/business-context";
 import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
+import { ContentAnglePicker } from "./content-angle-picker";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
 import { LoadingOverlay } from "./loading-indicator";
 
@@ -25,7 +27,7 @@ export function CampaignPack() {
   const { data: session } = useSession();
   const { site } = useSite();
   const { settings } = useSettings();
-  const { savePack, savePost } = usePosts();
+  const { posts: libraryPosts, savePack, savePost } = usePosts();
 
   const su = (session?.user ?? {}) as Record<string, unknown>;
   const userPlan = (su.plan as string) || "free";
@@ -38,8 +40,29 @@ export function CampaignPack() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [preferAiImage, setPreferAiImage] = useState(settings.preferAiImages);
   const [visualTargeting, setVisualTargeting] =
     useState<VisualTargeting>(DEFAULT_VISUAL_TARGETING);
+  const [contentAngle, setContentAngle] = useState<ContentAngle>("auto");
+  const [varyAngles, setVaryAngles] = useState(true);
+
+  const primaryPlatform = settings.defaultPlatforms[0] ?? "instagram";
+  const postHistory = libraryPosts.map((p) => ({
+    text: p.text,
+    sourcePage: p.sourcePage,
+    platform: p.platform,
+  }));
+
+  useEffect(() => {
+    setPreferAiImage(settings.preferAiImages);
+  }, [settings.preferAiImages]);
+
+  useEffect(() => {
+    if (!site) return;
+    setVisualTargeting((prev) =>
+      suggestVisualTargeting(site.brand, primaryPlatform, prev),
+    );
+  }, [site, primaryPlatform]);
 
   async function handleGenerate() {
     if (!site) return;
@@ -57,8 +80,11 @@ export function CampaignPack() {
           prompt: prompt.trim(),
           platforms: settings.defaultPlatforms,
           maxPosts,
-          preferAiImage: settings.preferAiImages,
-          visualTargeting: settings.preferAiImages ? visualTargeting : undefined,
+          preferAiImage,
+          visualTargeting: preferAiImage ? visualTargeting : undefined,
+          contentAngle,
+          existingPosts: postHistory,
+          varyAngles,
         }),
       });
 
@@ -156,26 +182,56 @@ export function CampaignPack() {
               </div>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Campaign theme (optional)
-              </label>
+            <label className="flex items-center gap-2">
               <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g. product launch, summer sale, thought leadership"
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm"
+                type="checkbox"
+                checked={preferAiImage}
+                onChange={(e) => setPreferAiImage(e.target.checked)}
+                className="rounded border-slate-300 text-amber-600"
               />
-            </div>
+              <span className="text-sm text-slate-700 dark:text-slate-300">
+                Generate AI images (DALL-E / Grok) instead of site photos
+              </span>
+            </label>
 
-            {settings.preferAiImages && (
+            {preferAiImage && (
               <VisualTargetingPicker
                 value={visualTargeting}
                 onChange={setVisualTargeting}
                 compact
               />
             )}
+
+            <ContentAnglePicker
+              value={contentAngle}
+              onChange={setContentAngle}
+              compact
+            />
+
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={varyAngles}
+                onChange={(e) => setVaryAngles(e.target.checked)}
+                className="rounded border-slate-300 text-violet-600"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-300">
+                Vary creative angles across all posts in the pack
+              </span>
+            </label>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Campaign brief (optional)
+              </label>
+              <textarea
+                rows={3}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Target audience, promotion, seasonal angle, tone tweaks…"
+                className="w-full resize-none rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+            </div>
 
             {!isPaid && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
@@ -244,6 +300,19 @@ export function CampaignPack() {
                         </span>
                       )}
                     </div>
+                    {post.uniqueness && (
+                      <span
+                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          post.uniqueness.score >= 75
+                            ? "bg-emerald-50 text-emerald-700"
+                            : post.uniqueness.score >= 50
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-rose-50 text-rose-700"
+                        }`}
+                      >
+                        {post.uniqueness.score}/100 unique
+                      </span>
+                    )}
                     <p className="mt-1 line-clamp-3 text-xs text-slate-600 dark:text-slate-300">
                       {post.text}
                     </p>

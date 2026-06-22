@@ -10,6 +10,11 @@ import {
   buildBusinessInsights,
   suggestVisualTargeting,
 } from "./business-context";
+import { getAngleLabel } from "./content-angles";
+import {
+  pickFreshAngle,
+  scoreUniqueness,
+} from "./content-uniqueness";
 import { pickBestImage, buildBrandedImageUrl } from "./image-matcher";
 import {
   describeVisualTargeting,
@@ -416,7 +421,19 @@ export async function generateSmartPost(
   request: GenerateRequest,
 ): Promise<GeneratedPost> {
   const settings = getSettings(request);
-  const { site, contentType, platform, prompt = "", sourcePageUrl } = request;
+  const {
+    site,
+    contentType,
+    platform,
+    prompt = "",
+    sourcePageUrl,
+    existingPosts = [],
+  } = request;
+  const contentAngle =
+    request.contentAngle === "auto" || !request.contentAngle
+      ? pickFreshAngle(existingPosts, 0, request.contentAngle)
+      : request.contentAngle;
+  const angleRequest = { ...request, contentAngle };
   const page = await pickPage(site, sourcePageUrl, prompt, contentType);
   const relatedPages = await getRelatedPages(site, page, prompt, contentType);
   const text =
@@ -446,7 +463,7 @@ export async function generateSmartPost(
   );
 
   const { variants, recommendation } = await enhanceWithDualAi(
-    request,
+    angleRequest,
     text,
     page,
     settings,
@@ -487,6 +504,18 @@ export async function generateSmartPost(
     );
   }
 
+  const uniqueness = scoreUniqueness(
+    finalText,
+    existingPosts,
+    page.path,
+    contentAngle,
+  );
+
+  if (contentAngle !== "auto") {
+    insights.push(`Creative angle: ${getAngleLabel(contentAngle)}.`);
+  }
+  insights.push(`Uniqueness score: ${uniqueness.score}/100 — ${uniqueness.tips[0]}`);
+
   return {
     text: finalText,
     hashtags,
@@ -502,6 +531,8 @@ export async function generateSmartPost(
     selectedProvider: selectedVariant?.provider,
     aiRecommendation: recommendation,
     originalText: finalText,
+    contentAngle,
+    uniqueness,
   };
 }
 
@@ -517,12 +548,25 @@ export async function generateCampaignPack(
 
   const plan = await planCampaign(request);
   const posts: SavedPost[] = [];
+  const history = [
+    ...(request.existingPosts ?? []),
+    ...posts.map((p) => ({
+      text: p.text,
+      sourcePage: p.sourcePage,
+      platform: p.platform,
+    })),
+  ];
+  const varyAngles = request.varyAngles !== false;
 
-  for (const item of plan.items.slice(0, maxPosts)) {
+  for (const [index, item] of plan.items.slice(0, maxPosts).entries()) {
     const page = site.pages.find((p) => p.path === item.pagePath);
     if (!page) continue;
 
     const itemPrompt = planItemToPrompt(item, prompt);
+    const contentAngle = varyAngles
+      ? pickFreshAngle(history, index, request.contentAngle)
+      : request.contentAngle ?? "auto";
+
     const post = await generateSmartPost({
       site,
       contentType: planItemContentType(),
@@ -532,6 +576,14 @@ export async function generateCampaignPack(
       settings,
       preferAiImage: request.preferAiImage ?? settings?.preferAiImages,
       visualTargeting: request.visualTargeting,
+      contentAngle,
+      existingPosts: history,
+    });
+
+    history.push({
+      text: post.text,
+      sourcePage: post.sourcePage,
+      platform: post.platform,
     });
 
     const scheduled = new Date();

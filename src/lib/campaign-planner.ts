@@ -1,5 +1,6 @@
 import { chatCompletion } from "./ai-client";
 import { formatVoiceGuide } from "./brand-synthesis";
+import { analyzePostHistory } from "./content-uniqueness";
 import type {
   BatchGenerateRequest,
   ContentType,
@@ -91,11 +92,26 @@ function parsePlan(
   }
 }
 
+function rankPagesByFreshness(
+  site: SiteData,
+  pageCounts: Map<string, number>,
+): SitePage[] {
+  return [...site.pages].sort((a, b) => {
+    const aCount = pageCounts.get(a.path) ?? 0;
+    const bCount = pageCounts.get(b.path) ?? 0;
+    if (aCount !== bCount) return aCount - bCount;
+    if (a.path === "/") return -1;
+    if (b.path === "/") return 1;
+    return b.headings.length - a.headings.length;
+  });
+}
+
 function buildHeuristicPlan(
   site: SiteData,
   platforms: Platform[],
   maxPosts: number,
   prompt: string,
+  pageCounts: Map<string, number>,
 ): CampaignPlan {
   const themes =
     site.brand.synthesis?.contentThemes ??
@@ -110,11 +126,7 @@ function buildHeuristicPlan(
     "call to action",
   ];
 
-  const pages = [...site.pages].sort((a, b) => {
-    if (a.path === "/") return -1;
-    if (b.path === "/") return 1;
-    return b.headings.length - a.headings.length;
-  });
+  const pages = rankPagesByFreshness(site, pageCounts);
 
   const items: CampaignPlanItem[] = [];
   let day = 0;
@@ -154,28 +166,40 @@ export async function planCampaign(
     prompt = "",
     platforms = settings?.defaultPlatforms ?? ["instagram", "linkedin", "twitter"],
     maxPosts = 9,
+    existingPosts = [],
   } = request;
 
-  const pageList = site.pages
+  const history = analyzePostHistory(existingPosts);
+  const freshPages = rankPagesByFreshness(site, history.pageCounts);
+
+  const pageList = freshPages
     .slice(0, 12)
-    .map(
-      (p) =>
-        `${p.path}: ${p.title} — ${p.description.slice(0, 80) || p.headings[0] || ""}`,
-    )
+    .map((p) => {
+      const used = history.pageCounts.get(p.path) ?? 0;
+      const freshness = used === 0 ? " [never posted]" : used >= 2 ? " [overused]" : "";
+      return `${p.path}: ${p.title}${freshness} — ${p.description.slice(0, 80) || p.headings[0] || ""}`;
+    })
     .join("\n");
 
   const themes =
     site.brand.synthesis?.contentThemes?.join(", ") ??
     site.brand.topics.join(", ");
 
+  const usedPages =
+    history.usedPages.size > 0
+      ? `Already posted pages (prefer fresh ones): ${[...history.usedPages].slice(0, 8).join(", ")}`
+      : "No prior posts — full library is fresh.";
+
   const systemPrompt = `You are a content strategist. Plan a social media campaign calendar as JSON only.
 Return: { "theme": string, "items": [{ "pagePath": string, "platform": string, "angle": string, "dayOffset": number, "brief": string }] }
 Rules:
 - Use only page paths from the provided list
 - Platforms must be from: ${platforms.join(", ")}
-- Vary angles across posts (educational, promotional, storytelling, etc.)
+- Prioritize pages marked [never posted]; avoid overusing [overused] pages
+- Vary angles across posts — each post needs a distinct hook (question, story, myth-buster, stat, contrarian, how-to, etc.)
+- Never repeat the same angle twice in one campaign
 - Stagger dayOffset from 0 upward
-- brief is 1 sentence creative direction per post
+- brief is 1 sentence creative direction with a specific hook idea
 - Exactly ${maxPosts} items`;
 
   const userMessage = `Brand: ${site.brand.name}
@@ -183,6 +207,7 @@ Voice: ${formatVoiceGuide(site.brand)}
 Campaign goal: ${prompt || site.brand.businessModel?.conversionGoal || "engagement"}
 Content themes: ${themes}
 Target platforms: ${platforms.join(", ")}
+${usedPages}
 
 Pages:
 ${pageList}`;
@@ -200,7 +225,7 @@ ${pageList}`;
     }
   }
 
-  return buildHeuristicPlan(site, platforms, maxPosts, prompt);
+  return buildHeuristicPlan(site, platforms, maxPosts, prompt, history.pageCounts);
 }
 
 export function planItemToPrompt(

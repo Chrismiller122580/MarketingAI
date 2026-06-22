@@ -45,6 +45,8 @@ export async function POST(request: Request) {
       preferAiImage: body.preferAiImage,
       videoDuration: body.videoDuration,
       visualTargeting: body.visualTargeting,
+      contentAngle: body.contentAngle,
+      existingPosts: body.existingPosts,
     };
 
     const post = await generateSmartPost(generateRequest);

@@ -6,6 +6,8 @@ import { useSite } from "@/context/site-context";
 import { useSettings } from "@/context/settings-context";
 import { usePosts } from "@/context/posts-context";
 import { analyzeContentGaps } from "@/lib/content-strategy";
+import { suggestFreshAngles } from "@/lib/content-uniqueness";
+import { getAngleLabel } from "@/lib/content-angles";
 import type { ContentGapAnalysis } from "@/lib/types";
 
 export function ContentStrategyPanel() {
@@ -64,6 +66,12 @@ export function ContentStrategyPanel() {
 
   if (!analysis) return null;
 
+  const freshAngles = suggestFreshAngles(site, posts.map((p) => ({
+    text: p.text,
+    sourcePage: p.sourcePage,
+    platform: p.platform,
+  })));
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-800">
@@ -117,6 +125,31 @@ export function ContentStrategyPanel() {
               )}
             </ul>
           </div>
+
+          {freshAngles.length > 0 && (
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                Fresh angles to try
+              </p>
+              <ul className="mt-2 space-y-2">
+                {freshAngles.map((suggestion) => (
+                  <li key={`${suggestion.angle}-${suggestion.reason}`}>
+                    <Link
+                      href={`/content?angle=${suggestion.angle}`}
+                      className="group flex gap-2 rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2 text-sm transition hover:border-violet-200 hover:bg-violet-50 dark:border-violet-900 dark:bg-violet-950/20 dark:hover:bg-violet-950/40"
+                    >
+                      <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900 dark:text-violet-300">
+                        {getAngleLabel(suggestion.angle)}
+                      </span>
+                      <span className="text-slate-600 group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-slate-100">
+                        {suggestion.reason}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {analysis.uncoveredThemes.length > 0 && (
             <div>

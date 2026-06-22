@@ -40,6 +40,9 @@ export async function POST(request: Request) {
       maxPosts: Math.min(body.maxPosts ?? 9, 20),
       preferAiImage: body.preferAiImage,
       visualTargeting: body.visualTargeting,
+      contentAngle: body.contentAngle,
+      existingPosts: body.existingPosts,
+      varyAngles: body.varyAngles,
     };
 
     const posts = await generateCampaignPack(batchRequest);
