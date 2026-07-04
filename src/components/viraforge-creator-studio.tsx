@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Camera, Sparkles, User } from "lucide-react";
+import { Camera, Database } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton, Spinner } from "./loading-indicator";
@@ -39,6 +40,17 @@ const BODY_TYPE_HINTS: Record<number, string> = {
   75: "Curvy athletic",
   100: "Muscular",
 };
+
+function personaInitials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+}
 
 function bodyTypeHint(value: number): string {
   const keys = Object.keys(BODY_TYPE_HINTS)
@@ -285,9 +297,50 @@ export function ViraForgeCreatorStudio() {
           {session?.user?.name && (
             <p className="mt-1 text-xs text-muted-foreground">
               Signed in as {session.user.name}
-              {influencerId ? ` · Editing ${values.handle}` : ""}
+              {influencerId ? ` · Editing @${values.handle}` : ""}
             </p>
           )}
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <Database className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+            {influencerId ? (
+              <p>
+                <span className="font-medium text-foreground">
+                  Saved in PostgreSQL
+                </span>{" "}
+                — table{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                  Influencer
+                </code>
+                , id{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                  {influencerId}
+                </code>
+                .{" "}
+                <Link
+                  href="/dashboard"
+                  className="font-medium text-violet-600 hover:underline dark:text-violet-400"
+                >
+                  View all on dashboard
+                </Link>
+              </p>
+            ) : (
+              <p>
+                Not saved yet. Records are written to PostgreSQL (
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                  Influencer
+                </code>
+                ,{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                  ProductFacts
+                </code>
+                ,{" "}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                  CreatorLearningEvent
+                </code>
+                ) when you save or generate.
+              </p>
+            )}
+          </div>
         </div>
         <Button
           type="button"
@@ -297,7 +350,7 @@ export function ViraForgeCreatorStudio() {
           className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-base font-semibold hover:from-violet-500 hover:to-fuchsia-500"
         >
           {generating ? (
-            <InlineLoading label={`Forging ${values.displayName}…`} />
+            <InlineLoading label={`Generating ${values.displayName}…`} />
           ) : hydrating ? (
             <InlineLoading label="Loading persona…" />
           ) : (
@@ -690,15 +743,36 @@ export function ViraForgeCreatorStudio() {
                       className="h-full w-full object-cover object-top"
                     />
                   ) : (
-                    <div className="flex h-full flex-col items-center justify-center px-5 text-center">
-                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                        <User className="h-8 w-8 opacity-70" aria-hidden />
+                    <div className="relative flex h-full flex-col items-center justify-center bg-gradient-to-b from-muted/40 to-muted px-5 text-center">
+                      <span
+                        className="absolute left-4 top-4 h-5 w-5 border-l border-t border-muted-foreground/30"
+                        aria-hidden
+                      />
+                      <span
+                        className="absolute right-4 top-4 h-5 w-5 border-r border-t border-muted-foreground/30"
+                        aria-hidden
+                      />
+                      <span
+                        className="absolute bottom-4 left-4 h-5 w-5 border-b border-l border-muted-foreground/30"
+                        aria-hidden
+                      />
+                      <span
+                        className="absolute bottom-4 right-4 h-5 w-5 border-b border-r border-muted-foreground/30"
+                        aria-hidden
+                      />
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-card shadow-sm">
+                        <span className="text-2xl font-semibold tracking-tight text-muted-foreground">
+                          {personaInitials(values.displayName)}
+                        </span>
                       </div>
-                      <p className="text-sm font-semibold leading-snug text-foreground">
+                      <p className="mt-5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Portrait preview
+                      </p>
+                      <p className="mt-2 text-sm leading-snug text-foreground">
                         {previewSummary}
                       </p>
-                      <p className="mt-3 line-clamp-4 text-xs leading-relaxed text-muted-foreground">
-                        &quot;{values.sampleQuote}&quot;
+                      <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                        {values.sampleQuote}
                       </p>
                     </div>
                   )}
@@ -707,7 +781,7 @@ export function ViraForgeCreatorStudio() {
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/75 px-4 text-center backdrop-blur-sm">
                       <Spinner size="lg" className="border-violet-600" />
                       <p className="mt-4 text-sm font-semibold text-foreground">
-                        Forging {values.displayName}…
+                        Generating {values.displayName}…
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Portrait generation in progress
@@ -718,10 +792,9 @@ export function ViraForgeCreatorStudio() {
               </div>
 
               <div className="mt-4 space-y-2 rounded-lg border border-border bg-card/80 p-3 text-xs">
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
-                  <p className="leading-relaxed">{previewSummary}</p>
-                </div>
+                <p className="border-l-2 border-violet-500/40 pl-3 leading-relaxed text-muted-foreground">
+                  {previewSummary}
+                </p>
                 <p className="border-t border-border pt-2 text-center text-emerald-600 dark:text-emerald-400">
                   {generating
                     ? "AI is rendering your influencer portrait…"
