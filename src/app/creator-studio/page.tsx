@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
 import { ViraForgeCreatorStudio } from "@/components/viraforge-creator-studio";
 
@@ -16,7 +17,9 @@ export const metadata: Metadata = {
 export default function CreatorStudioPage() {
   return (
     <AppShell>
-      <ViraForgeCreatorStudio />
+      <Suspense>
+        <ViraForgeCreatorStudio />
+      </Suspense>
     </AppShell>
   );
 }

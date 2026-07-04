@@ -1,4 +1,6 @@
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
+import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
+import { formatFactsForPrompt } from "./claim-validator";
 
 const BODY_TYPE_LABELS: Record<number, string> = {
   0: "slim",
@@ -20,7 +22,10 @@ function bodyTypeLabel(value: number): string {
   return BODY_TYPE_LABELS[closest] ?? "athletic";
 }
 
-export function buildAvatarImagePrompt(persona: CreatorAvatarForm): string {
+export function buildAvatarImagePrompt(
+  persona: CreatorAvatarForm,
+  options?: { personalization?: string; productFacts?: ProductFactsForm },
+): string {
   const genderLabel =
     persona.gender === "female"
       ? "woman"
@@ -38,6 +43,8 @@ export function buildAvatarImagePrompt(persona: CreatorAvatarForm): string {
     persona.neighborhoods ? `Neighborhood vibe: ${persona.neighborhoods}.` : "",
     `Wardrobe: culturally accurate, modern, upper-middle-class casual activewear suitable for ${persona.location}.`,
     `Expression and mood: ${persona.personalityVoice.slice(0, 200)}.`,
+    options?.personalization ?? "",
+    options?.productFacts ? formatFactsForPrompt(options.productFacts) : "",
     "Professional influencer headshot, natural lighting, shallow depth of field, 85mm lens look.",
     "Photorealistic, consistent facial features, no text overlays, no watermarks, no logos.",
   ]

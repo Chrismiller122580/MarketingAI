@@ -194,6 +194,15 @@ export type PromptPreferences = {
   avgCaptionLength?: number;
 };
 
+export type CreatorPreferences = {
+  preferredLocations?: string[];
+  preferredReligions?: string[];
+  preferredSocialClasses?: string[];
+  avgBodyType?: number;
+  defaultPlatforms?: string[];
+  lastInfluencerId?: string;
+};
+
 export type UserSettings = {
   brandVoice: string;
   targetAudience: string;
@@ -202,6 +211,7 @@ export type UserSettings = {
   emojiStyle: "none" | "light" | "heavy";
   preferAiImages: boolean;
   promptPreferences?: PromptPreferences;
+  creatorPreferences?: CreatorPreferences;
 };
 
 export type ContentGapAnalysis = {
