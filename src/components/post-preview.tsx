@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { isVerticalContentType } from "@/lib/content-formats";
 import type { GeneratedPost, Platform } from "@/lib/types";
 import { Spinner } from "./loading-indicator";
 
@@ -35,17 +36,28 @@ export function PostPreview({
   post: GeneratedPost;
   videoLoading?: boolean;
 }) {
-  const isVideoAd = post.contentType === "Video Ad";
+  const isVertical = isVerticalContentType(post.contentType);
+  const expectsVideo =
+    post.contentType === "Reel" ||
+    post.contentType === "Video Ad" ||
+    (post.contentType === "Story" &&
+      (!!post.image.videoJobId ||
+        !!post.image.videoUrl ||
+        !!post.image.videoStatus));
   const hasVideo = !!post.image.videoUrl;
   const videoProcessing =
-    isVideoAd &&
+    expectsVideo &&
+    !hasVideo &&
     (videoLoading || post.image.videoStatus === "processing");
-  const videoFailed = isVideoAd && post.image.videoStatus === "failed";
+  const videoFailed =
+    expectsVideo && !hasVideo && post.image.videoStatus === "failed";
 
   const mediaAspect =
-    isVideoAd && post.image.aspectRatio
-      ? videoAspectClasses[post.image.aspectRatio] ?? "aspect-video"
-      : aspectClasses[post.platform];
+    (expectsVideo || isVertical) && post.image.aspectRatio
+      ? videoAspectClasses[post.image.aspectRatio] ?? "aspect-[9/16] max-h-[480px]"
+      : isVertical
+        ? "aspect-[9/16] max-h-[480px]"
+        : aspectClasses[post.platform];
 
   const badgeLabel = hasVideo
     ? "AI video"
@@ -122,7 +134,9 @@ export function PostPreview({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-sm">
             <Spinner size="lg" className="border-white" />
             <p className="mt-3 text-sm font-medium text-white">
-              Generating video ad…
+              {post.contentType === "Reel"
+                ? "Generating Reel video…"
+                : "Generating video ad…"}
             </p>
             <p className="mt-1 text-xs text-slate-300">Usually 1–3 minutes</p>
           </div>

@@ -1,4 +1,5 @@
-import type { Platform, SiteData, SitePage } from "./types";
+import { isVerticalContentType } from "./content-formats";
+import type { ContentType, Platform, SiteData, SitePage } from "./types";
 import {
   enrichVisualPrompt,
   type VisualTargeting,
@@ -30,20 +31,46 @@ function buildImagePrompt(
   site: SiteData,
   page: SitePage,
   platform: Platform,
+  contentType?: ContentType,
 ): string {
   const keywords = site.brand.keywords.slice(0, 5).join(", ");
+  const formatHint =
+    contentType === "Story"
+      ? "Vertical Instagram Story — bold, immersive full-screen creative with space for text overlays at top and bottom."
+      : `Style: modern, clean, high-quality social media creative for ${platform}.`;
+
   return [
     `Professional marketing visual for ${site.brand.name}.`,
     `Topic: ${page.title}.`,
     page.description ? `Context: ${page.description.slice(0, 120)}.` : "",
     `Brand tone: ${site.brand.tone}.`,
     `Keywords: ${keywords}.`,
-    `Style: modern, clean, high-quality social media creative for ${platform}.`,
+    formatHint,
     "No text overlays, no watermarks, no logos.",
     "Photorealistic or polished illustration suitable for a brand campaign.",
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+function resolveImageSize(
+  platform: Platform,
+  contentType?: ContentType,
+): (typeof OPENAI_SIZES)[Platform] {
+  if (contentType && isVerticalContentType(contentType)) {
+    return "1024x1536";
+  }
+  return OPENAI_SIZES[platform];
+}
+
+function resolveXaiAspect(
+  platform: Platform,
+  contentType?: ContentType,
+): string {
+  if (contentType && isVerticalContentType(contentType)) {
+    return "9:16";
+  }
+  return XAI_ASPECT_RATIOS[platform];
 }
 
 function parseOpenAiImage(data: {
@@ -101,6 +128,7 @@ async function generateOpenAiImage(
 async function generateXaiImage(
   prompt: string,
   platform: Platform,
+  contentType?: ContentType,
 ): Promise<string | null> {
   const xaiKey = process.env.XAI_API_KEY?.trim();
   if (!xaiKey) return null;
@@ -116,7 +144,7 @@ async function generateXaiImage(
         model: "grok-imagine-image-quality",
         prompt,
         n: 1,
-        aspect_ratio: XAI_ASPECT_RATIOS[platform],
+        aspect_ratio: resolveXaiAspect(platform, contentType),
       }),
     });
 
@@ -145,21 +173,35 @@ export async function generateAiImage(
   page: SitePage,
   platform: Platform,
   visualTargeting?: VisualTargeting,
+  contentType?: ContentType,
 ): Promise<{ url: string; prompt: string; provider: "openai" | "xai" } | null> {
   const prompt = enrichVisualPrompt(
-    buildImagePrompt(site, page, platform),
+    buildImagePrompt(site, page, platform, contentType),
     visualTargeting,
     "image",
   );
-  const size = OPENAI_SIZES[platform];
+  const size = resolveImageSize(platform, contentType);
 
-  // Prefer OpenAI for images when configured; fall through to xAI on failure.
+  return generateImageFromPrompt(prompt, { size, platform, contentType });
+}
+
+export async function generateImageFromPrompt(
+  prompt: string,
+  options?: {
+    size?: (typeof OPENAI_SIZES)[Platform];
+    platform?: Platform;
+    contentType?: ContentType;
+  },
+): Promise<{ url: string; prompt: string; provider: "openai" | "xai" } | null> {
+  const platform = options?.platform ?? "instagram";
+  const size = options?.size ?? resolveImageSize(platform, options?.contentType);
+
   const openaiUrl = await generateOpenAiImage(prompt, size);
   if (openaiUrl) {
     return { url: openaiUrl, prompt, provider: "openai" };
   }
 
-  const xaiUrl = await generateXaiImage(prompt, platform);
+  const xaiUrl = await generateXaiImage(prompt, platform, options?.contentType);
   if (xaiUrl) {
     return { url: xaiUrl, prompt, provider: "xai" };
   }

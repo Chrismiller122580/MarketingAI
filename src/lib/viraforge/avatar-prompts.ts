@@ -1,0 +1,55 @@
+import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
+
+const BODY_TYPE_LABELS: Record<number, string> = {
+  0: "slim",
+  25: "lean athletic",
+  50: "athletic",
+  65: "fit toned",
+  75: "curvy athletic",
+  100: "muscular",
+};
+
+function bodyTypeLabel(value: number): string {
+  const keys = Object.keys(BODY_TYPE_LABELS)
+    .map(Number)
+    .sort((a, b) => a - b);
+  let closest = keys[0];
+  for (const key of keys) {
+    if (Math.abs(key - value) < Math.abs(closest - value)) closest = key;
+  }
+  return BODY_TYPE_LABELS[closest] ?? "athletic";
+}
+
+export function buildAvatarImagePrompt(persona: CreatorAvatarForm): string {
+  const genderLabel =
+    persona.gender === "female"
+      ? "woman"
+      : persona.gender === "male"
+        ? "man"
+        : "person";
+
+  return [
+    `Hyper-realistic portrait photograph of a ${persona.age}-year-old ${genderLabel}.`,
+    `Name reference: ${persona.displayName}.`,
+    `Physique: ${bodyTypeLabel(persona.bodyType)}, height ${persona.height}, ${persona.faceShape} face shape.`,
+    `Hair: ${persona.hair}.`,
+    `Location and cultural context: ${persona.location}. ${persona.culturalNotes}.`,
+    `Social context: ${persona.socialClass}. Religion: ${persona.religion}.`,
+    persona.neighborhoods ? `Neighborhood vibe: ${persona.neighborhoods}.` : "",
+    `Wardrobe: culturally accurate, modern, upper-middle-class casual activewear suitable for ${persona.location}.`,
+    `Expression and mood: ${persona.personalityVoice.slice(0, 200)}.`,
+    "Professional influencer headshot, natural lighting, shallow depth of field, 85mm lens look.",
+    "Photorealistic, consistent facial features, no text overlays, no watermarks, no logos.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+export function buildAvatarPreviewSummary(persona: CreatorAvatarForm): string {
+  return [
+    persona.displayName,
+    String(persona.age),
+    persona.location.split("+")[0]?.trim() ?? persona.location,
+    persona.religion.split("•")[0]?.trim() ?? persona.religion,
+  ].join(" • ");
+}

@@ -2,6 +2,7 @@ import { getTwitterToken, isTwitterBearerOnly } from "../integrations";
 import { getAppOrigin } from "../app-url";
 import { sendViaResend, textToHtml } from "../email";
 import { publishFacebookPost } from "./facebook";
+import { instagramMediaType } from "../content-formats";
 import { publishInstagramPost } from "./instagram";
 import type { Platform, PublishResult, SavedPost } from "../types";
 
@@ -257,12 +258,24 @@ async function publishInstagram(ctx: PublishContext): Promise<PublishResult> {
   }
 
   try {
+    const mediaKind = instagramMediaType(
+      ctx.post.contentType,
+      !!ctx.post.image.videoUrl,
+    );
+    const mediaFormat =
+      mediaKind === "STORIES"
+        ? "stories"
+        : mediaKind === "REELS"
+          ? "reels"
+          : "feed";
+
     const result = await publishInstagramPost({
       igUserId: accountId,
       accessToken: token,
       caption: ctx.post.text,
       videoUrl: ctx.post.image.videoUrl,
       imageUrl: ctx.post.image.originalUrl ?? ctx.post.image.url,
+      mediaFormat,
     });
 
     if (result.error) {

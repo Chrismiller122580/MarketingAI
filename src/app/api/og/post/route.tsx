@@ -10,6 +10,8 @@ const SIZES: Record<string, { width: number; height: number }> = {
   facebook: { width: 1200, height: 630 },
   pinterest: { width: 1000, height: 1500 },
   email: { width: 1200, height: 630 },
+  story: { width: 1080, height: 1920 },
+  reel: { width: 1080, height: 1920 },
 };
 
 export async function GET(request: NextRequest) {
@@ -19,10 +21,14 @@ export async function GET(request: NextRequest) {
   const tagline = searchParams.get("tagline") ?? "";
   const color = `#${(searchParams.get("color") ?? "d97706").replace("#", "")}`;
   const platform = searchParams.get("platform") ?? "instagram";
+  const format = searchParams.get("format");
   const domain = searchParams.get("domain") ?? "";
   const path = searchParams.get("path") ?? "";
 
-  const size = SIZES[platform] ?? SIZES.instagram;
+  const size =
+    format === "story" || format === "reel"
+      ? SIZES[format]
+      : (SIZES[platform] ?? SIZES.instagram);
 
   return new ImageResponse(
     (

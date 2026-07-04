@@ -19,9 +19,15 @@ import type {
   GeneratedPost,
   Platform,
   SavedPost,
+  StoryMedia,
   VisualTargeting,
 } from "@/lib/types";
 import { suggestVisualTargeting } from "@/lib/business-context";
+import {
+  isInstagramFormat,
+  isVideoContentType,
+  triggersVideoGeneration,
+} from "@/lib/content-formats";
 import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
 import { ContentAnglePicker } from "./content-angle-picker";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
@@ -34,12 +40,21 @@ const VisualPostEditor = dynamic(
 
 const contentTypes: ContentType[] = [
   "Social Post",
+  "Reel",
+  "Story",
   "Email Copy",
   "Ad Headline",
   "Blog Intro",
   "Product Description",
   "Video Ad",
 ];
+
+type AiCapabilities = {
+  aiImageAvailable: boolean;
+  aiVideoAvailable: boolean;
+  aiImageProvider: "openai" | "xai" | null;
+  aiVideoProvider: "replicate" | null;
+};
 
 const platforms: { value: Platform; label: string }[] = [
   { value: "instagram", label: "Instagram" },
@@ -77,6 +92,8 @@ export function ContentGenerator() {
   const [loadingStage, setLoadingStage] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [contentAngle, setContentAngle] = useState<ContentAngle>("auto");
+  const [storyMedia, setStoryMedia] = useState<StoryMedia>("image");
+  const [aiCaps, setAiCaps] = useState<AiCapabilities | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const postHistory = posts.map((p) => ({
@@ -85,20 +102,66 @@ export function ContentGenerator() {
     platform: p.platform,
   }));
 
-  const isVideoAd = contentType === "Video Ad";
-  const usesAiVisuals = isVideoAd || preferAiImage;
+  const isVideoContent = isVideoContentType(contentType);
+  const isReel = contentType === "Reel";
+  const isStory = contentType === "Story";
+  const isStoryVideo = isStory && storyMedia === "video";
+  const willGenerateVideo = triggersVideoGeneration(contentType, storyMedia);
+  const usesAiVisuals = isVideoContent || isStory || preferAiImage;
+
+  const missingProvider =
+    (isReel && !aiCaps?.aiVideoAvailable) ||
+    (isStory && storyMedia === "image" && !aiCaps?.aiImageAvailable) ||
+    (isStoryVideo && !aiCaps?.aiVideoAvailable);
+
+  useEffect(() => {
+    fetch("/api/social/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setAiCaps({
+          aiImageAvailable: !!data.aiImageAvailable,
+          aiVideoAvailable: !!data.aiVideoAvailable,
+          aiImageProvider: data.aiImageProvider ?? null,
+          aiVideoProvider: data.aiVideoProvider ?? null,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("type") === "video") {
-      setContentType("Video Ad");
+    const type = params.get("type");
+    if (type === "video") {
+      Promise.resolve().then(() => setContentType("Video Ad"));
+    } else if (type === "reel") {
+      Promise.resolve().then(() => {
+        setContentType("Reel");
+        setPlatform("instagram");
+      });
+    } else if (type === "story") {
+      Promise.resolve().then(() => {
+        setContentType("Story");
+        setPlatform("instagram");
+      });
+    } else if (type === "reels-stories") {
+      Promise.resolve().then(() => {
+        setContentType("Reel");
+        setPlatform("instagram");
+      });
     }
     const angle = params.get("angle");
     if (angle) {
-      setContentAngle(angle as ContentAngle);
+      Promise.resolve().then(() => setContentAngle(angle as ContentAngle));
     }
   }, []);
+
+  useEffect(() => {
+    if (isInstagramFormat(contentType)) {
+      Promise.resolve().then(() => setPlatform("instagram"));
+    }
+  }, [contentType]);
 
   useEffect(() => {
     return () => {
@@ -108,8 +171,10 @@ export function ContentGenerator() {
 
   useEffect(() => {
     if (!site) return;
-    setVisualTargeting((prev) =>
-      suggestVisualTargeting(site.brand, platform, prev),
+    Promise.resolve().then(() =>
+      setVisualTargeting((prev) =>
+        suggestVisualTargeting(site.brand, platform, prev),
+      ),
     );
   }, [site, platform]);
 
@@ -173,9 +238,13 @@ export function ContentGenerator() {
     setVideoLoading(false);
     setError(null);
     setLoadingStage(
-      isVideoAd
-        ? "Crafting video script and visuals…"
-        : "Analyzing business model and matching pages…",
+      isVideoContent
+        ? isReel
+          ? "Crafting Reel hook and vertical video…"
+          : "Crafting video script and visuals…"
+        : isStory
+          ? "Designing Story visual and swipe-up copy…"
+          : "Analyzing business model and matching pages…",
     );
 
     try {
@@ -196,8 +265,9 @@ export function ContentGenerator() {
           platform,
           prompt: prompt.trim(),
           sourcePageUrl: selectedPage === "all" ? undefined : selectedPage,
-          preferAiImage: isVideoAd ? true : preferAiImage,
-          videoDuration: isVideoAd ? videoDuration : undefined,
+          preferAiImage: isVideoContent || isStory ? true : preferAiImage,
+          videoDuration: willGenerateVideo ? videoDuration : undefined,
+          storyMedia: isStory ? storyMedia : undefined,
           visualTargeting: usesAiVisuals ? visualTargeting : undefined,
           contentAngle,
           existingPosts: postHistory,
@@ -220,11 +290,13 @@ export function ContentGenerator() {
         setSavedPost(saved);
 
         if (
-          isVideoAd &&
+          willGenerateVideo &&
           generated.image.videoJobId &&
           generated.image.videoStatus === "processing"
         ) {
           pollVideoStatus(generated.image.videoJobId, generated, saved);
+        } else if (isStory && storyMedia === "image") {
+          setEditorOpen(true);
         }
       } catch {
         /* preview still shown */
@@ -278,9 +350,13 @@ export function ContentGenerator() {
         show={loading}
         label={loadingStage || "Generating content…"}
         sublabel={
-          isVideoAd
-            ? "Building script, image, and starting video render"
-            : "Smart-matching pages, visuals, and dual AI copy"
+          isVideoContent
+            ? isReel
+              ? "Building Reel caption, cover, and vertical video render"
+              : "Building script, image, and starting video render"
+            : isStory
+              ? "Creating full-screen Story visual and short copy"
+              : "Smart-matching pages, visuals, and dual AI copy"
         }
       />
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
@@ -291,8 +367,8 @@ export function ContentGenerator() {
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {site
               ? site.brand.businessModel
-                ? `${site.brand.businessModel.type.toUpperCase()} · ${site.brand.businessModel.market.toUpperCase()} — smart copy + ${isVideoAd ? "video ads" : "images"} from ${site.pages.length} pages`
-                : `Smart copy + ${isVideoAd ? "video ads" : "images"} from ${site.pages.length} pages and ${site.images.length} images`
+                ? `${site.brand.businessModel.type.toUpperCase()} · ${site.brand.businessModel.market.toUpperCase()} — smart copy + ${isVideoContent ? "vertical video" : isStory ? "Stories" : "images"} from ${site.pages.length} pages`
+                : `Smart copy + ${isVideoContent ? "vertical video" : isStory ? "Stories" : "images"} from ${site.pages.length} pages and ${site.images.length} images`
               : "Crawl a domain to unlock intelligent content generation"}
           </p>
         </div>
@@ -301,8 +377,9 @@ export function ContentGenerator() {
           {!site && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
               Enter a domain above to analyze your site. Then choose{" "}
-              <strong>Video Ad</strong> under Content type to generate short AI
-              video ads (5–10 seconds).
+              <strong>Reel</strong> or <strong>Story</strong> for Instagram
+              vertical formats, or <strong>Video Ad</strong> for short AI video
+              ads (5–10 seconds).
             </div>
           )}
 
@@ -320,7 +397,8 @@ export function ContentGenerator() {
                     id="platform"
                     value={platform}
                     onChange={(e) => setPlatform(e.target.value as Platform)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                    disabled={isInstagramFormat(contentType)}
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {platforms.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -381,7 +459,77 @@ export function ContentGenerator() {
             </>
           )}
 
-          {site && isVideoAd && (
+          {site && isInstagramFormat(contentType) && (
+            <div className="rounded-lg border border-fuchsia-200 bg-fuchsia-50/60 px-4 py-3 dark:border-fuchsia-900/50 dark:bg-fuchsia-950/20">
+              <p className="text-xs text-fuchsia-900 dark:text-fuchsia-200">
+                {isReel
+                  ? "Reels — 9:16 vertical video with hook-first captions."
+                  : "Stories — full-screen 9:16 format with swipe-up copy."}
+              </p>
+              {aiCaps && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {isReel && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        aiCaps.aiVideoAvailable
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                          : "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+                      }`}
+                    >
+                      Video: {aiCaps.aiVideoAvailable ? "Replicate ready" : "Replicate not configured"}
+                    </span>
+                  )}
+                  {isStory && storyMedia === "image" && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        aiCaps.aiImageAvailable
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                          : "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+                      }`}
+                    >
+                      Images:{" "}
+                      {aiCaps.aiImageAvailable
+                        ? `${aiCaps.aiImageProvider === "openai" ? "OpenAI" : "xAI"} ready`
+                        : "No image provider"}
+                    </span>
+                  )}
+                  {isStoryVideo && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        aiCaps.aiVideoAvailable
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                          : "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+                      }`}
+                    >
+                      Video: {aiCaps.aiVideoAvailable ? "Replicate ready" : "Replicate not configured"}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {site && isStory && (
+            <div>
+              <label
+                htmlFor="story-media"
+                className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Story format
+              </label>
+              <select
+                id="story-media"
+                value={storyMedia}
+                onChange={(e) => setStoryMedia(e.target.value as StoryMedia)}
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              >
+                <option value="image">Image Story (OpenAI / xAI)</option>
+                <option value="video">Video Story (Replicate)</option>
+              </select>
+            </div>
+          )}
+
+          {site && willGenerateVideo && (
             <div>
               <label
                 htmlFor="video-duration"
@@ -401,12 +549,14 @@ export function ContentGenerator() {
                 <option value={10}>10 seconds</option>
               </select>
               <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-                Requires REPLICATE_API_TOKEN. Video generation takes 1–3 minutes.
+                {aiCaps?.aiVideoAvailable
+                  ? "Replicate is connected — video render usually takes 1–3 minutes."
+                  : "Add REPLICATE_API_TOKEN in Settings → Integrations to enable video."}
               </p>
             </div>
           )}
 
-          {site && !isVideoAd && (
+          {site && !isVideoContent && !isStory && (
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -427,7 +577,7 @@ export function ContentGenerator() {
             />
           )}
 
-          {site && !isVideoAd && (
+          {site && !isVideoContent && (
             <>
               <ContentAnglePicker
                 value={contentAngle}
@@ -466,21 +616,41 @@ export function ContentGenerator() {
             </div>
           )}
 
+          {missingProvider && (
+            <p className="text-sm text-rose-600">
+              {isReel || isStoryVideo
+                ? "Replicate is required for video. Add REPLICATE_API_TOKEN in Settings → Integrations."
+                : "OpenAI or xAI is required for Story images. Add OPENAI_API_KEY or XAI_API_KEY in Settings → Integrations."}
+            </p>
+          )}
+
           {error && <p className="text-sm text-rose-600">{error}</p>}
 
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={!site || loading || !isPaid}
+            disabled={!site || loading || !isPaid || missingProvider}
             className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading
-              ? isVideoAd
-                ? "Generating caption + starting video…"
-                : "Generating post + image…"
-              : isVideoAd
-                ? "Generate video ad"
-                : "Generate post with image"}
+              ? willGenerateVideo
+                ? isReel
+                  ? "Generating Reel + starting video…"
+                  : isStoryVideo
+                    ? "Generating Story + starting video…"
+                    : "Generating caption + starting video…"
+                : isStory
+                  ? "Generating Story visual…"
+                  : "Generating post + image…"
+              : isReel
+                ? "Generate Reel"
+                : isStory
+                  ? isStoryVideo
+                    ? "Generate video Story"
+                    : "Generate image Story"
+                  : isVideoContent
+                    ? "Generate video ad"
+                    : "Generate post with image"}
           </button>
         </div>
       </div>
@@ -530,7 +700,7 @@ export function ContentGenerator() {
           >
             Copy caption
           </button>
-          {!post.image.videoUrl && !isVideoAd && savedPost && (
+          {!post.image.videoUrl && !willGenerateVideo && savedPost && (
             <button
               type="button"
               onClick={() => setEditorOpen(true)}

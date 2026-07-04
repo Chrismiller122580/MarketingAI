@@ -50,9 +50,14 @@ function PostCard({
             className="object-cover"
           />
         )}
-        {post.contentType === "Video Ad" && (
+        {(post.contentType === "Video Ad" || post.contentType === "Reel") && (
           <span className="absolute left-2 top-2 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white">
-            Video
+            {post.contentType === "Reel" ? "Reel" : "Video"}
+          </span>
+        )}
+        {post.contentType === "Story" && (
+          <span className="absolute left-2 top-2 rounded-full bg-fuchsia-600 px-2 py-0.5 text-[10px] font-medium text-white">
+            {post.image.videoUrl ? "Story video" : "Story"}
           </span>
         )}
         <span
@@ -72,7 +77,9 @@ function PostCard({
         </div>
         <p className="mt-2 line-clamp-3 text-sm text-slate-700 dark:text-slate-300">{post.text}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {!post.image.videoUrl && post.contentType !== "Video Ad" && (
+          {!post.image.videoUrl &&
+            post.contentType !== "Video Ad" &&
+            post.contentType !== "Reel" && (
             <button
               type="button"
               onClick={onEditVisual}

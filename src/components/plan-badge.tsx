@@ -11,7 +11,7 @@ const PLAN_STYLES: Record<string, string> = {
 
 export function PlanBadge({ compact = false }: { compact?: boolean }) {
   const { data: session } = useSession();
-  const plan = (session?.user as any)?.plan || "free";
+  const plan = session?.user?.plan || "free";
   const style = PLAN_STYLES[plan] || PLAN_STYLES.free;
 
   if (!session) return null;

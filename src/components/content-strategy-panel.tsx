@@ -27,7 +27,10 @@ export function ContentStrategyPanel() {
   }, [site, posts, settings]);
 
   useEffect(() => {
-    refresh();
+    const t = setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => clearTimeout(t);
   }, [refresh]);
 
   async function fetchAiRecommendations() {

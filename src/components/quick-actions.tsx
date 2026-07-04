@@ -39,7 +39,7 @@ export function QuickActions() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <Link
         href="/content"
         className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md"
@@ -48,6 +48,16 @@ export function QuickActions() {
         <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Content Studio</p>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Social posts with matched images
+        </p>
+      </Link>
+      <Link
+        href="/content?type=reels-stories"
+        className="rounded-xl border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 to-amber-50 p-5 shadow-sm transition hover:border-fuchsia-300 hover:shadow-md dark:border-fuchsia-900/50 dark:from-fuchsia-950/30 dark:to-amber-950/20"
+      >
+        <p className="text-2xl">📱</p>
+        <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Reels & Stories</p>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          9:16 vertical video and Story visuals
         </p>
       </Link>
       <Link

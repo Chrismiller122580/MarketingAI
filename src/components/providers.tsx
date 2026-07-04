@@ -1,5 +1,6 @@
 "use client";
 
+import { ThemedToaster } from "./themed-toaster";
 import { SiteProvider } from "@/context/site-context";
 import { SettingsProvider } from "@/context/settings-context";
 import { PostsProvider } from "@/context/posts-context";
@@ -20,7 +21,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <SiteProvider>
           <SocialLinker />
           <SettingsProvider>
-            <PostsProvider>{children}</PostsProvider>
+            <PostsProvider>
+              {children}
+              <ThemedToaster />
+            </PostsProvider>
           </SettingsProvider>
         </SiteProvider>
       </AuthSessionProvider>

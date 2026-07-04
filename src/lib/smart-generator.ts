@@ -3,6 +3,7 @@ import {
   planCampaign,
   planItemContentType,
   planItemToPrompt,
+  type CampaignPlan,
 } from "./campaign-planner";
 import { rankPagesBySimilarity } from "./embeddings";
 import { generateAiImage } from "./ai-image";
@@ -15,7 +16,15 @@ import {
   pickFreshAngle,
   scoreUniqueness,
 } from "./content-uniqueness";
+import {
+  getVisualCanvasSize,
+  isInstagramFormat,
+  isVerticalContentType,
+  isVideoContentType,
+} from "./content-formats";
+import { storyEditorLayers } from "./visual-editor-presets";
 import { pickBestImage, buildBrandedImageUrl } from "./image-matcher";
+import { put } from "@vercel/blob";
 import {
   describeVisualTargeting,
   hasActiveVisualTargeting,
@@ -87,6 +96,8 @@ function scorePageRelevance(
     "Ad Headline": /pricing|demo|trial|get started|sign up/i,
     "Email Copy": /about|contact|team/i,
     "Video Ad": /video|demo|showcase/i,
+    Reel: /video|demo|showcase|launch|trend/i,
+    Story: /announce|new|launch|offer|event/i,
   };
   const pattern = typeBoost[contentType];
   if (pattern?.test(pageText)) score += 25;
@@ -301,6 +312,49 @@ function videoAd(
   return truncate(script, PLATFORM_LIMITS[platform]);
 }
 
+function reelCaption(
+  site: SiteData,
+  page: SitePage,
+  _platform: Platform,
+  prompt: string,
+  settings: UserSettings,
+): string {
+  const h = hook(page, site.brand);
+  const body = (page.description || page.excerpt).slice(0, 100);
+  const prefix = emojiPrefix(settings.emojiStyle, "instagram");
+  const hashtags = buildHashtags(site, page, prompt, settings).slice(0, 5);
+
+  let script = `${prefix}${h}\n\n${body}`;
+  if (prompt) script += `\n\n${prompt}`;
+  script += `\n\nSave this for later 🔖`;
+  if (hashtags.length > 0) {
+    script += `\n\n${hashtags.join(" ")}`;
+  }
+
+  return truncate(script, 2200);
+}
+
+function storyCaption(
+  site: SiteData,
+  page: SitePage,
+  _platform: Platform,
+  prompt: string,
+  settings: UserSettings,
+): string {
+  const h = hook(page, site.brand);
+  const prefix = emojiPrefix(settings.emojiStyle, "instagram");
+  const cta = `Swipe up → ${site.domain}${page.path === "/" ? "" : page.path}`;
+
+  let script = `${prefix}${h}`;
+  if (prompt) script += `\n${prompt.slice(0, 80)}`;
+  script += `\n\n${cta}`;
+  if (settings.targetAudience) {
+    script += `\n\nFor ${settings.targetAudience}.`;
+  }
+
+  return truncate(script, 500);
+}
+
 const generators: Record<
   ContentType,
   (
@@ -313,12 +367,14 @@ const generators: Record<
 > = {
   "Social Post": socialPost,
   "Email Copy": emailCopy,
-  "Ad Headline": (site, page, _platform, _prompt, _settings) =>
+  "Ad Headline": (site: SiteData, page: SitePage, ..._args: unknown[]) => // eslint-disable-line @typescript-eslint/no-unused-vars
     adHeadline(site, page),
   "Blog Intro": blogIntro,
-  "Product Description": (site, page, _platform, _prompt, _settings) =>
+  "Product Description": (site: SiteData, page: SitePage, ..._args: unknown[]) => // eslint-disable-line @typescript-eslint/no-unused-vars
     productDescription(site, page),
   "Video Ad": videoAd,
+  Reel: reelCaption,
+  Story: storyCaption,
 };
 
 function buildInsights(
@@ -363,29 +419,85 @@ async function resolveImage(
   context: string,
   preferAi: boolean,
   visualTargeting?: GenerateRequest["visualTargeting"],
+  contentType: ContentType = "Social Post",
 ): Promise<GeneratedPost["image"]> {
+  const brandedFormat =
+    contentType === "Story" ? "story" : contentType === "Reel" ? "reel" : undefined;
+
   if (preferAi) {
-    const ai = await generateAiImage(site, page, platform, visualTargeting);
+    const ai = await generateAiImage(
+      site,
+      page,
+      platform,
+      visualTargeting,
+      contentType,
+    );
+    const alt = `${site.brand.name} — ${page.title}`;
     if (ai) {
+      const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+      let imageUrl = ai.url;
+      const originalUrl = ai.url;
+
       if (ai.url.startsWith("data:")) {
+        if (blobToken) {
+          try {
+            const base64Data = ai.url.split(",")[1] || "";
+            const buffer = Buffer.from(base64Data, "base64");
+            const filename = `ai-images/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+            const uploaded = await put(filename, buffer, {
+              access: "public",
+              token: blobToken,
+              contentType: "image/png",
+            });
+            imageUrl = uploaded.url;
+          } catch {
+            // keep data: url as fallback
+          }
+        }
         return {
-          url: ai.url,
+          url: imageUrl,
           source: "ai",
-          alt: `${site.brand.name} — ${page.title}`,
+          alt,
+          originalUrl,
+          ...(isVerticalContentType(contentType)
+            ? { aspectRatio: "9:16" as const }
+            : {}),
         };
       }
 
       try {
         const res = await fetch(ai.url);
         if (res.ok) {
-          const buf = await res.arrayBuffer();
-          const b64 = Buffer.from(buf).toString("base64");
+          const arrayBuf = await res.arrayBuffer();
+          const buffer = Buffer.from(arrayBuf);
           const ct = res.headers.get("content-type") ?? "image/png";
+          if (blobToken) {
+            try {
+              const ext = ct.includes("png") ? "png" : "jpg";
+              const filename = `ai-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+              const uploaded = await put(filename, buffer, {
+                access: "public",
+                token: blobToken,
+                contentType: ct,
+              });
+              imageUrl = uploaded.url;
+            } catch {
+              // fallback to inline
+              const b64 = buffer.toString("base64");
+              imageUrl = `data:${ct};base64,${b64}`;
+            }
+          } else {
+            const b64 = buffer.toString("base64");
+            imageUrl = `data:${ct};base64,${b64}`;
+          }
           return {
-            url: `data:${ct};base64,${b64}`,
+            url: imageUrl,
             source: "ai",
-            alt: `${site.brand.name} — ${page.title}`,
-            originalUrl: ai.url,
+            alt,
+            originalUrl,
+            ...(isVerticalContentType(contentType)
+              ? { aspectRatio: "9:16" as const }
+              : {}),
           };
         }
       } catch {
@@ -394,14 +506,17 @@ async function resolveImage(
     }
 
     return {
-      url: buildBrandedImageUrl(site, page.title, platform, page.path),
+      url: buildBrandedImageUrl(site, page.title, platform, page.path, brandedFormat),
       source: "branded",
-      alt: `${site.brand.name} — ${page.title}`,
+      alt,
+      ...(isVerticalContentType(contentType)
+        ? { aspectRatio: "9:16" as const }
+        : {}),
     };
   }
 
   const siteImage = pickBestImage(site, context, page, platform);
-  if (siteImage) {
+  if (siteImage && !isVerticalContentType(contentType)) {
     return {
       url: `/api/image?url=${encodeURIComponent(siteImage.url)}`,
       source: "site",
@@ -411,9 +526,12 @@ async function resolveImage(
   }
 
   return {
-    url: buildBrandedImageUrl(site, page.title, platform, page.path),
+    url: buildBrandedImageUrl(site, page.title, platform, page.path, brandedFormat),
     source: "branded",
     alt: `${site.brand.name} — ${page.title}`,
+    ...(isVerticalContentType(contentType)
+      ? { aspectRatio: "9:16" as const }
+      : {}),
   };
 }
 
@@ -443,9 +561,13 @@ export async function generateSmartPost(
   const hashtags = buildHashtags(site, page, prompt, settings);
 
   const context = `${page.title} ${page.description} ${prompt}`;
-  const isVideoAd = contentType === "Video Ad";
+  const isVideoContent = isVideoContentType(contentType);
+  const isStory = contentType === "Story";
+  const effectivePlatform = isInstagramFormat(contentType) ? "instagram" : platform;
   const preferAi =
-    isVideoAd || (request.preferAiImage ?? settings.preferAiImages ?? false);
+    isVideoContent ||
+    isStory ||
+    (request.preferAiImage ?? settings.preferAiImages ?? false);
 
   const effectiveTargeting = suggestVisualTargeting(
     site.brand,
@@ -453,13 +575,14 @@ export async function generateSmartPost(
     request.visualTargeting,
   );
 
-  const image = await resolveImage(
+  let image = await resolveImage(
     site,
     page,
-    platform,
+    effectivePlatform,
     context,
     preferAi,
     effectiveTargeting,
+    contentType,
   );
 
   const { variants, recommendation } = await enhanceWithDualAi(
@@ -489,7 +612,17 @@ export async function generateSmartPost(
       "AI image generation failed — using branded placeholder. Check OPENAI_API_KEY or XAI_API_KEY on the server.",
     );
   }
-  if (isVideoAd) {
+  if (contentType === "Reel") {
+    insights.push(
+      "Instagram Reel — 9:16 vertical video with hook-first caption and trend-ready pacing.",
+    );
+  } else if (isStory) {
+    insights.push(
+      request.storyMedia === "video"
+        ? "Instagram Story video — 9:16 short clip via Replicate with swipe-up copy."
+        : "Instagram Story — full-screen 9:16 visual with story text overlays ready to edit.",
+    );
+  } else if (isVideoContent) {
     insights.push(
       "AI video ad — short-form vertical/horizontal creative generated from your brand.",
     );
@@ -516,11 +649,35 @@ export async function generateSmartPost(
   }
   insights.push(`Uniqueness score: ${uniqueness.score}/100 — ${uniqueness.tips[0]}`);
 
+  if (isStory && request.storyMedia !== "video") {
+    const { width, height } = getVisualCanvasSize(effectivePlatform, contentType);
+    const draftPost: GeneratedPost = {
+      text: finalText,
+      hashtags,
+      cta: `${site.domain}${page.path === "/" ? "" : page.path}`,
+      platform: effectivePlatform,
+      contentType,
+      image,
+      insights: [],
+      characterCount: finalText.length,
+    };
+    image = {
+      ...image,
+      overlays: storyEditorLayers(
+        draftPost,
+        site.brand.name,
+        site.brand.themeColor,
+        width,
+        height,
+      ),
+    };
+  }
+
   return {
     text: finalText,
     hashtags,
     cta: `${site.domain}${page.path === "/" ? "" : page.path}`,
-    platform,
+    platform: effectivePlatform,
     contentType,
     image,
     insights,
@@ -538,7 +695,7 @@ export async function generateSmartPost(
 
 export async function generateCampaignPack(
   request: BatchGenerateRequest,
-): Promise<SavedPost[]> {
+): Promise<{ posts: SavedPost[]; plan: CampaignPlan }> {
   const {
     site,
     settings,
@@ -602,6 +759,6 @@ export async function generateCampaignPack(
     });
   }
 
-  return posts;
+  return { posts, plan };
 }
 

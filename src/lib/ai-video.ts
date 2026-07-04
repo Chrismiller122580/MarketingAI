@@ -1,4 +1,5 @@
-import type { Platform, SiteData, SitePage } from "./types";
+import { getVideoAspectRatioForContent } from "./content-formats";
+import type { ContentType, Platform, SiteData, SitePage } from "./types";
 import {
   enrichVisualPrompt,
   type VisualTargeting,
@@ -6,20 +7,7 @@ import {
 
 export type VideoAspectRatio = "9:16" | "16:9" | "1:1";
 
-const PLATFORM_ASPECT: Record<Platform, VideoAspectRatio> = {
-  instagram: "9:16",
-  twitter: "16:9",
-  linkedin: "16:9",
-  facebook: "16:9",
-  pinterest: "9:16",
-  email: "16:9",
-};
-
 const REPLICATE_MODEL = "bytedance/seedance-1-lite";
-
-export function getVideoAspectRatio(platform: Platform): VideoAspectRatio {
-  return PLATFORM_ASPECT[platform];
-}
 
 export function buildVideoPrompt(
   site: SiteData,
@@ -27,14 +15,22 @@ export function buildVideoPrompt(
   platform: Platform,
   brief?: string,
   visualTargeting?: VisualTargeting,
+  contentType: ContentType = "Video Ad",
 ): string {
   const keywords = site.brand.keywords.slice(0, 5).join(", ");
+  const formatLead =
+    contentType === "Reel"
+      ? `Instagram Reel for ${site.brand.name} — scroll-stopping vertical short-form.`
+      : `Short-form video ad for ${site.brand.name}.`;
+
   const base = [
-    `Short-form video ad for ${site.brand.name}.`,
+    formatLead,
     `Hook: ${page.headings[0] || page.title}.`,
     page.description ? `Message: ${page.description.slice(0, 100)}.` : "",
     `Brand tone: ${site.brand.tone}. Keywords: ${keywords}.`,
-    `Visual style: cinematic, modern, high-energy marketing creative for ${platform}.`,
+    contentType === "Reel"
+      ? "Visual style: punchy, trend-forward Reel — fast cuts energy, cinematic motion, mobile-first vertical framing."
+      : `Visual style: cinematic, modern, high-energy marketing creative for ${platform}.`,
     "Smooth camera movement, professional lighting, no text overlays, no watermarks.",
     brief ? `Campaign angle: ${brief}.` : "",
   ]
@@ -42,6 +38,13 @@ export function buildVideoPrompt(
     .join(" ");
 
   return enrichVisualPrompt(base, visualTargeting, "video");
+}
+
+export function getVideoAspectRatio(
+  platform: Platform,
+  contentType: ContentType = "Video Ad",
+): VideoAspectRatio {
+  return getVideoAspectRatioForContent(contentType, platform);
 }
 
 type ReplicatePrediction = {

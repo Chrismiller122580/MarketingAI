@@ -1,7 +1,9 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { planItemToPrompt } from "@/lib/campaign-planner";
+import { pickFreshAngle } from "@/lib/content-uniqueness";
+import type { GeneratedPost } from "@/lib/types";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
@@ -29,15 +31,30 @@ export function CampaignPack() {
   const { settings } = useSettings();
   const { posts: libraryPosts, savePack, savePost } = usePosts();
 
-  const su = (session?.user ?? {}) as Record<string, unknown>;
-  const userPlan = (su.plan as string) || "free";
-  const endsAtRaw = su.subscriptionEndsAt;
-  const isPaid = userPlan !== "free" && (!endsAtRaw || (() => { try { return new Date(endsAtRaw as any) > new Date(); } catch { return false; } })());
+  const user = session?.user;
+  const userPlan = user?.plan || "free";
+  const endsAtRaw = user?.subscriptionEndsAt;
+  const [now] = useState(() => Date.now());
+
+  const isPaid = useMemo(() => {
+    if (userPlan === "free") return false;
+    if (!endsAtRaw) return true;
+    try {
+      const d = new Date(String(endsAtRaw));
+      if (Number.isNaN(d.getTime())) return false;
+      return d.getTime() > now;
+    } catch {
+      return false;
+    }
+  }, [userPlan, endsAtRaw, now]);
 
   const [prompt, setPrompt] = useState("");
   const [maxPosts, setMaxPosts] = useState(9);
   const [posts, setPosts] = useState<SavedPost[]>([]);
+  const [planInfo, setPlanInfo] = useState<{ theme: string; source: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [preferAiImage, setPreferAiImage] = useState(settings.preferAiImages);
@@ -54,24 +71,55 @@ export function CampaignPack() {
   }));
 
   useEffect(() => {
-    setPreferAiImage(settings.preferAiImages);
+    Promise.resolve().then(() => {
+      setPreferAiImage(settings.preferAiImages);
+    });
   }, [settings.preferAiImages]);
 
   useEffect(() => {
     if (!site) return;
-    setVisualTargeting((prev) =>
-      suggestVisualTargeting(site.brand, primaryPlatform, prev),
-    );
+    Promise.resolve().then(() => {
+      setVisualTargeting((prev) =>
+        suggestVisualTargeting(site.brand, primaryPlatform, prev),
+      );
+    });
   }, [site, primaryPlatform]);
+
+  // Simulated progress for long-running campaign generation (real progress would require streaming)
+  useEffect(() => {
+    if (!loading) {
+      Promise.resolve().then(() => setLoadingProgress(0));
+      return;
+    }
+    Promise.resolve().then(() => setLoadingProgress(1));
+    const interval = setInterval(() => {
+      setLoadingProgress((p) => {
+        const next = p + (p < maxPosts * 0.7 ? 1 : 0.3);
+        return Math.min(maxPosts, Math.floor(next));
+      });
+    }, 900);
+    return () => clearInterval(interval);
+  }, [loading, maxPosts]);
 
   async function handleGenerate() {
     if (!site) return;
+    if (!settings.defaultPlatforms || settings.defaultPlatforms.length === 0) {
+      setError("Select at least one default platform in Settings to generate a campaign pack.");
+      return;
+    }
     setLoading(true);
     setError(null);
     setSaved(false);
+    setPlanInfo(null);
+    setPosts([]);
+    setLoadingProgress(0);
+
+    const accumulatedHistory = [...postHistory];
+    const generated: SavedPost[] = [];
 
     try {
-      const response = await fetch("/api/generate/batch", {
+      // Step 1: Get the campaign plan (real planning on server)
+      const planRes = await fetch("/api/generate/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -80,35 +128,120 @@ export function CampaignPack() {
           prompt: prompt.trim(),
           platforms: settings.defaultPlatforms,
           maxPosts,
-          preferAiImage,
-          visualTargeting: preferAiImage ? visualTargeting : undefined,
           contentAngle,
           existingPosts: postHistory,
           varyAngles,
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        if (response.status === 402 || data?.code === "SUBSCRIPTION_REQUIRED") {
-          throw new Error(data.error || "Paid subscription required. Upgrade at /billing.");
+      const planData = await planRes.json();
+      if (!planRes.ok) {
+        if (planRes.status === 402 || planData?.code === "SUBSCRIPTION_REQUIRED") {
+          throw new Error(planData.error || "Paid subscription required. Upgrade at /billing.");
         }
-        throw new Error(data.error ?? "Batch generation failed");
+        throw new Error(planData.error ?? "Failed to plan campaign");
       }
-      setPosts(data.posts);
+
+      const p = planData.plan;
+      const items = planData.items ?? [];
+      setPlanInfo(p);
+
+      // Step 2: Generate posts one-by-one for real progress + live UI updates
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        setLoadingProgress(i + 1);
+
+        const page = site.pages.find((pp) => pp.path === item.pagePath);
+        if (!page) continue;
+
+        const thisAngle = varyAngles
+          ? pickFreshAngle(accumulatedHistory, i, contentAngle)
+          : contentAngle ?? "auto";
+
+        const itemPrompt = planItemToPrompt(item, prompt.trim());
+
+        const genRes = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            site,
+            settings,
+            contentType: "Social Post",
+            platform: item.platform,
+            prompt: itemPrompt,
+            sourcePageUrl: page.url,
+            preferAiImage: preferAiImage,
+            visualTargeting: preferAiImage ? visualTargeting : undefined,
+            contentAngle: thisAngle,
+            existingPosts: accumulatedHistory,
+          }),
+        });
+
+        const genData = await genRes.json();
+        if (!genRes.ok) {
+          if (genRes.status === 402 || genData?.code === "SUBSCRIPTION_REQUIRED") {
+            throw new Error(genData.error || "Paid subscription required. Upgrade at /billing.");
+          }
+          // continue on single post failure to not lose the whole pack
+          console.warn("Single post generation failed in pack:", genData.error);
+          continue;
+        }
+
+        const post = genData as GeneratedPost;
+
+        const scheduled = new Date();
+        scheduled.setDate(scheduled.getDate() + item.dayOffset);
+
+        const campaignPost: SavedPost = {
+          ...post,
+          id: `temp-${Date.now()}-${i}`,
+          createdAt: new Date().toISOString(),
+          scheduledFor: scheduled.toISOString().split("T")[0],
+          insights: [
+            `Campaign: ${p.theme} (${p.source === "ai" ? "AI-planned" : "smart calendar"}).`,
+            `Angle: ${item.angle} on ${item.platform}.`,
+            ...(post.insights ?? []),
+          ],
+        } as SavedPost;
+
+        generated.push(campaignPost);
+        // live update the grid
+        setPosts([...generated]);
+
+        // update history for next uniqueness/angle decisions
+        accumulatedHistory.push({
+          text: post.text,
+          sourcePage: post.sourcePage,
+          platform: post.platform,
+        });
+      }
+
+      if (generated.length === 0) {
+        throw new Error("No posts were generated. Try adjusting your settings or brief.");
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Batch generation failed");
+      setError(err instanceof Error ? err.message : "Campaign generation failed");
     } finally {
       setLoading(false);
+      // ensure progress shows complete
+      setLoadingProgress(maxPosts);
     }
   }
 
   async function handleSavePack() {
     if (!posts.length || !site) return;
-    const name = `${site.brand.name} Campaign — ${new Date().toLocaleDateString()}`;
-    const saved = await Promise.all(posts.map((p) => savePost(p)));
-    await savePack(name, saved);
-    setSaved(true);
+    setSaving(true);
+    setError(null);
+    try {
+      const name = `${site.brand.name} Campaign — ${new Date().toLocaleDateString()}`;
+      const savedPosts = await Promise.all(posts.map((p) => savePost(p)));
+      await savePack(name, savedPosts);
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save pack to library");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function exportJson() {
@@ -126,10 +259,10 @@ export function CampaignPack() {
   return (
     <>
     <LoadingOverlay
-      show={loading}
+      show={loading && posts.length === 0}
       label={`Generating ${maxPosts}-post campaign pack…`}
       sublabel="AI plans your calendar, then generates posts with matched pages and dual AI copy"
-      progress={{ current: 0, total: maxPosts }}
+      progress={{ current: loadingProgress || 0, total: maxPosts }}
     />
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
       <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
@@ -245,7 +378,7 @@ export function CampaignPack() {
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={loading || !isPaid}
+              disabled={loading || saving || !isPaid}
               className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
             >
               {loading
@@ -257,13 +390,31 @@ export function CampaignPack() {
 
         {posts.length > 0 && (
           <>
+            {planInfo && (
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 px-4 py-2 text-sm">
+                <span className="font-medium text-amber-800 dark:text-amber-200">Campaign theme:</span>{" "}
+                <span className="text-amber-900 dark:text-amber-100">{planInfo.theme}</span>
+                <span className="ml-2 text-amber-600 dark:text-amber-400 text-xs">({planInfo.source === "ai" ? "AI planned" : "heuristic"})</span>
+              </div>
+            )}
+
+            {loading && posts.length > 0 && (
+              <div className="flex items-center gap-3 rounded-lg bg-slate-100 px-4 py-2 text-sm dark:bg-slate-800">
+                <div className="h-2 w-2 animate-pulse rounded-full bg-amber-600" />
+                <span className="font-medium text-slate-700 dark:text-slate-200">
+                  Generating live — {posts.length} / {maxPosts} posts ready
+                </span>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={handleSavePack}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                disabled={saving || saved}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
               >
-                {saved ? "Saved to library ✓" : "Save pack to library"}
+                {saving ? "Saving…" : saved ? "Saved to library ✓" : "Save pack to library"}
               </button>
               <button
                 type="button"
@@ -271,6 +422,19 @@ export function CampaignPack() {
                 className="rounded-lg bg-white dark:bg-slate-900 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 ring-1 ring-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 Export JSON
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPosts([]);
+                  setPlanInfo(null);
+                  setSaved(false);
+                  setError(null);
+                  setLoadingProgress(0);
+                }}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Clear preview
               </button>
             </div>
 

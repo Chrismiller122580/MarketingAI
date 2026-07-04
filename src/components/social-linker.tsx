@@ -1,6 +1,5 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";

@@ -5,7 +5,7 @@ import {
   hasVideoProvider,
 } from "./ai-video";
 import { createVideoJob } from "./video-jobs";
-import type { Platform, SiteData, VisualTargeting } from "./types";
+import type { ContentType, Platform, SiteData, VisualTargeting } from "./types";
 
 export async function startVideoGeneration(
   userId: string,
@@ -16,6 +16,7 @@ export async function startVideoGeneration(
     sourcePageUrl?: string;
     durationSec?: 5 | 10;
     visualTargeting?: VisualTargeting;
+    contentType?: ContentType;
   },
 ): Promise<
   | {
@@ -41,7 +42,8 @@ export async function startVideoGeneration(
     site.pages.find((p) => p.path === "/") ??
     site.pages[0];
 
-  const aspectRatio = getVideoAspectRatio(platform);
+  const contentType = options.contentType ?? "Video Ad";
+  const aspectRatio = getVideoAspectRatio(platform, contentType);
   const durationSec = options.durationSec === 10 ? 10 : 5;
   const videoPrompt = buildVideoPrompt(
     site,
@@ -49,6 +51,7 @@ export async function startVideoGeneration(
     platform,
     options.prompt,
     options.visualTargeting,
+    contentType,
   );
 
   const prediction = await createVideoPrediction(

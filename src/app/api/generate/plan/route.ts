@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { generateCampaignPack } from "@/lib/smart-generator";
+import { planCampaign } from "@/lib/campaign-planner";
 import type { BatchGenerateRequest } from "@/lib/types";
 import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
-import { getPromptPreferences } from "@/lib/learning-preferences";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
@@ -27,29 +26,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const promptPreferences = await getPromptPreferences(userId as string);
-
-    const batchRequest: BatchGenerateRequest = {
+    const planRequest: BatchGenerateRequest = {
       site: body.site,
-      settings: {
-        ...body.settings,
-        promptPreferences: promptPreferences ?? body.settings?.promptPreferences,
-      },
+      settings: body.settings,
       prompt: body.prompt ?? "",
       platforms: body.platforms,
       maxPosts: Math.min(body.maxPosts ?? 9, 20),
-      preferAiImage: body.preferAiImage,
-      visualTargeting: body.visualTargeting,
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
       varyAngles: body.varyAngles,
     };
 
-    const result = await generateCampaignPack(batchRequest);
-    return NextResponse.json({ posts: result.posts, plan: { theme: result.plan.theme, source: result.plan.source }, count: result.posts.length });
+    const plan = await planCampaign(planRequest);
+
+    const items = plan.items.slice(0, planRequest.maxPosts).map((item) => ({
+      ...item,
+      // client will compute scheduledFor using dayOffset
+    }));
+
+    return NextResponse.json({
+      plan: { theme: plan.theme, source: plan.source },
+      items,
+      count: items.length,
+    });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to generate campaign pack";
+      error instanceof Error ? error.message : "Failed to plan campaign";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

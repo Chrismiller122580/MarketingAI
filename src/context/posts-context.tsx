@@ -58,7 +58,10 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refresh();
+    const t = setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => clearTimeout(t);
   }, [refresh]);
 
   const savePost = useCallback(

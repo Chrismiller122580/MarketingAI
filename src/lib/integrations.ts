@@ -28,11 +28,11 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     name: "Replicate",
     envVars: ["REPLICATE_API_TOKEN"],
     summary:
-      "Powers AI video ad generation (Seedance text-to-video) for short-form marketing creatives.",
+      "Powers AI video for Reels, Video Ads, and video Stories (Seedance text-to-video).",
     steps: [
       "Go to replicate.com → Account → API tokens → Create token.",
       "Add REPLICATE_API_TOKEN to .env locally or Vercel → Settings → Environment Variables.",
-      "Redeploy on Vercel after saving. Video Ad generation in Content Studio will be enabled.",
+      "Redeploy on Vercel after saving. Reels, Video Ads, and video Stories in Content Studio will be enabled.",
     ],
     docsUrl: "https://replicate.com/account/api-tokens",
   },

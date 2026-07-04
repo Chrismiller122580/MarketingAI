@@ -20,6 +20,26 @@ export function NavIconCampaigns({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+export function NavIconCreatorStudio({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <path
+        d="M17 5l2 2M19 3l2 2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function NavIconContent({ className = "h-4 w-4" }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>

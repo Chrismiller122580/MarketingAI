@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { triggersVideoGeneration } from "@/lib/content-formats";
+import {
+  getAiImageProvider,
+  getAiVideoProvider,
+} from "@/lib/integrations";
+import { hasVideoProvider } from "@/lib/ai-video";
 import { generateSmartPost } from "@/lib/smart-generator";
 import { startVideoGeneration } from "@/lib/video-generator";
-import type { GenerateRequest } from "@/lib/types";
+import type { ContentType, GenerateRequest, StoryMedia } from "@/lib/types";
 import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
 import { getPromptPreferences } from "@/lib/learning-preferences";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -28,7 +34,46 @@ export async function POST(request: Request) {
       );
     }
 
-    const contentType = body.contentType ?? "Social Post";
+    const contentType = (body.contentType ?? "Social Post") as ContentType;
+    const storyMedia = (body.storyMedia ?? "image") as StoryMedia;
+
+    if (contentType === "Reel" && !hasVideoProvider()) {
+      return NextResponse.json(
+        {
+          error:
+            "Reel video generation requires REPLICATE_API_TOKEN. Add it in Settings → Integrations.",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (
+      contentType === "Story" &&
+      storyMedia === "image" &&
+      !getAiImageProvider()
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Story image generation requires OPENAI_API_KEY or XAI_API_KEY. Add one in Settings → Integrations.",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (
+      contentType === "Story" &&
+      storyMedia === "video" &&
+      !getAiVideoProvider()
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Story video generation requires REPLICATE_API_TOKEN. Add it in Settings → Integrations.",
+        },
+        { status: 503 },
+      );
+    }
 
     const promptPreferences = await getPromptPreferences(userId as string);
 
@@ -44,6 +89,7 @@ export async function POST(request: Request) {
       },
       preferAiImage: body.preferAiImage,
       videoDuration: body.videoDuration,
+      storyMedia,
       visualTargeting: body.visualTargeting,
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
@@ -51,7 +97,7 @@ export async function POST(request: Request) {
 
     const post = await generateSmartPost(generateRequest);
 
-    if (contentType === "Video Ad") {
+    if (triggersVideoGeneration(contentType, storyMedia)) {
       const videoRl = checkRateLimit(userId as string, "video");
       if (!videoRl.allowed) {
         post.image = { ...post.image, videoStatus: "failed" };
@@ -69,6 +115,7 @@ export async function POST(request: Request) {
             sourcePageUrl: body.sourcePageUrl,
             durationSec: body.videoDuration === 10 ? 10 : 5,
             visualTargeting: body.visualTargeting,
+            contentType,
           },
         );
 

@@ -28,7 +28,7 @@ type SiteContextValue = {
     pages: number;
     images: number;
   }>;
-  siteSocialConnections: Record<string, any>; // platform -> connection data
+  siteSocialConnections: Record<string, Record<string, unknown>>; // platform -> connection data
   connectSocial: (platform: string) => void;
   loadSiteSocialConnections: () => Promise<void>;
   loading: boolean;
@@ -53,7 +53,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savedSites, setSavedSites] = useState<SiteContextValue["savedSites"]>([]);
-  const [siteSocialConnections, setSiteSocialConnections] = useState<Record<string, any>>({});
+  const [siteSocialConnections, setSiteSocialConnections] = useState<Record<string, Record<string, unknown>>>({});
 
   const loadSavedSitesList = useCallback(async () => {
     try {
@@ -72,8 +72,8 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(`/api/db/site/social?domain=${encodeURIComponent(site.domain)}`);
       const data = await res.json();
       if (data.connections) {
-        const map: Record<string, any> = {};
-        data.connections.forEach((c: any) => {
+        const map: Record<string, Record<string, unknown>> = {};
+        data.connections.forEach((c: { platform: string; [k: string]: unknown }) => {
           map[c.platform] = c;
         });
         setSiteSocialConnections(map);
@@ -109,7 +109,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
             setDomainInput(data.site.domain.replace(/^https?:\/\//, ""));
           }
         }),
-      loadSavedSitesList(),
+      Promise.resolve().then(() => loadSavedSitesList()),
     ])
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -117,7 +117,10 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
   // Load social connections whenever the current site changes
   useEffect(() => {
-    loadSiteSocialConnections();
+    const t = setTimeout(() => {
+      void loadSiteSocialConnections();
+    }, 0);
+    return () => clearTimeout(t);
   }, [site, loadSiteSocialConnections]);
 
   const persistSite = useCallback(async (siteData: SiteData) => {

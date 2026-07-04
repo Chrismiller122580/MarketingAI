@@ -7,7 +7,6 @@ import type {
   Platform,
   SiteData,
   SitePage,
-  UserSettings,
 } from "./types";
 
 export type CampaignPlanItem = {

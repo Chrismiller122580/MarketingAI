@@ -89,27 +89,38 @@ async function waitForMediaContainer(
   return { ready: false, error: "Instagram media processing timed out" };
 }
 
+export type InstagramMediaFormat = "feed" | "reels" | "stories";
+
 export async function publishInstagramPost(options: {
   igUserId: string;
   accessToken: string;
   caption: string;
   imageUrl?: string;
   videoUrl?: string;
+  mediaFormat?: InstagramMediaFormat;
 }): Promise<{ id?: string; error?: string }> {
-  const { igUserId, accessToken, caption, imageUrl, videoUrl } = options;
+  const { igUserId, accessToken, caption, imageUrl, videoUrl, mediaFormat } =
+    options;
 
   const publicImage = imageUrl ? resolvePublicMediaUrl(imageUrl) : null;
   const publicVideo = videoUrl ? resolvePublicMediaUrl(videoUrl) : null;
 
   const containerBody: Record<string, string> = {
-    caption,
     access_token: accessToken,
   };
 
+  if (mediaFormat !== "stories") {
+    containerBody.caption = caption;
+  }
+
   if (publicVideo) {
-    containerBody.media_type = "REELS";
+    containerBody.media_type =
+      mediaFormat === "stories" ? "STORIES" : "REELS";
     containerBody.video_url = publicVideo;
   } else if (publicImage) {
+    if (mediaFormat === "stories") {
+      containerBody.media_type = "STORIES";
+    }
     containerBody.image_url = publicImage;
   } else {
     return { error: "Instagram posts require a public image or video URL" };
@@ -134,10 +145,10 @@ export async function publishInstagramPost(options: {
     return { error: "Instagram did not return a media container ID" };
   }
 
-  if (publicVideo) {
+  if (publicVideo || mediaFormat === "stories") {
     const ready = await waitForMediaContainer(containerId, accessToken);
     if (!ready.ready) {
-      return { error: ready.error ?? "Video not ready for publishing" };
+      return { error: ready.error ?? "Media not ready for publishing" };
     }
   }
 

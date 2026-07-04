@@ -1,4 +1,5 @@
-import type { Platform } from "./types";
+import { getVisualCanvasSize } from "./content-formats";
+import type { ContentType, Platform } from "./types";
 
 export const PLATFORM_SIZES: Record<Platform, { width: number; height: number }> = {
   instagram: { width: 1080, height: 1080 },
@@ -11,4 +12,9 @@ export const PLATFORM_SIZES: Record<Platform, { width: number; height: number }>
 
 export function getPlatformSize(platform: Platform) {
   return PLATFORM_SIZES[platform] ?? PLATFORM_SIZES.instagram;
+}
+
+export function getContentSize(platform: Platform, contentType?: ContentType) {
+  if (contentType) return getVisualCanvasSize(platform, contentType);
+  return getPlatformSize(platform);
 }

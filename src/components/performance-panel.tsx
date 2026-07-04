@@ -28,7 +28,10 @@ export function PerformancePanel() {
   }, []);
 
   useEffect(() => {
-    load();
+    const t = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   async function handleSync() {

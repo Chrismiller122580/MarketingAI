@@ -101,7 +101,10 @@ export function SocialConnections() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
+    const t = setTimeout(() => {
+      void fetchStatus();
+    }, 0);
+    return () => clearTimeout(t);
   }, [fetchStatus]);
 
   if (loading) {

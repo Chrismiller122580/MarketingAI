@@ -179,3 +179,44 @@ export function defaultEditorLayers(
     ...presetCtaPill(post, themeColor, canvasW, canvasH),
   ];
 }
+
+export function storyEditorLayers(
+  post: GeneratedPost,
+  brandName: string,
+  themeColor: string,
+  canvasW: number,
+  canvasH: number,
+): ImageOverlayLayer[] {
+  const hook = post.text.split("\n")[0]?.slice(0, 48) || brandName;
+  const cta =
+    post.cta?.replace(/^→\s*/, "").slice(0, 28) || "Swipe up";
+
+  const headline: ImageOverlayTextLayer = {
+    type: "text",
+    id: uid(),
+    text: hook,
+    x: 40,
+    y: canvasH * 0.68,
+    fontSize: canvasW > 1000 ? 48 : 36,
+    color: "#ffffff",
+    fontFamily: FONT_OPTIONS[2].value,
+    fontStyle: "bold",
+    width: canvasW - 80,
+    align: "center",
+    shadowColor: "#000000",
+    shadowBlur: 10,
+    shadowOpacity: 0.7,
+  };
+
+  return [
+    presetBottomBar(canvasW, canvasH),
+    headline,
+    ...presetBrandTag(brandName, themeColor, canvasW),
+    ...presetCtaPill(
+      { ...post, cta: `→ ${cta}` },
+      themeColor,
+      canvasW,
+      canvasH,
+    ),
+  ];
+}

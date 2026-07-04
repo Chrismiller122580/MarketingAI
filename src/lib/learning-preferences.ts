@@ -31,7 +31,6 @@ export async function recordVariantPick(
   const providerCounts = { ...existing.providerCounts };
   providerCounts[provider] = (providerCounts[provider] ?? 0) + 1;
 
-  const totalPicks = Object.values(providerCounts).reduce((a, b) => a + b, 0);
   const preferredProvider =
     (Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0]?.[0] as AiProvider) ??
     provider;

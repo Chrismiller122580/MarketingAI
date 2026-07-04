@@ -90,7 +90,9 @@ export type ContentType =
   | "Ad Headline"
   | "Blog Intro"
   | "Product Description"
-  | "Video Ad";
+  | "Video Ad"
+  | "Reel"
+  | "Story";
 
 export type ContentAngle =
   | "auto"
@@ -257,6 +259,8 @@ import type { VisualTargeting } from "./visual-targeting";
 
 export type { VisualTargeting };
 
+export type StoryMedia = "image" | "video";
+
 export type GenerateRequest = {
   site: SiteData;
   contentType: ContentType;
@@ -266,6 +270,7 @@ export type GenerateRequest = {
   settings?: UserSettings;
   preferAiImage?: boolean;
   videoDuration?: 5 | 10;
+  storyMedia?: StoryMedia;
   visualTargeting?: VisualTargeting;
   contentAngle?: ContentAngle;
   existingPosts?: PostHistorySnapshot[];

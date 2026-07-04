@@ -71,7 +71,10 @@ export function AdminUserManagement() {
   }, []);
 
   useEffect(() => {
-    loadUsers();
+    const t = setTimeout(() => {
+      void loadUsers();
+    }, 0);
+    return () => clearTimeout(t);
   }, [loadUsers]);
 
   async function updateUser(

@@ -101,7 +101,9 @@ export function BillingPanel() {
           .catch(() => {});
       });
     } else if (params.get("stripe") === "cancelled") {
-      setMessage("Checkout cancelled. You can try again anytime.");
+      Promise.resolve().then(() => {
+        setMessage("Checkout cancelled. You can try again anytime.");
+      });
       window.history.replaceState({}, "", "/billing");
     }
   }, [updateSession]);

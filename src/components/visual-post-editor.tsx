@@ -10,7 +10,7 @@ import {
   Transformer,
 } from "react-konva";
 import type Konva from "konva";
-import { getPlatformSize } from "@/lib/platform-sizes";
+import { getContentSize } from "@/lib/platform-sizes";
 import {
   defaultEditorLayers,
   FONT_OPTIONS,
@@ -92,7 +92,7 @@ export function VisualPostEditor({
   const layersRef = useRef<ImageOverlayLayer[]>([]);
   const dragSnapshotRef = useRef<ImageOverlayLayer[] | null>(null);
 
-  const size = getPlatformSize(post.platform);
+  const size = getContentSize(post.platform, post.contentType);
   const displayScale = Math.min(640 / size.width, 520 / size.height, 1);
 
   const baseUrl =
@@ -117,19 +117,24 @@ export function VisualPostEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  layersRef.current = layers;
+  useEffect(() => {
+    layersRef.current = layers;
+  }, [layers]);
 
-  const commitLayers = useCallback((next: ImageOverlayLayer[]) => {
-    setUndoStack((stack) => [...stack, layersRef.current]);
-    setRedoStack([]);
-    setLayers(next);
-  }, []);
+  const commitLayers = useCallback(
+    (next: ImageOverlayLayer[]) => {
+      setUndoStack((stack) => [...stack, layersRef.current]);
+      setRedoStack([]);
+      setLayers(next);
+    },
+    [setUndoStack, setRedoStack, setLayers],
+  );
 
   const patchLayers = useCallback(
     (updater: (prev: ImageOverlayLayer[]) => ImageOverlayLayer[]) => {
       setLayers((prev) => updater(prev));
     },
-    [],
+    [setLayers],
   );
 
   const updateLayer = useCallback(
@@ -157,7 +162,7 @@ export function VisualPostEditor({
       commitLayers([...layersRef.current, ...newLayers]);
       setSelectedId(selectId ?? newLayers[0]?.id ?? null);
     },
-    [commitLayers],
+    [commitLayers, setSelectedId],
   );
 
   const undo = useCallback(() => {
@@ -168,7 +173,7 @@ export function VisualPostEditor({
       setLayers(previous);
       return stack.slice(0, -1);
     });
-  }, []);
+  }, [setUndoStack, setRedoStack, setLayers]);
 
   const redo = useCallback(() => {
     setRedoStack((stack) => {
@@ -178,7 +183,7 @@ export function VisualPostEditor({
       setLayers(next);
       return stack.slice(1);
     });
-  }, []);
+  }, [setRedoStack, setUndoStack, setLayers]);
 
   const moveLayer = useCallback(
     (id: string, direction: "up" | "down") => {
@@ -198,7 +203,7 @@ export function VisualPostEditor({
       commitLayers(layersRef.current.filter((l) => l.id !== id));
       setSelectedId((selected) => (selected === id ? null : selected));
     },
-    [commitLayers],
+    [commitLayers, setSelectedId],
   );
 
   useEffect(() => {

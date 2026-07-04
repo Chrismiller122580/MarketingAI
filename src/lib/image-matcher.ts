@@ -61,6 +61,7 @@ export function buildBrandedImageUrl(
   title: string,
   platform: Platform,
   pagePath?: string,
+  format?: "story" | "reel",
 ): string {
   const params = new URLSearchParams({
     title,
@@ -71,5 +72,6 @@ export function buildBrandedImageUrl(
     domain: new URL(site.domain).hostname,
   });
   if (pagePath) params.set("path", pagePath);
+  if (format) params.set("format", format);
   return `/api/og/post?${params.toString()}`;
 }

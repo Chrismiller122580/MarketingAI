@@ -22,6 +22,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Content Studio",
     subtitle: "Generate posts, images, and AI video ads from your site.",
   },
+  "/creator-studio": {
+    title: "Creator Studio",
+    subtitle: "Design hyper-realistic influencer avatars with locked persona fields.",
+  },
   "/analytics": {
     title: "Analytics",
     subtitle: "Overview of your crawled site content.",
