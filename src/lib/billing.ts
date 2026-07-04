@@ -26,6 +26,14 @@ export const STRIPE_PRICING = {
     description: "Everything in Pro + custom brand training, API access, dedicated support",
     monthly: true,
   },
+  enterprise_plus: {
+    amount: Number(process.env.STRIPE_PRICE_ENTERPRISE_PLUS_AMOUNT ?? 149),
+    currency: "USD",
+    label: "Enterprise Plus",
+    description:
+      "Everything in Enterprise + influencer site content from crawled domains with fact-locked citations",
+    monthly: true,
+  },
 } as const;
 
 export const PRICING = {
@@ -43,6 +51,15 @@ export const PRICING = {
     network: DEFAULT_NETWORK,
     label: "Enterprise",
     description: "Everything in Pro + custom brand training, API access, dedicated support",
+    monthly: true,
+  },
+  enterprise_plus: {
+    amount: Number(process.env.CRYPTO_PRICE_ENTERPRISE_PLUS ?? 149),
+    currency: DEFAULT_CURRENCY,
+    network: DEFAULT_NETWORK,
+    label: "Enterprise Plus",
+    description:
+      "Everything in Enterprise + influencer avatars that draft site content with pinpointed product facts",
     monthly: true,
   },
 } as const;
@@ -106,4 +123,8 @@ export const PLAN_DISPLAY: Record<string, { label: string; color: string }> = {
   free: { label: "Free", color: "bg-slate-100 text-slate-600 dark:bg-slate-800" },
   pro: { label: "Pro", color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60" },
   enterprise: { label: "Enterprise", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60" },
+  enterprise_plus: {
+    label: "Enterprise Plus",
+    color: "bg-violet-100 text-violet-700 dark:bg-violet-950/60",
+  },
 };

@@ -341,8 +341,8 @@ export function BillingPanel() {
         )}
 
         {!isPaid && (
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {(["pro", "enterprise"] as const).map((planKey) => {
+          <div className="mt-6 grid gap-4 lg:grid-cols-3 sm:grid-cols-2">
+            {(["pro", "enterprise", "enterprise_plus"] as const).map((planKey) => {
               const crypto = PRICING[planKey];
               const stripe = STRIPE_PRICING[planKey];
               return (

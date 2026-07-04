@@ -10,6 +10,7 @@ import { Camera, Database } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton, Spinner } from "./loading-indicator";
+import { InfluencerSiteContentPanel } from "./influencer-site-content-panel";
 import {
   creatorAvatarSchema,
   defaultCreatorAvatarValues,
@@ -32,7 +33,8 @@ type CreatorTab =
   | "cultural"
   | "style"
   | "facts"
-  | "motion";
+  | "motion"
+  | "site-content";
 
 const TABS: { id: CreatorTab; label: string }[] = [
   { id: "physical", label: "Physical" },
@@ -41,6 +43,7 @@ const TABS: { id: CreatorTab; label: string }[] = [
   { id: "style", label: "Personality + Voice" },
   { id: "facts", label: "Product Facts" },
   { id: "motion", label: "Motion & Voice" },
+  { id: "site-content", label: "Site Content" },
 ];
 
 const MOTION_ACTIONS: {
@@ -950,6 +953,13 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
+          {activeTab === "site-content" && (
+            <InfluencerSiteContentPanel
+              influencerId={influencerId}
+              hasPortrait={!!previewImage}
+            />
+          )}
+
           {error && (
             <p className="text-sm text-destructive" role="alert">
               {error}
@@ -963,18 +973,20 @@ export function ViraForgeCreatorStudio() {
             </ul>
           )}
 
-          <Button
-            type="submit"
-            disabled={generating || hydrating}
-            aria-busy={generating}
-            className="w-full py-6 text-base font-bold"
-          >
-            {generating ? (
-              <InlineLoading label="Generating portrait…" />
-            ) : (
-              "Generate fact-locked influencer portrait"
-            )}
-          </Button>
+          {activeTab !== "site-content" && activeTab !== "motion" && (
+            <Button
+              type="submit"
+              disabled={generating || hydrating}
+              aria-busy={generating}
+              className="w-full py-6 text-base font-bold"
+            >
+              {generating ? (
+                <InlineLoading label="Generating portrait…" />
+              ) : (
+                "Generate fact-locked influencer portrait"
+              )}
+            </Button>
+          )}
         </div>
 
         <div className="lg:sticky lg:top-6 lg:col-span-5 lg:self-start">

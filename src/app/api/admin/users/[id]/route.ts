@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { isAdminError, requireAdmin } from "@/lib/auth-helpers";
 
 const VALID_ROLES = ["user", "admin"] as const;
-const VALID_PLANS = ["free", "pro", "enterprise"] as const;
+const VALID_PLANS = ["free", "pro", "enterprise", "enterprise_plus"] as const;
 const VALID_STATUSES = ["active", "trialing", "past_due", "canceled", ""] as const;
 
 export async function PATCH(
@@ -45,7 +45,10 @@ export async function PATCH(
     const planRaw = typeof body.plan === "string" ? body.plan : "";
     const plan = planRaw.trim();
     if (!plan || !VALID_PLANS.includes(plan as (typeof VALID_PLANS)[number])) {
-      return NextResponse.json({ error: "Plan must be 'free', 'pro' or 'enterprise'" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Plan must be free, pro, enterprise, or enterprise_plus" },
+        { status: 400 },
+      );
     }
     data.plan = plan;
   }

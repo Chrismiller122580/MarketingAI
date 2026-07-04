@@ -22,7 +22,7 @@ type UserPost = {
 };
 
 const ROLES = ["user", "admin"] as const;
-const PLANS = ["free", "pro", "enterprise"] as const;
+const PLANS = ["free", "pro", "enterprise", "enterprise_plus"] as const;
 const STATUSES = ["", "active", "trialing", "past_due", "canceled"] as const;
 
 function formatDate(iso: string | null): string {
@@ -104,7 +104,10 @@ export function AdminUserManagement() {
     }
   }
 
-  async function grantSubscription(userId: string, plan: "pro" | "enterprise") {
+  async function grantSubscription(
+    userId: string,
+    plan: "pro" | "enterprise" | "enterprise_plus",
+  ) {
     const endsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     await updateUser(userId, {
       plan,

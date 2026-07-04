@@ -28,7 +28,9 @@ export function getStripePriceId(plan: PlanKey): string {
   const priceId =
     plan === "pro"
       ? process.env.STRIPE_PRICE_PRO
-      : process.env.STRIPE_PRICE_ENTERPRISE;
+      : plan === "enterprise_plus"
+        ? process.env.STRIPE_PRICE_ENTERPRISE_PLUS
+        : process.env.STRIPE_PRICE_ENTERPRISE;
   if (!priceId) {
     throw new Error(`Stripe price ID not configured for plan: ${plan}`);
   }
@@ -38,6 +40,9 @@ export function getStripePriceId(plan: PlanKey): string {
 export function planFromStripePriceId(priceId: string): PlanKey | null {
   if (priceId === process.env.STRIPE_PRICE_PRO) return "pro";
   if (priceId === process.env.STRIPE_PRICE_ENTERPRISE) return "enterprise";
+  if (priceId === process.env.STRIPE_PRICE_ENTERPRISE_PLUS) {
+    return "enterprise_plus";
+  }
   return null;
 }
 

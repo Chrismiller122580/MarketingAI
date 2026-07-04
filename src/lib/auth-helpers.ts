@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { isEnterprisePlusPlan } from "@/lib/plans";
 
 export async function getSession() {
   return auth();
@@ -93,5 +94,45 @@ export async function requirePaidUserId(): Promise<string | NextResponse> {
       { status: 402 },
     );
   }
+  return userId;
+}
+
+export async function requireEnterprisePlusUserId(): Promise<
+  string | NextResponse
+> {
+  const userIdOrErr = await requireAuthUserId();
+  if (isAuthError(userIdOrErr)) return userIdOrErr;
+  const userId = userIdOrErr as string;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      plan: true,
+      subscriptionEndsAt: true,
+      role: true,
+    },
+  });
+
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const hasAccess =
+    user.role === "admin" ||
+    (isEnterprisePlusPlan(user.plan) &&
+      isActivePaidPlan(user.plan, user.subscriptionEndsAt));
+
+  if (!hasAccess) {
+    return NextResponse.json(
+      {
+        error:
+          "Influencer site content requires an active Enterprise Plus subscription.",
+        upgradeUrl: "/billing",
+        code: "ENTERPRISE_PLUS_REQUIRED",
+      },
+      { status: 402 },
+    );
+  }
+
   return userId;
 }
