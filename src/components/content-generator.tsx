@@ -510,6 +510,9 @@ export function ContentGenerator() {
                       <p className="mt-1 text-xs text-violet-700 dark:text-violet-300">
                         {ENTERPRISE_PLUS_LABEL}: fact-locked influencer copy from
                         crawled pages.
+                        {willGenerateVideo && aiCaps?.aiVoiceAvailable
+                          ? " Reel voiceover uses the influencer’s ElevenLabs voice when set."
+                          : ""}
                       </p>
                     ) : (
                       <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">

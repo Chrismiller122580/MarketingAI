@@ -21,6 +21,7 @@ export async function startInfluencerMotion(
   portraitUrl: string,
   persona: CreatorAvatarForm,
   script?: string,
+  voiceId?: string,
 ): Promise<MotionStartResult> {
   const imageUrl = await ensurePublicMediaUrl(portraitUrl, "portrait");
 
@@ -29,7 +30,10 @@ export async function startInfluencerMotion(
       return { error: "Script is required for talking clips" };
     }
 
-    const { audioDataUrl, voiceId } = await synthesizeSpeech(script.trim());
+    const { audioDataUrl, voiceId: usedVoiceId } = await synthesizeSpeech(
+      script.trim(),
+      { voiceId },
+    );
     const audioUrl = await ensurePublicMediaUrl(audioDataUrl, "voice");
 
     const result = await createModelPrediction(SADTALKER_MODEL, {
@@ -43,7 +47,7 @@ export async function startInfluencerMotion(
     return {
       predictionId: result.predictionId,
       voiceAudioUrl: audioDataUrl,
-      voiceId,
+      voiceId: usedVoiceId,
     };
   }
 

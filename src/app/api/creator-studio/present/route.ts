@@ -197,6 +197,7 @@ export async function POST(request: Request) {
         assets.portraitUrl,
         persona.data,
         scriptResult.script,
+        assets.voiceId,
       );
 
       if ("error" in started) {

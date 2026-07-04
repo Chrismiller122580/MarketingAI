@@ -1,55 +1,39 @@
-const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
+import {
+  getDefaultVoiceId,
+  hasVoiceProvider,
+  synthesizeSpeechDataUrl,
+} from "@/lib/ai-voice";
 
 export function hasElevenLabs(): boolean {
-  return !!process.env.ELEVENLABS_API_KEY?.trim();
+  return hasVoiceProvider();
 }
 
 export function getElevenLabsVoiceId(): string {
-  return process.env.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE_ID;
+  return getDefaultVoiceId();
 }
 
-export async function synthesizeSpeech(script: string): Promise<{
+export async function synthesizeSpeech(
+  script: string,
+  options?: { voiceId?: string },
+): Promise<{
   audioDataUrl: string;
   voiceId: string;
 }> {
-  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
-  if (!apiKey) {
+  if (!hasVoiceProvider()) {
     throw new Error(
       "ElevenLabs is not configured. Add ELEVENLABS_API_KEY to enable talking clips.",
     );
   }
 
-  const voiceId = getElevenLabsVoiceId();
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-    {
-      method: "POST",
-      headers: {
-        "xi-api-key": apiKey,
-        "Content-Type": "application/json",
-        Accept: "audio/mpeg",
-      },
-      body: JSON.stringify({
-        text: script,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: {
-          stability: 0.45,
-          similarity_boost: 0.8,
-          style: 0.35,
-        },
-      }),
-    },
-  );
+  const result = await synthesizeSpeechDataUrl(script.trim(), {
+    voiceId: options?.voiceId,
+  });
 
-  if (!response.ok) {
-    const detail = await response.text();
+  if (!result) {
     throw new Error(
-      `ElevenLabs failed (${response.status}): ${detail.slice(0, 180)}`,
+      "ElevenLabs synthesis failed. Check ELEVENLABS_API_KEY and voice ID.",
     );
   }
 
-  const buffer = Buffer.from(await response.arrayBuffer());
-  const audioDataUrl = `data:audio/mpeg;base64,${buffer.toString("base64")}`;
-
-  return { audioDataUrl, voiceId };
+  return result;
 }

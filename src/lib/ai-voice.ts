@@ -1,7 +1,8 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { put } from "@vercel/blob";
 
-const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
+/** Rachel — widely available default; override with ELEVENLABS_VOICE_ID */
+const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 const DEFAULT_MODEL_ID = "eleven_multilingual_v2";
 const DEFAULT_OUTPUT_FORMAT = "mp3_44100_128" as const;
 
@@ -97,18 +98,33 @@ export async function uploadVoiceover(
   }
 }
 
+export async function synthesizeSpeechDataUrl(
+  text: string,
+  options?: { voiceId?: string; modelId?: string },
+): Promise<{ audioDataUrl: string; voiceId: string } | null> {
+  const buffer = await synthesizeSpeech(text, options);
+  if (!buffer) return null;
+
+  const voiceId = options?.voiceId ?? getDefaultVoiceId();
+  return {
+    audioDataUrl: `data:audio/mpeg;base64,${buffer.toString("base64")}`,
+    voiceId,
+  };
+}
+
 export async function generateVoiceoverAudio(
   caption: string,
   durationSec = 5,
-): Promise<{ audioUrl: string; script: string } | null> {
+  voiceId?: string,
+): Promise<{ audioUrl: string; script: string; voiceId: string } | null> {
   const script = buildVoiceoverScript(caption, durationSec);
   if (!script) return null;
 
-  const buffer = await synthesizeSpeech(script);
+  const buffer = await synthesizeSpeech(script, { voiceId });
   if (!buffer) return null;
 
   const audioUrl = await uploadVoiceover(buffer);
   if (!audioUrl) return null;
 
-  return { audioUrl, script };
+  return { audioUrl, script, voiceId: voiceId ?? getDefaultVoiceId() };
 }

@@ -19,6 +19,7 @@ import { prisma } from "@/lib/db";
 import { getPromptPreferences } from "@/lib/learning-preferences";
 import { isEnterprisePlusPlan } from "@/lib/plans";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { hasVoiceProvider } from "@/lib/ai-voice";
 import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
 
 export async function POST(request: Request) {
@@ -164,6 +165,23 @@ export async function POST(request: Request) {
           `Video rate limit exceeded. Retry in ~${videoRl.retryAfterSeconds}s.`,
         ];
       } else {
+        const influencerVoiceId = influencerContext?.assets.voiceId;
+        const voicePromise = hasVoiceProvider()
+          ? (async () => {
+              const voiceRl = checkRateLimit(userId as string, "voice");
+              if (!voiceRl.allowed) {
+                return {
+                  error: `Voiceover rate limit exceeded. Retry in ~${voiceRl.retryAfterSeconds}s.`,
+                } as const;
+              }
+              return startVoiceoverGeneration(
+                post.text,
+                durationSec,
+                influencerVoiceId,
+              );
+            })()
+          : Promise.resolve(null);
+
         const [videoResult, voiceResult] = await Promise.all([
           startVideoGeneration(
             userId as string,
@@ -177,7 +195,7 @@ export async function POST(request: Request) {
               contentType,
             },
           ),
-          startVoiceoverGeneration(post.text, durationSec),
+          voicePromise,
         ]);
 
         if ("jobId" in videoResult) {
@@ -205,6 +223,11 @@ export async function POST(request: Request) {
           ];
         } else if (voiceResult && "error" in voiceResult) {
           post.insights = [...post.insights, voiceResult.error];
+        } else if (!hasVoiceProvider() && (contentType === "Reel" || contentType === "Video Ad")) {
+          post.insights = [
+            ...post.insights,
+            "Optional: add ELEVENLABS_API_KEY (+ BLOB_READ_WRITE_TOKEN) for Reel MP3 voiceovers.",
+          ];
         }
       }
     }

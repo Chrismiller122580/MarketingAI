@@ -129,6 +129,7 @@ export async function POST(request: Request) {
       assets.portraitUrl,
       persona.data,
       motionType === "talk" ? talkScript : undefined,
+      motionType === "talk" ? assets.voiceId : undefined,
     );
 
     if ("error" in started) {

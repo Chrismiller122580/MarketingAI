@@ -83,7 +83,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const { audioDataUrl, voiceId } = await synthesizeSpeech(script.trim());
+    const assets = (influencer.assets ?? {}) as { voiceId?: string };
+    const { audioDataUrl, voiceId } = await synthesizeSpeech(script.trim(), {
+      voiceId: assets.voiceId,
+    });
 
     return NextResponse.json({
       audioDataUrl,
