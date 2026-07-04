@@ -41,6 +41,8 @@ type AttachedInfluencer = {
   displayName: string;
   handle: string;
   portraitUrl?: string;
+  motionVideoUrl?: string;
+  hasMotionClip: boolean;
 };
 
 const VisualPostEditor = dynamic(
@@ -112,6 +114,7 @@ export function ContentGenerator() {
   const [attachedInfluencer, setAttachedInfluencer] =
     useState<AttachedInfluencer | null>(null);
   const [useInfluencerPortrait, setUseInfluencerPortrait] = useState(true);
+  const [useInfluencerMotion, setUseInfluencerMotion] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const postHistory = posts.map((p) => ({
@@ -187,20 +190,29 @@ export function ContentGenerator() {
         influencers?: Array<{
           id: string;
           persona?: { displayName?: string; handle?: string };
-          assets?: { portraitUrl?: string };
+          assets?: {
+            portraitUrl?: string;
+            videoUrl?: string;
+            motionStatus?: string;
+          };
         }>;
       } | null) => {
         if (cancelled || !data?.influencers) return;
         const match = data.influencers.find((i) => i.id === influencerId);
         if (!match) return;
         const persona = match.persona ?? {};
+        const hasMotionClip =
+          match.assets?.motionStatus === "ready" && !!match.assets?.videoUrl;
         setAttachedInfluencer({
           id: match.id,
           displayName: persona.displayName ?? "Influencer",
           handle: persona.handle ?? "creator",
           portraitUrl: match.assets?.portraitUrl,
+          motionVideoUrl: match.assets?.videoUrl,
+          hasMotionClip,
         });
         setUseInfluencerPortrait(true);
+        setUseInfluencerMotion(hasMotionClip);
       })
       .catch(() => {});
 
@@ -230,6 +242,7 @@ export function ContentGenerator() {
   function detachInfluencer() {
     setAttachedInfluencer(null);
     setUseInfluencerPortrait(true);
+    setUseInfluencerMotion(true);
     router.replace("/content");
   }
 
@@ -350,6 +363,9 @@ export function ContentGenerator() {
           influencerId: attachedInfluencer?.id,
           useInfluencerPortrait: attachedInfluencer
             ? useInfluencerPortrait
+            : undefined,
+          useInfluencerMotion: attachedInfluencer?.hasMotionClip
+            ? useInfluencerMotion
             : undefined,
         }),
       });
@@ -513,17 +529,33 @@ export function ContentGenerator() {
                 </button>
               </div>
               {!isVideoContent && !isStory && (
-                <label className="mt-3 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={useInfluencerPortrait}
-                    onChange={(e) => setUseInfluencerPortrait(e.target.checked)}
-                    className="rounded border-slate-300 text-violet-600"
-                  />
-                  <span className="text-sm text-slate-700 dark:text-slate-300">
-                    Use influencer portrait (uncheck for site or AI image)
-                  </span>
-                </label>
+                <div className="mt-3 space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={useInfluencerPortrait}
+                      onChange={(e) => setUseInfluencerPortrait(e.target.checked)}
+                      className="rounded border-slate-300 text-violet-600"
+                    />
+                    <span className="text-sm text-slate-700 dark:text-slate-300">
+                      Use influencer visual (uncheck for site or AI image)
+                    </span>
+                  </label>
+                  {attachedInfluencer.hasMotionClip && useInfluencerPortrait && (
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={useInfluencerMotion}
+                        onChange={(e) => setUseInfluencerMotion(e.target.checked)}
+                        className="rounded border-slate-300 text-violet-600"
+                      />
+                      <span className="text-sm text-slate-700 dark:text-slate-300">
+                        Use motion clip (talk / wave / walk) instead of still
+                        portrait
+                      </span>
+                    </label>
+                  )}
+                </div>
               )}
             </div>
           )}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowUpRight, Globe, Lock, Sparkles } from "lucide-react";
+import { ArrowUpRight, Globe, Lock, Mic, Sparkles, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSite } from "@/context/site-context";
@@ -31,9 +31,13 @@ const PLATFORMS: Platform[] = [
 export function InfluencerSiteContentPanel({
   influencerId,
   hasPortrait,
+  onAvatarSpeak,
+  voiceAvailable = false,
 }: {
   influencerId: string | null;
   hasPortrait: boolean;
+  onAvatarSpeak?: (script: string, talkNow?: boolean) => void;
+  voiceAvailable?: boolean;
 }) {
   const { data: session } = useSession();
   const { site, savedSites, loadSavedSite } = useSite();
@@ -345,6 +349,30 @@ export function InfluencerSiteContentPanel({
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
             {content.text}
           </p>
+          {onAvatarSpeak && hasPortrait && (
+            <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onAvatarSpeak(content.text)}
+              >
+                <Volume2 className="mr-1.5 h-3.5 w-3.5" />
+                Load as talk script
+              </Button>
+              {voiceAvailable && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-violet-600 hover:bg-violet-500"
+                  onClick={() => onAvatarSpeak(content.text, true)}
+                >
+                  <Mic className="mr-1.5 h-3.5 w-3.5" />
+                  Avatar says this now
+                </Button>
+              )}
+            </div>
+          )}
           {content.citedFacts.length > 0 && (
             <div className="border-t border-border pt-3">
               <p className="mb-2 text-xs font-medium text-foreground">

@@ -21,7 +21,7 @@ import { hasReplicate } from "@/lib/replicate-client";
 
 const motionSchema = z.object({
   influencerId: z.string().min(1),
-  motionType: z.enum(["talk", "walk", "spin", "jump"]),
+  motionType: z.enum(["talk", "walk", "spin", "jump", "wave", "point"]),
   script: z.string().max(500).optional(),
 });
 

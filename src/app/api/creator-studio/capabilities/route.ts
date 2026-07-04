@@ -17,6 +17,8 @@ export async function GET() {
       walk: hasReplicate(),
       spin: hasReplicate(),
       jump: hasReplicate(),
+      wave: hasReplicate(),
+      point: hasReplicate(),
     },
     siteContentAvailable: isAdmin || isEnterprisePlusPlan(plan),
   });

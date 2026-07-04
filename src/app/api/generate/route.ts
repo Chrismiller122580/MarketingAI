@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       existingPosts: body.existingPosts,
       influencer: influencerContext ?? undefined,
       useInfluencerPortrait: body.useInfluencerPortrait ?? true,
+      useInfluencerMotion: body.useInfluencerMotion ?? true,
       influencerVoice,
     };
 

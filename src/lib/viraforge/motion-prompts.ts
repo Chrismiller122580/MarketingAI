@@ -24,6 +24,8 @@ export function buildMotionPrompt(
     walk: "Walking forward confidently with natural arm swing, steady camera tracking, full upper-body in frame.",
     spin: "Smooth 360-degree spin with hair movement, playful energy, camera holds center framing.",
     jump: "Energetic jump with soft landing, dynamic motion, fitness influencer energy.",
+    wave: "Friendly wave hello to camera with warm smile, subtle upper-body movement, inviting social energy.",
+    point: "Pointing toward camera with confident gesture, as if highlighting a product or CTA, engaging eye contact.",
   };
 
   return [...base, motion[motionType]].join(" ");

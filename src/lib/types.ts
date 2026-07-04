@@ -300,6 +300,7 @@ export type GenerateRequest = {
   existingPosts?: PostHistorySnapshot[];
   influencer?: InfluencerGenerateContext;
   useInfluencerPortrait?: boolean;
+  useInfluencerMotion?: boolean;
   influencerVoice?: boolean;
 };
 

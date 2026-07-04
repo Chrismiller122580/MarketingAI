@@ -1,0 +1,87 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
+import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
+import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import {
+  generateInfluencerScript,
+  type InfluencerScriptScene,
+} from "@/lib/viraforge/influencer-script";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const scriptSchema = z.object({
+  influencerId: z.string().min(1),
+  scene: z.enum(["intro", "pitch", "quote", "cta", "greet"]),
+  siteDomain: z.string().max(200).optional(),
+  draftText: z.string().max(2000).optional(),
+});
+
+export async function POST(request: Request) {
+  const authResult = await requireAuthUserId();
+  if (isAuthError(authResult)) return authResult;
+
+  const rl = checkRateLimit(authResult, "generate");
+  if (!rl.allowed) {
+    return NextResponse.json(
+      {
+        error: `Rate limit exceeded. Retry in ~${rl.retryAfterSeconds}s.`,
+        retryAfter: rl.retryAfterSeconds,
+      },
+      { status: 429 },
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const parsed = scriptSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+
+    const { influencerId, scene, siteDomain, draftText } = parsed.data;
+
+    const influencer = await prisma.influencer.findFirst({
+      where: { id: influencerId, userId: authResult },
+      include: { productFacts: true },
+    });
+
+    if (!influencer?.productFacts) {
+      return NextResponse.json(
+        { error: "Save influencer with product facts first" },
+        { status: 400 },
+      );
+    }
+
+    const persona = creatorAvatarSchema.safeParse(influencer.persona);
+    if (!persona.success) {
+      return NextResponse.json({ error: "Invalid persona data" }, { status: 500 });
+    }
+
+    const facts = productFactsSchema.parse({
+      name: influencer.productFacts.name,
+      price: influencer.productFacts.price,
+      features: influencer.productFacts.features,
+      location: influencer.productFacts.location ?? undefined,
+      hours: influencer.productFacts.hours ?? undefined,
+      ingredients: influencer.productFacts.ingredients,
+    });
+
+    const result = await generateInfluencerScript({
+      persona: persona.data,
+      facts,
+      scene: scene as InfluencerScriptScene,
+      siteDomain,
+      draftText,
+    });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Script generation failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

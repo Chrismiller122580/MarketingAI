@@ -399,7 +399,7 @@ function buildInsights(
       : imageSource === "ai"
         ? "Generated unique AI visual tailored to your brand and page."
         : imageSource === "influencer"
-          ? "Used influencer portrait from Creator Studio."
+          ? "Used influencer media from Creator Studio (motion clip or portrait)."
           : "Generated branded visual — no suitable site image found.",
     `Optimized for ${platform} (${PLATFORM_LIMITS[platform]} chars).`,
   ];
@@ -415,7 +415,7 @@ function buildInsights(
   return insights;
 }
 
-function resolveInfluencerPortrait(
+function resolveInfluencerMedia(
   request: GenerateRequest,
   page: SitePage,
   contentType: ContentType,
@@ -424,18 +424,37 @@ function resolveInfluencerPortrait(
   if (!influencer || request.useInfluencerPortrait === false) return null;
 
   const portraitUrl = influencer.assets.portraitUrl;
-  if (!portraitUrl) return null;
+  const motionUrl = influencer.assets.videoUrl;
+  const useMotion =
+    request.useInfluencerMotion !== false &&
+    motionUrl &&
+    influencer.assets.motionStatus === "ready";
 
   const alt = `${influencer.displayName} (@${influencer.handle}) — ${page.title}`;
+  const vertical = isVerticalContentType(contentType)
+    ? { aspectRatio: "9:16" as const }
+    : {};
+
+  if (useMotion && motionUrl) {
+    return {
+      url: motionUrl,
+      source: "influencer",
+      alt,
+      originalUrl: motionUrl,
+      videoUrl: motionUrl,
+      videoStatus: "ready",
+      ...vertical,
+    };
+  }
+
+  if (!portraitUrl) return null;
 
   return {
     url: portraitUrl,
     source: "influencer",
     alt,
     originalUrl: portraitUrl,
-    ...(isVerticalContentType(contentType)
-      ? { aspectRatio: "9:16" as const }
-      : {}),
+    ...vertical,
   };
 }
 
@@ -450,7 +469,7 @@ async function resolveImage(
   request?: GenerateRequest,
 ): Promise<GeneratedPost["image"]> {
   const influencerImage = request
-    ? resolveInfluencerPortrait(request, page, contentType)
+    ? resolveInfluencerMedia(request, page, contentType)
     : null;
   if (influencerImage) return influencerImage;
   const brandedFormat =

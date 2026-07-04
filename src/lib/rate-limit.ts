@@ -13,6 +13,7 @@ export const RATE_LIMITS = {
   generate: { max: 200, windowMs: WINDOW_MS }, // single + batch calls
   video: { max: 10, windowMs: WINDOW_MS }, // AI video ads are expensive
   motion: { max: 12, windowMs: WINDOW_MS }, // influencer motion clips
+  voice: { max: 40, windowMs: WINDOW_MS }, // ElevenLabs voice previews
   metrics: { max: 20, windowMs: WINDOW_MS }, // social metrics refresh
 };
 

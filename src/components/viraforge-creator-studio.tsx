@@ -6,7 +6,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Camera, Database } from "lucide-react";
+import {
+  Camera,
+  Database,
+  Hand,
+  Mic,
+  Pointer,
+  Volume2,
+  Wand2,
+} from "lucide-react";
+import type { InfluencerScriptScene } from "@/lib/viraforge/influencer-script";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton, Spinner } from "./loading-indicator";
@@ -71,6 +80,27 @@ const MOTION_ACTIONS: {
     label: "Jump",
     description: "Energetic jump motion",
   },
+  {
+    type: "wave",
+    label: "Wave",
+    description: "Friendly hello to followers",
+  },
+  {
+    type: "point",
+    label: "Point",
+    description: "Gesture toward camera / CTA",
+  },
+];
+
+const SCRIPT_PRESETS: {
+  scene: InfluencerScriptScene;
+  label: string;
+}[] = [
+  { scene: "greet", label: "Say hello" },
+  { scene: "intro", label: "Introduce me" },
+  { scene: "pitch", label: "Pitch product" },
+  { scene: "quote", label: "Signature line" },
+  { scene: "cta", label: "Call to action" },
 ];
 
 const BODY_TYPE_HINTS: Record<number, string> = {
@@ -152,6 +182,8 @@ export function ViraForgeCreatorStudio() {
     voiceAvailable: boolean;
     motionTypes: Record<InfluencerMotionType, boolean>;
   } | null>(null);
+  const [scriptGenerating, setScriptGenerating] = useState(false);
+  const [voicePreviewLoading, setVoicePreviewLoading] = useState(false);
 
   const personaForm = useForm<CreatorAvatarForm>({
     resolver: zodResolver(creatorAvatarSchema),
@@ -276,7 +308,10 @@ export function ViraForgeCreatorStudio() {
     [],
   );
 
-  const handleMotion = async (motionType: InfluencerMotionType) => {
+  const handleMotion = async (
+    motionType: InfluencerMotionType,
+    scriptOverride?: string,
+  ) => {
     if (!previewImage) {
       toast.error("Generate a portrait before motion clips");
       setActiveTab("physical");
@@ -288,6 +323,9 @@ export function ViraForgeCreatorStudio() {
       return;
     }
 
+    const talkScript =
+      motionType === "talk" ? (scriptOverride ?? motionScript) : undefined;
+
     setMotionLoading(motionType);
     setQuoteValidation(null);
 
@@ -298,7 +336,7 @@ export function ViraForgeCreatorStudio() {
         body: JSON.stringify({
           influencerId,
           motionType,
-          script: motionType === "talk" ? motionScript : undefined,
+          script: talkScript,
         }),
       });
 
@@ -322,6 +360,98 @@ export function ViraForgeCreatorStudio() {
     } catch (err) {
       setMotionLoading(null);
       toast.error(err instanceof Error ? err.message : "Motion failed");
+    }
+  };
+
+  const handleGenerateScript = async (
+    scene: InfluencerScriptScene,
+    draftText?: string,
+  ) => {
+    if (!influencerId) {
+      toast.error("Save the influencer before generating scripts");
+      return;
+    }
+
+    setScriptGenerating(true);
+    setQuoteValidation(null);
+    try {
+      const res = await fetch("/api/creator-studio/motion/script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          influencerId,
+          scene,
+          draftText,
+        }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        script?: string;
+        validation?: { valid: boolean; violations: string[] };
+      };
+      if (!res.ok) throw new Error(data.error ?? "Script generation failed");
+      if (data.script) {
+        setMotionScript(data.script);
+        toast.success("Script ready — preview voice or hit Talk");
+      }
+      if (data.validation && !data.validation.valid) {
+        setQuoteValidation(data.validation.violations);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not write script");
+    } finally {
+      setScriptGenerating(false);
+    }
+  };
+
+  const handleVoicePreview = async (script?: string) => {
+    if (!influencerId) {
+      toast.error("Save the influencer first");
+      return;
+    }
+    const text = (script ?? motionScript).trim();
+    if (!text) {
+      toast.error("Add a talking script first");
+      return;
+    }
+
+    setVoicePreviewLoading(true);
+    setQuoteValidation(null);
+    try {
+      const res = await fetch("/api/creator-studio/motion/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ influencerId, script: text }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        audioDataUrl?: string;
+        quoteValidation?: { violations: string[] };
+      };
+      if (!res.ok) {
+        if (data.quoteValidation?.violations) {
+          setQuoteValidation(data.quoteValidation.violations);
+        }
+        throw new Error(data.error ?? "Voice preview failed");
+      }
+      if (data.audioDataUrl) {
+        setVoiceAudio(data.audioDataUrl);
+        toast.success("Voice preview ready — avatar is speaking");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Voice preview failed");
+    } finally {
+      setVoicePreviewLoading(false);
+    }
+  };
+
+  const handleAvatarSpeak = (script: string, talkNow?: boolean) => {
+    setMotionScript(script.slice(0, 500));
+    setActiveTab("motion");
+    if (talkNow) {
+      void handleMotion("talk", script.slice(0, 500));
+    } else {
+      toast.success("Script loaded — preview voice or render Talk clip");
     }
   };
 
@@ -879,9 +1009,49 @@ export function ViraForgeCreatorStudio() {
               )}
 
               <div>
-                <label htmlFor="motionScript" className="text-sm font-medium">
-                  Talking script (fact-locked)
-                </label>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <label htmlFor="motionScript" className="text-sm font-medium">
+                    Talking script (fact-locked)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={scriptGenerating || !influencerId}
+                      onClick={() => void handleGenerateScript("pitch")}
+                    >
+                      {scriptGenerating ? (
+                        <InlineLoading label="Writing…" />
+                      ) : (
+                        <>
+                          <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                          AI script
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        voicePreviewLoading ||
+                        !influencerId ||
+                        !capabilities?.voiceAvailable
+                      }
+                      onClick={() => void handleVoicePreview()}
+                    >
+                      {voicePreviewLoading ? (
+                        <InlineLoading label="Speaking…" />
+                      ) : (
+                        <>
+                          <Volume2 className="mr-1.5 h-3.5 w-3.5" />
+                          Preview voice
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
                 <textarea
                   id="motionScript"
                   className={`${inputClass} min-h-24`}
@@ -889,9 +1059,22 @@ export function ViraForgeCreatorStudio() {
                   onChange={(e) => setMotionScript(e.target.value)}
                   placeholder="Script for Talk clips — must match verified product facts"
                 />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {SCRIPT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.scene}
+                      type="button"
+                      disabled={scriptGenerating || !influencerId}
+                      onClick={() => void handleGenerateScript(preset.scene)}
+                      className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground transition hover:border-violet-500/50 hover:bg-violet-500/5 disabled:opacity-50"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {MOTION_ACTIONS.map((action) => {
                   const enabled =
                     !!previewImage &&
@@ -957,6 +1140,8 @@ export function ViraForgeCreatorStudio() {
             <InfluencerSiteContentPanel
               influencerId={influencerId}
               hasPortrait={!!previewImage}
+              onAvatarSpeak={handleAvatarSpeak}
+              voiceAvailable={!!capabilities?.voiceAvailable}
             />
           )}
 
@@ -1109,6 +1294,73 @@ export function ViraForgeCreatorStudio() {
                 </div>
               </div>
 
+              {previewImage && !hydrating && (
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      voicePreviewLoading ||
+                      !influencerId ||
+                      !capabilities?.voiceAvailable ||
+                      motionBusy
+                    }
+                    onClick={() => void handleVoicePreview(values.sampleQuote)}
+                  >
+                    <Volume2 className="mr-1.5 h-3.5 w-3.5" />
+                    Hear quote
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      !capabilities?.motionTypes.wave || motionBusy || !influencerId
+                    }
+                    onClick={() => void handleMotion("wave")}
+                  >
+                    <Hand className="mr-1.5 h-3.5 w-3.5" />
+                    Wave
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      !capabilities?.motionTypes.talk ||
+                      motionBusy ||
+                      !influencerId
+                    }
+                    onClick={() => void handleMotion("talk")}
+                  >
+                    <Mic className="mr-1.5 h-3.5 w-3.5" />
+                    Talk
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      !capabilities?.motionTypes.point || motionBusy || !influencerId
+                    }
+                    onClick={() => void handleMotion("point")}
+                  >
+                    <Pointer className="mr-1.5 h-3.5 w-3.5" />
+                    Point
+                  </Button>
+                </div>
+              )}
+
+              {voiceAudio && (
+                <audio
+                  src={voiceAudio}
+                  autoPlay
+                  className="mt-3 w-full"
+                  controls
+                />
+              )}
+
               <div className="mt-4 space-y-2 rounded-lg border border-border bg-card/80 p-3 text-xs">
                 <p className="border-l-2 border-violet-500/40 pl-3 leading-relaxed text-muted-foreground">
                   {previewSummary}
@@ -1119,9 +1371,9 @@ export function ViraForgeCreatorStudio() {
                     : generating
                       ? "AI is rendering your influencer portrait…"
                       : motionVideo
-                        ? "Motion clip saved to Influencer.assets.videoUrl"
+                        ? "Motion clip saved — use in Content Studio or keep interacting"
                         : status === "success"
-                          ? "Portrait generated — open Motion & Voice tab next"
+                          ? "Portrait ready — wave, talk, or pitch from Motion tab"
                           : "Complete Product Facts, then generate"}
                 </p>
               </div>

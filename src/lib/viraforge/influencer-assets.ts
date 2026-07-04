@@ -1,4 +1,10 @@
-export type InfluencerMotionType = "talk" | "walk" | "spin" | "jump";
+export type InfluencerMotionType =
+  | "talk"
+  | "walk"
+  | "spin"
+  | "jump"
+  | "wave"
+  | "point";
 
 export type InfluencerAssets = {
   portraitUrl?: string;
