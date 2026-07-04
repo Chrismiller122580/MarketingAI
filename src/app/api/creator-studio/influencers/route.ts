@@ -15,6 +15,17 @@ export async function GET() {
   });
 
   const defaults = await getCreatorDefaults(authResult);
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: authResult },
+    select: { creatorPreferences: true },
+  });
+  const prefs = (settings?.creatorPreferences ?? {}) as {
+    lastInfluencerId?: string;
+  };
 
-  return NextResponse.json({ influencers, defaults });
+  return NextResponse.json({
+    influencers,
+    defaults,
+    lastInfluencerId: prefs.lastInfluencerId,
+  });
 }

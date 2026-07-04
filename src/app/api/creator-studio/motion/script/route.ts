@@ -4,6 +4,7 @@ import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import { buildPersonalizationContext } from "@/lib/viraforge/learning";
 import {
   generateInfluencerScript,
   type InfluencerScriptScene,
@@ -70,12 +71,18 @@ export async function POST(request: Request) {
       ingredients: influencer.productFacts.ingredients,
     });
 
+    const personalization = await buildPersonalizationContext(
+      authResult,
+      influencerId,
+    );
+
     const result = await generateInfluencerScript({
       persona: persona.data,
       facts,
       scene: scene as InfluencerScriptScene,
       siteDomain,
       draftText,
+      personalization: personalization || undefined,
     });
 
     return NextResponse.json(result);

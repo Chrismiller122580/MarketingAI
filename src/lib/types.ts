@@ -252,6 +252,7 @@ export type GeneratedPost = {
   originalText?: string;
   contentAngle?: ContentAngle;
   uniqueness?: UniquenessReport;
+  influencerId?: string;
 };
 
 export type SavedPost = GeneratedPost & {
@@ -285,6 +286,7 @@ export type InfluencerGenerateContext = {
   facts: ProductFactsForm;
   pinpoints: FactPinpoint[];
   assets: InfluencerAssets;
+  personalization?: string;
 };
 
 export type GenerateRequest = {
@@ -366,6 +368,18 @@ export type PerformanceSummary = {
   >;
   recommendations: string[];
   lastSyncedAt?: string;
+  influencerStats?: InfluencerPerformanceStat[];
+};
+
+export type InfluencerPerformanceStat = {
+  influencerId: string;
+  handle?: string;
+  displayName?: string;
+  posts: number;
+  withMetrics: number;
+  engagements: number;
+  avgEngagementRate: number;
+  motionPosts: number;
 };
 
 export type PublishResult = {

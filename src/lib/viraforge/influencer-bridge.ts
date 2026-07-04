@@ -6,6 +6,7 @@ import type {
   SiteData,
   SitePage,
 } from "@/lib/types";
+import { buildPersonalizationContext } from "./learning";
 import { mergeInfluencerAssets } from "./influencer-assets";
 import { buildFactPinpoints, mergeFactsWithSite } from "./site-facts-extractor";
 
@@ -37,6 +38,10 @@ export async function loadInfluencerGenerateContext(
   const mergedFacts = mergeFactsWithSite(locked, site, page);
   const pinpoints = buildFactPinpoints(locked, site, page);
   const assets = mergeInfluencerAssets(influencer.assets, {});
+  const personalization = await buildPersonalizationContext(
+    userId,
+    influencerId,
+  );
 
   return {
     id: influencer.id,
@@ -46,5 +51,6 @@ export async function loadInfluencerGenerateContext(
     assets,
     displayName: persona.data.displayName,
     handle: persona.data.handle,
+    personalization: personalization || undefined,
   };
 }

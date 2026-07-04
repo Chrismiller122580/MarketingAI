@@ -118,6 +118,8 @@ model Post {
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   siteId         String?
   site           Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  influencerId   String?
+  influencer     Influencer? @relation(fields: [influencerId], references: [id], onDelete: SetNull)
   text           String    @db.Text
   hashtags       String[]
   cta            String
@@ -176,6 +178,7 @@ model Influencer {
   productFactsId String?
   productFacts   ProductFacts? @relation(fields: [productFactsId], references: [id], onDelete: SetNull)
   learningEvents CreatorLearningEvent[]
+  posts          Post[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

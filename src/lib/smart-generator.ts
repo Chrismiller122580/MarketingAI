@@ -622,6 +622,7 @@ export async function generateSmartPost(
       platform:
         isInstagramFormat(contentType) ? "instagram" : platform,
       brief: prompt || undefined,
+      personalization: request.influencer.personalization,
     });
     text = truncate(influencerPost.text, PLATFORM_LIMITS[platform]);
     influencerInsights = [

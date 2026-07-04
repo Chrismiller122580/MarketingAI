@@ -1,4 +1,5 @@
 import type {
+  InfluencerPerformanceStat,
   PerformanceSummary,
   Platform,
   PostPerformance,
@@ -65,12 +66,15 @@ export function analyzePerformance(posts: SavedPost[]): PerformanceSummary {
       platformEngagements(a[1] as PerformanceSummary["platformStats"][Platform]),
   )[0]?.[0] as Platform | undefined;
 
+  const influencerStats = buildInfluencerStats(published, withMetrics);
+
   const recommendations = buildRecommendations(
     published,
     withMetrics,
     platformStats,
     topPost,
     topPlatform,
+    influencerStats,
   );
 
   const lastSynced = withMetrics
@@ -90,7 +94,51 @@ export function analyzePerformance(posts: SavedPost[]): PerformanceSummary {
     platformStats,
     recommendations,
     lastSyncedAt: lastSynced,
+    influencerStats,
   };
+}
+
+function buildInfluencerStats(
+  published: SavedPost[],
+  withMetrics: SavedPost[],
+): InfluencerPerformanceStat[] {
+  const byId = new Map<string, InfluencerPerformanceStat>();
+
+  for (const post of published) {
+    if (!post.influencerId) continue;
+    const existing = byId.get(post.influencerId) ?? {
+      influencerId: post.influencerId,
+      posts: 0,
+      withMetrics: 0,
+      engagements: 0,
+      avgEngagementRate: 0,
+      motionPosts: 0,
+    };
+    existing.posts += 1;
+    if (post.image.source === "influencer" && post.image.videoUrl) {
+      existing.motionPosts += 1;
+    }
+    byId.set(post.influencerId, existing);
+  }
+
+  for (const post of withMetrics) {
+    if (!post.influencerId) continue;
+    const existing = byId.get(post.influencerId);
+    if (!existing) continue;
+    const perf = post.performance!;
+    existing.withMetrics += 1;
+    existing.engagements += totalEngagements(perf);
+    if (perf.engagementRate != null) {
+      existing.avgEngagementRate =
+        (existing.avgEngagementRate * (existing.withMetrics - 1) +
+          perf.engagementRate) /
+        existing.withMetrics;
+    }
+  }
+
+  return [...byId.values()]
+    .filter((s) => s.posts > 0)
+    .sort((a, b) => b.engagements - a.engagements);
 }
 
 function buildRecommendations(
@@ -99,6 +147,7 @@ function buildRecommendations(
   platformStats: PerformanceSummary["platformStats"],
   topPost?: SavedPost,
   topPlatform?: Platform,
+  influencerStats: InfluencerPerformanceStat[] = [],
 ): string[] {
   const recs: string[] = [];
 
@@ -161,7 +210,30 @@ function buildRecommendations(
     );
   }
 
-  return recs.slice(0, 5);
+  const topInfluencer = influencerStats.find((s) => s.withMetrics > 0);
+  if (topInfluencer && topInfluencer.engagements > 0) {
+    const label = topInfluencer.handle
+      ? `@${topInfluencer.handle}`
+      : "your linked avatar";
+    recs.push(
+      `${label} drove ${topInfluencer.engagements} engagements across ${topInfluencer.withMetrics} tracked post${topInfluencer.withMetrics === 1 ? "" : "s"} — create more with motion clips.`,
+    );
+    if (topInfluencer.motionPosts > 0) {
+      recs.push(
+        `Motion clips used on ${topInfluencer.motionPosts} avatar post${topInfluencer.motionPosts === 1 ? "" : "s"} — try Talk after your next site draft.`,
+      );
+    }
+  }
+
+  const avatarPosts = published.filter((p) => p.influencerId).length;
+  const nonAvatar = published.length - avatarPosts;
+  if (avatarPosts > 0 && nonAvatar > avatarPosts && withMetrics.length > 2) {
+    recs.push(
+      `${avatarPosts} posts used a linked influencer — compare avatar vs standard posts in analytics.`,
+    );
+  }
+
+  return recs.slice(0, 6);
 }
 
 export function mergePerformance(

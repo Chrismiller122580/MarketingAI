@@ -150,6 +150,9 @@ export async function POST(request: Request) {
     };
 
     const post = await generateSmartPost(generateRequest);
+    if (influencerId) {
+      post.influencerId = influencerId;
+    }
 
     if (triggersVideoGeneration(contentType, storyMedia)) {
       const durationSec = body.videoDuration === 10 ? 10 : 5;

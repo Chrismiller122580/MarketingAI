@@ -24,6 +24,7 @@ export async function generateInfluencerScript(input: {
   scene: InfluencerScriptScene;
   siteDomain?: string;
   draftText?: string;
+  personalization?: string;
 }): Promise<{ script: string; validation: { valid: boolean; violations: string[] } }> {
   if (!hasAnyAiKey()) {
     throw new Error(
@@ -41,7 +42,8 @@ Sample tone: "${input.persona.sampleQuote}"
 STRICT RULES:
 - ONLY mention verified product facts below. Never invent specs, prices, benefits, or health claims.
 - Write for the mouth — natural speech, 40–90 words max.
-- Return ONLY the script text. No quotes, labels, or stage directions.`;
+- Return ONLY the script text. No quotes, labels, or stage directions.
+${input.personalization ? `\n${input.personalization}` : ""}`;
 
   const userMessage = `${factsBlock}
 

@@ -11,7 +11,10 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import { generateInfluencerSiteContent } from "@/lib/viraforge/influencer-content";
-import { recordCreatorEvent } from "@/lib/viraforge/learning";
+import {
+  buildPersonalizationContext,
+  recordCreatorEvent,
+} from "@/lib/viraforge/learning";
 import {
   buildFactPinpoints,
   mergeFactsWithSite,
@@ -123,6 +126,11 @@ export async function POST(request: Request) {
     const mergedFacts = mergeFactsWithSite(locked, site, page);
     const pinpoints = buildFactPinpoints(locked, site, page);
 
+    const personalization = await buildPersonalizationContext(
+      authResult,
+      influencerId,
+    );
+
     const result = await generateInfluencerSiteContent({
       persona: persona.data,
       facts: mergedFacts,
@@ -131,6 +139,7 @@ export async function POST(request: Request) {
       page,
       platform: platform as Platform,
       brief,
+      personalization: personalization || undefined,
     });
 
     await recordCreatorEvent(

@@ -16,7 +16,26 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const summary = analyzePerformance(posts.map(postToSaved));
+    const savedPosts = posts.map(postToSaved);
+    const summary = analyzePerformance(savedPosts);
+
+    if (summary.influencerStats?.length) {
+      const influencerIds = summary.influencerStats.map((s) => s.influencerId);
+      const influencers = await prisma.influencer.findMany({
+        where: { userId, id: { in: influencerIds } },
+        select: { id: true, handle: true, displayName: true },
+      });
+      const byId = new Map(influencers.map((i) => [i.id, i]));
+      summary.influencerStats = summary.influencerStats.map((stat) => {
+        const inf = byId.get(stat.influencerId);
+        return {
+          ...stat,
+          handle: inf?.handle,
+          displayName: inf?.displayName,
+        };
+      });
+    }
+
     const topPosts = posts
       .map(postToSaved)
       .filter((p) => p.performance?.source === "api")

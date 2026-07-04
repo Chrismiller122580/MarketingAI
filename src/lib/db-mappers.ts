@@ -42,6 +42,7 @@ export function postToSaved(row: {
   aiVariants?: unknown;
   selectedProvider?: string | null;
   originalText?: string | null;
+  influencerId?: string | null;
   createdAt: Date;
 }): SavedPost {
   return {
@@ -64,6 +65,7 @@ export function postToSaved(row: {
     aiVariants: row.aiVariants as SavedPost["aiVariants"],
     selectedProvider: row.selectedProvider as SavedPost["selectedProvider"],
     originalText: row.originalText ?? undefined,
+    influencerId: row.influencerId ?? undefined,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -124,5 +126,6 @@ export function postFromGenerated(
     ...(post.aiVariants && { aiVariants: post.aiVariants }),
     ...(post.selectedProvider && { selectedProvider: post.selectedProvider }),
     originalText: post.originalText ?? post.text,
+    influencerId: post.influencerId ?? null,
   };
 }

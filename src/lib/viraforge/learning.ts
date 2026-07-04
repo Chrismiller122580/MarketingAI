@@ -20,6 +20,7 @@ export type InfluencerMemory = {
   voiceHints?: string[];
   approvedPhrases?: string[];
   rejectedPhrases?: string[];
+  preferredMotions?: string[];
   generationCount?: number;
   lastFields?: Partial<CreatorAvatarForm>;
 };
@@ -73,7 +74,30 @@ export async function recordCreatorEvent(
 
   if ((eventType === "generate" || eventType === "regenerate") && influencerId) {
     await incrementGenerationCount(influencerId);
+    if (typeof payload.motionType === "string") {
+      await trackPreferredMotion(influencerId, payload.motionType);
+    }
   }
+}
+
+async function trackPreferredMotion(
+  influencerId: string,
+  motionType: string,
+): Promise<void> {
+  const influencer = await prisma.influencer.findUnique({
+    where: { id: influencerId },
+  });
+  if (!influencer) return;
+
+  const memory = (influencer.memory ?? {}) as InfluencerMemory;
+  const motions = [...(memory.preferredMotions ?? [])];
+  if (!motions.includes(motionType)) motions.unshift(motionType);
+  memory.preferredMotions = motions.slice(0, 5);
+
+  await prisma.influencer.update({
+    where: { id: influencerId },
+    data: { memory },
+  });
 }
 
 async function updateCreatorPreferencesFromField(
@@ -198,6 +222,11 @@ export async function buildPersonalizationContext(
       }
       if (memory.voiceHints?.length) {
         hints.push(...memory.voiceHints.slice(0, 2));
+      }
+      if (memory.preferredMotions?.length) {
+        hints.push(
+          `User often triggers ${memory.preferredMotions[0]} motion after content`,
+        );
       }
     }
   }

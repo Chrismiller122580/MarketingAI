@@ -44,6 +44,7 @@ export async function generateInfluencerSiteContent(input: {
   page: SitePage;
   platform: Platform;
   brief?: string;
+  personalization?: string;
 }): Promise<InfluencerSiteContentResult> {
   if (!hasAnyAiKey()) {
     throw new Error(
@@ -69,7 +70,8 @@ STRICT RULES:
 - Weave in 2–4 specific verified facts naturally (name, price, features, location, hours, ingredients).
 - Sound like the influencer's authentic voice — not generic marketing.
 - Include a soft CTA pointing to ${input.site.domain}${input.page.path === "/" ? "" : input.page.path}
-- Return ONLY the post copy. No explanations.`;
+- Return ONLY the post copy. No explanations.
+${input.personalization ? `\n${input.personalization}` : ""}`;
 
   const userMessage = `Crawled page: ${input.page.title}
 URL: ${input.site.domain}${input.page.path}

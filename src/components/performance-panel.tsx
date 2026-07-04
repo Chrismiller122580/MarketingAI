@@ -137,6 +137,34 @@ export function PerformancePanel() {
             </ul>
           </div>
 
+          {summary.influencerStats && summary.influencerStats.length > 0 && (
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                Avatar performance
+              </p>
+              <div className="mt-2 space-y-2">
+                {summary.influencerStats.map((stat) => (
+                  <div
+                    key={stat.influencerId}
+                    className="rounded-lg border border-violet-200 bg-violet-50/50 px-3 py-2 dark:border-violet-900/50 dark:bg-violet-950/20"
+                  >
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                      {stat.displayName ?? "Influencer"}
+                      {stat.handle ? ` · @${stat.handle}` : ""}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {stat.posts} post{stat.posts === 1 ? "" : "s"}
+                      {stat.withMetrics > 0 &&
+                        ` · ${stat.engagements} engagements · ${Math.round(stat.avgEngagementRate * 10) / 10}% avg`}
+                      {stat.motionPosts > 0 &&
+                        ` · ${stat.motionPosts} motion clip${stat.motionPosts === 1 ? "" : "s"}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {Object.keys(summary.platformStats).length > 0 && (
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
@@ -176,6 +204,7 @@ export function PerformancePanel() {
                   </p>
                   <p className="text-xs capitalize text-slate-400">
                     {post.platform}
+                    {post.influencerId && " · avatar linked"}
                     {post.sourcePage && ` · ${post.sourcePage}`}
                   </p>
                 </div>
