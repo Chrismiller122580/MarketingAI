@@ -5,7 +5,7 @@ import {
   updateInfluencerMotionJob,
 } from "@/lib/influencer-motion-jobs";
 import { getPredictionStatus } from "@/lib/replicate-client";
-import { patchInfluencerAssets } from "@/lib/viraforge/influencer-db";
+import { finalizeInfluencerRender } from "@/lib/viraforge/influencer-renders";
 
 type RouteContext = { params: Promise<{ jobId: string }> };
 
@@ -50,30 +50,41 @@ export async function GET(_request: Request, context: RouteContext) {
       videoUrl: prediction.outputUrl,
     });
 
-    await patchInfluencerAssets(authResult, job.influencerId, {
-      videoUrl: prediction.outputUrl,
-      motionStatus: "ready",
-      motionError: undefined,
-      motionType: job.motionType,
-      ...(job.voiceAudioUrl ? { voiceAudioUrl: job.voiceAudioUrl } : {}),
-      ...(job.script ? { lastScript: job.script } : {}),
-    });
+    let videoUrl = prediction.outputUrl;
+    if (job.renderId) {
+      const render = await finalizeInfluencerRender({
+        userId: authResult,
+        influencerId: job.influencerId,
+        renderId: job.renderId,
+        status: "ready",
+        url: prediction.outputUrl,
+        voiceUrl: job.voiceAudioUrl,
+        activate: true,
+      });
+      if (render?.url) videoUrl = render.url;
+    }
 
     return NextResponse.json({
       status: "ready",
-      videoUrl: prediction.outputUrl,
+      videoUrl,
       motionType: job.motionType,
       voiceAudioUrl: job.voiceAudioUrl,
+      renderId: job.renderId,
     });
   }
 
   if (prediction.status === "failed") {
     const error = prediction.error ?? "Motion generation failed";
     updateInfluencerMotionJob(jobId, { status: "failed", error });
-    await patchInfluencerAssets(authResult, job.influencerId, {
-      motionStatus: "failed",
-      motionError: error,
-    });
+    if (job.renderId) {
+      await finalizeInfluencerRender({
+        userId: authResult,
+        influencerId: job.influencerId,
+        renderId: job.renderId,
+        status: "failed",
+        error,
+      });
+    }
 
     return NextResponse.json({
       status: "failed",

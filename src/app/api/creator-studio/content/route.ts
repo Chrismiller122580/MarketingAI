@@ -15,6 +15,7 @@ import {
   buildPersonalizationContext,
   recordCreatorEvent,
 } from "@/lib/viraforge/learning";
+import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
 import {
   buildFactPinpoints,
   mergeFactsWithSite,
@@ -155,7 +156,25 @@ export async function POST(request: Request) {
       influencerId,
     );
 
-    return NextResponse.json(result);
+    const { id: renderId } = await createInfluencerRender({
+      userId: authResult,
+      influencerId,
+      type: "site_content",
+      status: "ready",
+      script: result.text,
+      metadata: {
+        domain: site.domain,
+        pagePath: page.path,
+        platform,
+        brief,
+        citedFacts: result.citedFacts,
+        sourcePage: result.sourcePage,
+        validation: result.validation,
+      },
+      activate: false,
+    });
+
+    return NextResponse.json({ ...result, renderId });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Content generation failed";

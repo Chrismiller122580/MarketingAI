@@ -17,20 +17,7 @@ import {
   recordCreatorEvent,
   upsertInfluencerWithFacts,
 } from "@/lib/viraforge/learning";
-
-async function toDataUrl(url: string): Promise<string> {
-  if (url.startsWith("data:")) return url;
-
-  const imageResponse = await fetch(url);
-  if (!imageResponse.ok) {
-    throw new Error("Failed to fetch generated image");
-  }
-
-  const buffer = await imageResponse.arrayBuffer();
-  const base64 = Buffer.from(buffer).toString("base64");
-  const contentType = imageResponse.headers.get("content-type") ?? "image/png";
-  return `data:${contentType};base64,${base64}`;
-}
+import { savePortraitRender } from "@/lib/viraforge/influencer-renders";
 
 export async function POST(request: Request) {
   const authResult = await requireAuthUserId();
@@ -116,14 +103,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const imageUrl = await toDataUrl(result.url);
-
     const saved = await upsertInfluencerWithFacts(
       authResult,
       parsed.data,
       productFacts.data,
-      { portraitUrl: imageUrl },
     );
+
+    const { durableUrl: imageUrl } = await savePortraitRender({
+      userId: authResult,
+      influencerId: saved.influencerId,
+      imageUrl: result.url,
+      provider: result.provider,
+      prompt: result.prompt,
+    });
 
     const eventType = body.influencerId ? "regenerate" : "generate";
     await recordCreatorEvent(

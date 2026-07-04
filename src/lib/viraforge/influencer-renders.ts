@@ -1,0 +1,394 @@
+import { put } from "@vercel/blob";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { ensurePublicMediaUrl } from "@/lib/media-url";
+import {
+  mergeInfluencerAssets,
+  type InfluencerAssets,
+  type InfluencerMotionType,
+} from "./influencer-assets";
+import { patchInfluencerAssets } from "./influencer-db";
+
+export type InfluencerRenderType =
+  | "portrait"
+  | "motion"
+  | "voice"
+  | "script"
+  | "site_content";
+
+export type InfluencerRenderStatus = "processing" | "ready" | "failed";
+
+export type InfluencerRenderRecord = {
+  id: string;
+  type: InfluencerRenderType;
+  status: InfluencerRenderStatus;
+  url: string | null;
+  voiceUrl: string | null;
+  motionType: string | null;
+  script: string | null;
+  voiceId: string | null;
+  provider: string | null;
+  isActive: boolean;
+  error: string | null;
+  createdAt: string;
+  metadata: Record<string, unknown> | null;
+};
+
+function mediaLabel(type: InfluencerRenderType, motionType?: string): string {
+  if (type === "motion" && motionType) return `motion-${motionType}`;
+  return type;
+}
+
+export async function persistRenderMedia(
+  userId: string,
+  influencerId: string,
+  renderId: string,
+  urlOrData: string,
+  type: InfluencerRenderType,
+  motionType?: string,
+): Promise<string> {
+  if (urlOrData.startsWith("https://") && urlOrData.includes("blob.vercel-storage.com")) {
+    return urlOrData;
+  }
+
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  if (blobToken && urlOrData.startsWith("data:")) {
+    const match = urlOrData.match(/^data:([^;,]+)?(?:;base64)?,(.+)$/);
+    if (match) {
+      const mime = match[1] || "application/octet-stream";
+      const bytes = Buffer.from(match[2], "base64");
+      const ext = mime.includes("png")
+        ? "png"
+        : mime.includes("jpeg") || mime.includes("jpg")
+          ? "jpg"
+          : mime.includes("mp4")
+            ? "mp4"
+            : mime.includes("mpeg") || mime.includes("mp3")
+              ? "mp3"
+              : "bin";
+      const filename = `influencers/${userId}/${influencerId}/${renderId}-${mediaLabel(type, motionType)}.${ext}`;
+      const uploaded = await put(filename, bytes, {
+        access: "public",
+        token: blobToken,
+        contentType: mime,
+      });
+      return uploaded.url;
+    }
+  }
+
+  if (urlOrData.startsWith("http://") || urlOrData.startsWith("https://")) {
+    if (blobToken) {
+      try {
+        const res = await fetch(urlOrData);
+        if (res.ok) {
+          const buffer = Buffer.from(await res.arrayBuffer());
+          const ct = res.headers.get("content-type") ?? "application/octet-stream";
+          const ext = ct.includes("mp4")
+            ? "mp4"
+            : ct.includes("png")
+              ? "png"
+              : ct.includes("jpeg")
+                ? "jpg"
+                : ct.includes("mpeg") || ct.includes("mp3")
+                  ? "mp3"
+                  : "bin";
+          const filename = `influencers/${userId}/${influencerId}/${renderId}-${mediaLabel(type, motionType)}.${ext}`;
+          const uploaded = await put(filename, buffer, {
+            access: "public",
+            token: blobToken,
+            contentType: ct,
+          });
+          return uploaded.url;
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return urlOrData;
+  }
+
+  return ensurePublicMediaUrl(urlOrData, mediaLabel(type, motionType));
+}
+
+export async function createInfluencerRender(input: {
+  userId: string;
+  influencerId: string;
+  type: InfluencerRenderType;
+  status?: InfluencerRenderStatus;
+  url?: string;
+  voiceUrl?: string;
+  motionType?: InfluencerMotionType | string;
+  script?: string;
+  voiceId?: string;
+  provider?: string;
+  predictionId?: string;
+  prompt?: string;
+  metadata?: Record<string, unknown>;
+  error?: string;
+  activate?: boolean;
+}): Promise<{ id: string }> {
+  const status = input.status ?? "processing";
+
+  if (input.activate && status === "ready") {
+    await prisma.influencerRender.updateMany({
+      where: {
+        influencerId: input.influencerId,
+        userId: input.userId,
+        type: input.type,
+        isActive: true,
+      },
+      data: { isActive: false },
+    });
+  }
+
+  const render = await prisma.influencerRender.create({
+    data: {
+      userId: input.userId,
+      influencerId: input.influencerId,
+      type: input.type,
+      status,
+      url: input.url,
+      voiceUrl: input.voiceUrl,
+      motionType: input.motionType,
+      script: input.script,
+      voiceId: input.voiceId,
+      provider: input.provider,
+      predictionId: input.predictionId,
+      prompt: input.prompt,
+      metadata: (input.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+      error: input.error,
+      isActive: input.activate ?? false,
+    },
+  });
+
+  return { id: render.id };
+}
+
+export async function finalizeInfluencerRender(input: {
+  userId: string;
+  influencerId: string;
+  renderId: string;
+  status: "ready" | "failed";
+  url?: string;
+  voiceUrl?: string;
+  error?: string;
+  activate?: boolean;
+}): Promise<InfluencerRenderRecord | null> {
+  const existing = await prisma.influencerRender.findFirst({
+    where: {
+      id: input.renderId,
+      userId: input.userId,
+      influencerId: input.influencerId,
+    },
+  });
+  if (!existing) return null;
+
+  let durableUrl = input.url;
+  let durableVoiceUrl = input.voiceUrl;
+
+  if (input.status === "ready") {
+    if (durableUrl) {
+      durableUrl = await persistRenderMedia(
+        input.userId,
+        input.influencerId,
+        input.renderId,
+        durableUrl,
+        existing.type as InfluencerRenderType,
+        existing.motionType ?? undefined,
+      );
+    }
+    if (durableVoiceUrl) {
+      durableVoiceUrl = await persistRenderMedia(
+        input.userId,
+        input.influencerId,
+        `${input.renderId}-voice`,
+        durableVoiceUrl,
+        "voice",
+      );
+    }
+  }
+
+  if (input.activate && input.status === "ready") {
+    await prisma.influencerRender.updateMany({
+      where: {
+        influencerId: input.influencerId,
+        userId: input.userId,
+        type: existing.type,
+        isActive: true,
+        NOT: { id: input.renderId },
+      },
+      data: { isActive: false },
+    });
+  }
+
+  const updated = await prisma.influencerRender.update({
+    where: { id: input.renderId },
+    data: {
+      status: input.status,
+      url: durableUrl ?? existing.url,
+      voiceUrl: durableVoiceUrl ?? existing.voiceUrl,
+      error: input.error,
+      isActive: input.activate ?? existing.isActive,
+    },
+  });
+
+  if (input.activate && input.status === "ready") {
+    await applyRenderToAssets(input.userId, input.influencerId, updated);
+  }
+
+  return toRenderRecord(updated);
+}
+
+async function applyRenderToAssets(
+  userId: string,
+  influencerId: string,
+  render: {
+    type: string;
+    url: string | null;
+    voiceUrl: string | null;
+    motionType: string | null;
+    script: string | null;
+    voiceId: string | null;
+  },
+): Promise<InfluencerAssets | null> {
+  const patch: Partial<InfluencerAssets> = {};
+
+  if (render.type === "portrait" && render.url) {
+    patch.portraitUrl = render.url;
+  }
+
+  if (render.type === "motion" && render.url) {
+    patch.videoUrl = render.url;
+    patch.motionStatus = "ready";
+    patch.motionError = undefined;
+    if (render.motionType) {
+      patch.motionType = render.motionType as InfluencerMotionType;
+    }
+    if (render.voiceUrl) patch.voiceAudioUrl = render.voiceUrl;
+    if (render.script) patch.lastScript = render.script;
+    if (render.voiceId) patch.voiceId = render.voiceId;
+  }
+
+  if (render.type === "voice" && render.url) {
+    patch.voiceAudioUrl = render.url;
+    if (render.voiceId) patch.voiceId = render.voiceId;
+    if (render.script) patch.lastScript = render.script;
+  }
+
+  if (Object.keys(patch).length === 0) return null;
+  return patchInfluencerAssets(userId, influencerId, patch);
+}
+
+export async function activateInfluencerRender(
+  userId: string,
+  renderId: string,
+): Promise<InfluencerAssets | null> {
+  const render = await prisma.influencerRender.findFirst({
+    where: { id: renderId, userId, status: "ready" },
+  });
+  if (!render) return null;
+
+  await prisma.influencerRender.updateMany({
+    where: {
+      influencerId: render.influencerId,
+      userId,
+      type: render.type,
+      isActive: true,
+      NOT: { id: renderId },
+    },
+    data: { isActive: false },
+  });
+
+  await prisma.influencerRender.update({
+    where: { id: renderId },
+    data: { isActive: true },
+  });
+
+  return applyRenderToAssets(userId, render.influencerId, render);
+}
+
+function toRenderRecord(row: {
+  id: string;
+  type: string;
+  status: string;
+  url: string | null;
+  voiceUrl: string | null;
+  motionType: string | null;
+  script: string | null;
+  voiceId: string | null;
+  provider: string | null;
+  isActive: boolean;
+  error: string | null;
+  createdAt: Date;
+  metadata: unknown;
+}): InfluencerRenderRecord {
+  return {
+    id: row.id,
+    type: row.type as InfluencerRenderType,
+    status: row.status as InfluencerRenderStatus,
+    url: row.url,
+    voiceUrl: row.voiceUrl,
+    motionType: row.motionType,
+    script: row.script,
+    voiceId: row.voiceId,
+    provider: row.provider,
+    isActive: row.isActive,
+    error: row.error,
+    createdAt: row.createdAt.toISOString(),
+    metadata: (row.metadata as Record<string, unknown> | null) ?? null,
+  };
+}
+
+export async function listInfluencerRenders(
+  userId: string,
+  influencerId: string,
+  options?: { type?: InfluencerRenderType; limit?: number },
+): Promise<InfluencerRenderRecord[]> {
+  const rows = await prisma.influencerRender.findMany({
+    where: {
+      userId,
+      influencerId,
+      ...(options?.type ? { type: options.type } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: options?.limit ?? 100,
+  });
+
+  return rows.map(toRenderRecord);
+}
+
+export async function savePortraitRender(input: {
+  userId: string;
+  influencerId: string;
+  imageUrl: string;
+  provider: string;
+  prompt: string;
+}): Promise<{ renderId: string; durableUrl: string }> {
+  const { id: renderId } = await createInfluencerRender({
+    userId: input.userId,
+    influencerId: input.influencerId,
+    type: "portrait",
+    status: "processing",
+    provider: input.provider,
+    prompt: input.prompt,
+  });
+
+  const durableUrl = await persistRenderMedia(
+    input.userId,
+    input.influencerId,
+    renderId,
+    input.imageUrl,
+    "portrait",
+  );
+
+  await finalizeInfluencerRender({
+    userId: input.userId,
+    influencerId: input.influencerId,
+    renderId,
+    status: "ready",
+    url: durableUrl,
+    activate: true,
+  });
+
+  return { renderId, durableUrl };
+}

@@ -21,6 +21,10 @@ import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton, Spinner } from "./loading-indicator";
 import { InfluencerSiteContentPanel } from "./influencer-site-content-panel";
 import {
+  InfluencerRenderLibrary,
+  type SavedRender,
+} from "./influencer-render-library";
+import {
   creatorAvatarSchema,
   defaultCreatorAvatarValues,
   type CreatorAvatarForm,
@@ -43,6 +47,7 @@ type CreatorTab =
   | "style"
   | "facts"
   | "motion"
+  | "library"
   | "site-content";
 
 const TABS: { id: CreatorTab; label: string }[] = [
@@ -52,6 +57,7 @@ const TABS: { id: CreatorTab; label: string }[] = [
   { id: "style", label: "Personality + Voice" },
   { id: "facts", label: "Product Facts" },
   { id: "motion", label: "Motion & Voice" },
+  { id: "library", label: "Render Library" },
   { id: "site-content", label: "Site Content" },
 ];
 
@@ -177,6 +183,7 @@ export function ViraForgeCreatorStudio() {
   const [previewMode, setPreviewMode] = useState<"portrait" | "motion">(
     "portrait",
   );
+  const [renderLibraryTick, setRenderLibraryTick] = useState(0);
   const [capabilities, setCapabilities] = useState<{
     motionVideoAvailable: boolean;
     voiceAvailable: boolean;
@@ -269,6 +276,10 @@ export function ViraForgeCreatorStudio() {
       .catch(() => setCapabilities(null));
   }, []);
 
+  const bumpRenderLibrary = useCallback(() => {
+    setRenderLibraryTick((n) => n + 1);
+  }, []);
+
   const pollMotionJob = useCallback(
     async (jobId: string, motionType: InfluencerMotionType) => {
       const maxAttempts = 90;
@@ -287,6 +298,7 @@ export function ViraForgeCreatorStudio() {
           setPreviewMode("motion");
           if (data.voiceAudioUrl) setVoiceAudio(data.voiceAudioUrl);
           setMotionLoading(null);
+          bumpRenderLibrary();
           toast.success(
             motionType === "talk"
               ? "Talking clip ready — lip-sync video saved."
@@ -305,7 +317,7 @@ export function ViraForgeCreatorStudio() {
       setMotionLoading(null);
       toast.error("Motion generation timed out. Check back on dashboard later.");
     },
-    [],
+    [bumpRenderLibrary],
   );
 
   const handleMotion = async (
@@ -426,6 +438,7 @@ export function ViraForgeCreatorStudio() {
       const data = (await res.json()) as {
         error?: string;
         audioDataUrl?: string;
+        audioUrl?: string;
         quoteValidation?: { violations: string[] };
       };
       if (!res.ok) {
@@ -434,9 +447,11 @@ export function ViraForgeCreatorStudio() {
         }
         throw new Error(data.error ?? "Voice preview failed");
       }
-      if (data.audioDataUrl) {
-        setVoiceAudio(data.audioDataUrl);
-        toast.success("Voice preview ready — avatar is speaking");
+      const audio = data.audioUrl ?? data.audioDataUrl;
+      if (audio) {
+        setVoiceAudio(audio);
+        bumpRenderLibrary();
+        toast.success("Voice preview saved — avatar is speaking");
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Voice preview failed");
@@ -444,6 +459,23 @@ export function ViraForgeCreatorStudio() {
       setVoicePreviewLoading(false);
     }
   };
+
+  const handleApplyRender = useCallback(
+    (assets: InfluencerAssets, render: SavedRender) => {
+      if (assets.portraitUrl) {
+        setPreviewImage(assets.portraitUrl);
+        setPreviewMode("portrait");
+      }
+      if (assets.videoUrl) {
+        setMotionVideo(assets.videoUrl);
+        setPreviewMode("motion");
+      }
+      if (assets.voiceAudioUrl) setVoiceAudio(assets.voiceAudioUrl);
+      if (render.script) setMotionScript(render.script);
+      else if (assets.lastScript) setMotionScript(assets.lastScript);
+    },
+    [],
+  );
 
   const handleAvatarSpeak = (script: string, talkNow?: boolean) => {
     setMotionScript(script.slice(0, 500));
@@ -553,6 +585,7 @@ export function ViraForgeCreatorStudio() {
       if (payload.influencerId) setInfluencerId(payload.influencerId);
 
       setStatus("success");
+      bumpRenderLibrary();
       toast.success(
         payload.personalizationUsed
           ? `Avatar generated using your saved preferences for ${persona.displayName}.`
@@ -1136,6 +1169,14 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
+          {activeTab === "library" && (
+            <InfluencerRenderLibrary
+              key={`${influencerId ?? "new"}-${renderLibraryTick}`}
+              influencerId={influencerId}
+              onApply={handleApplyRender}
+            />
+          )}
+
           {activeTab === "site-content" && (
             <InfluencerSiteContentPanel
               influencerId={influencerId}
@@ -1158,7 +1199,9 @@ export function ViraForgeCreatorStudio() {
             </ul>
           )}
 
-          {activeTab !== "site-content" && activeTab !== "motion" && (
+          {activeTab !== "site-content" &&
+            activeTab !== "motion" &&
+            activeTab !== "library" && (
             <Button
               type="submit"
               disabled={generating || hydrating}

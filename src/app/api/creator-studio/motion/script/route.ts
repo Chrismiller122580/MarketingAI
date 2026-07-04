@@ -10,6 +10,7 @@ import {
   type InfluencerScriptScene,
 } from "@/lib/viraforge/influencer-script";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
 
 const scriptSchema = z.object({
   influencerId: z.string().min(1),
@@ -85,7 +86,21 @@ export async function POST(request: Request) {
       personalization: personalization || undefined,
     });
 
-    return NextResponse.json(result);
+    const { id: renderId } = await createInfluencerRender({
+      userId: authResult,
+      influencerId,
+      type: "script",
+      status: "ready",
+      script: result.script,
+      metadata: {
+        scene,
+        siteDomain,
+        validation: result.validation,
+      },
+      activate: false,
+    });
+
+    return NextResponse.json({ ...result, renderId });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Script generation failed";

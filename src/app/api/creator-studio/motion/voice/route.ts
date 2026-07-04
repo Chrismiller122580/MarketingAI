@@ -4,6 +4,10 @@ import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hasElevenLabs, synthesizeSpeech } from "@/lib/viraforge/elevenlabs";
+import {
+  createInfluencerRender,
+  finalizeInfluencerRender,
+} from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 
@@ -88,10 +92,33 @@ export async function POST(request: Request) {
       voiceId: assets.voiceId,
     });
 
+    const { id: renderId } = await createInfluencerRender({
+      userId: authResult,
+      influencerId,
+      type: "voice",
+      status: "processing",
+      script: script.trim(),
+      voiceId,
+      provider: "elevenlabs",
+    });
+
+    const render = await finalizeInfluencerRender({
+      userId: authResult,
+      influencerId,
+      renderId,
+      status: "ready",
+      url: audioDataUrl,
+      activate: false,
+    });
+
+    const audioUrl = render?.url ?? audioDataUrl;
+
     return NextResponse.json({
-      audioDataUrl,
+      audioDataUrl: audioUrl,
+      audioUrl,
       voiceId,
       script: script.trim(),
+      renderId,
     });
   } catch (error) {
     const message =

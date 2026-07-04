@@ -13,6 +13,7 @@ import {
 } from "@/lib/viraforge/influencer-assets";
 import { startInfluencerMotion } from "@/lib/viraforge/influencer-motion";
 import { recordCreatorEvent } from "@/lib/viraforge/learning";
+import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
@@ -136,11 +137,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: started.error }, { status: 500 });
     }
 
+    const { id: renderId } = await createInfluencerRender({
+      userId: authResult,
+      influencerId,
+      type: "motion",
+      status: "processing",
+      motionType,
+      script: motionType === "talk" ? talkScript : undefined,
+      voiceUrl: started.voiceAudioUrl,
+      voiceId: started.voiceId,
+      provider: "replicate",
+      predictionId: started.predictionId,
+    });
+
     const job = createInfluencerMotionJob({
       userId: authResult,
       influencerId,
       predictionId: started.predictionId,
       motionType: motionType as InfluencerMotionType,
+      renderId,
       voiceAudioUrl: started.voiceAudioUrl,
       script: motionType === "talk" ? talkScript : undefined,
     });

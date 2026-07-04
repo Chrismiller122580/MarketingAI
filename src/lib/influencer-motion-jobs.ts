@@ -6,6 +6,7 @@ export type InfluencerMotionJob = {
   influencerId: string;
   predictionId: string;
   motionType: InfluencerMotionType;
+  renderId?: string;
   status: "processing" | "ready" | "failed";
   videoUrl?: string;
   voiceAudioUrl?: string;

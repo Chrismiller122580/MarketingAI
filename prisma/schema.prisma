@@ -179,10 +179,35 @@ model Influencer {
   productFacts   ProductFacts? @relation(fields: [productFactsId], references: [id], onDelete: SetNull)
   learningEvents CreatorLearningEvent[]
   posts          Post[]
+  renders        InfluencerRender[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@unique([userId, handle])
+  @@index([userId])
+}
+
+model InfluencerRender {
+  id           String     @id @default(cuid())
+  userId       String
+  influencerId String
+  influencer   Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+  type         String
+  status       String
+  url          String?    @db.Text
+  voiceUrl     String?    @db.Text
+  motionType   String?
+  script       String?    @db.Text
+  voiceId      String?
+  provider     String?
+  predictionId String?
+  prompt       String?    @db.Text
+  metadata     Json?
+  isActive     Boolean    @default(false)
+  error        String?
+  createdAt    DateTime   @default(now())
+
+  @@index([influencerId, type, createdAt])
   @@index([userId])
 }
 

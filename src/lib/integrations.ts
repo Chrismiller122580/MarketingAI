@@ -42,14 +42,16 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     name: "ElevenLabs",
     envVars: ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID"],
     summary:
-      "ViraForge talking clips and Content Studio voiceovers — natural TTS for lip-sync and Reel narration.",
+      "Natural TTS for ViraForge talking clips (SadTalker lip-sync) and Content Studio MP3 voiceovers on Reels, Video Ads, and video Stories.",
     steps: [
-      "Go to elevenlabs.io → Profile → API keys → Create key.",
-      "Add ELEVENLABS_API_KEY to .env or Vercel env vars.",
-      "Optional: set ELEVENLABS_VOICE_ID to a voice from your ElevenLabs library.",
-      "Requires BLOB_READ_WRITE_TOKEN for Content Studio MP3 voiceovers. Redeploy after saving.",
+      "Sign in at elevenlabs.io → Developers → API keys → Create key (or Profile → API Keys).",
+      "Add ELEVENLABS_API_KEY to .env locally or Vercel → Settings → Environment Variables.",
+      "Optional: elevenlabs.io/app/voice-library → copy a Voice ID → set ELEVENLABS_VOICE_ID.",
+      "ViraForge: Talk motion clips also need REPLICATE_API_TOKEN. Voice previews are saved in Creator Studio → Render Library.",
+      "Content Studio: MP3 narration on video posts also needs BLOB_READ_WRITE_TOKEN (Vercel Blob).",
+      "Redeploy on Vercel after saving. Refresh Integrations — ELEVENLABS_API_KEY should show Active.",
     ],
-    docsUrl: "https://elevenlabs.io/docs/api-reference/text-to-speech",
+    docsUrl: "https://elevenlabs.io/app/settings/api-keys",
   },
   {
     id: "xai",
