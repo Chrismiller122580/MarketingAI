@@ -89,3 +89,16 @@ export function InlineLoading({ label, className = "" }: InlineLoadingProps) {
     </span>
   );
 }
+
+type LoadingSkeletonProps = {
+  className?: string;
+};
+
+export function LoadingSkeleton({ className = "" }: LoadingSkeletonProps) {
+  return (
+    <div
+      aria-hidden
+      className={`animate-pulse rounded-lg bg-muted ${className}`}
+    />
+  );
+}

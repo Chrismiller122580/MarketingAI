@@ -5,9 +5,10 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { Camera } from "lucide-react";
+import { Camera, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { InlineLoading, LoadingSkeleton, Spinner } from "./loading-indicator";
 import {
   creatorAvatarSchema,
   defaultCreatorAvatarValues,
@@ -81,6 +82,7 @@ export function ViraForgeCreatorStudio() {
     (defaultProductFactsValues.ingredients ?? []).join("\n"),
   );
   const [quoteValidation, setQuoteValidation] = useState<string[] | null>(null);
+  const [hydrating, setHydrating] = useState(Boolean(editId));
 
   const personaForm = useForm<CreatorAvatarForm>({
     resolver: zodResolver(creatorAvatarSchema),
@@ -98,6 +100,7 @@ export function ViraForgeCreatorStudio() {
   const previewSummary = buildAvatarPreviewSummary(values);
 
   const loadInfluencers = useCallback(async () => {
+    setHydrating(Boolean(editId));
     try {
       const res = await fetch("/api/creator-studio/influencers");
       const data = (await res.json()) as {
@@ -135,6 +138,8 @@ export function ViraForgeCreatorStudio() {
       }
     } catch {
       /* keep defaults */
+    } finally {
+      setHydrating(false);
     }
   }, [editId, personaForm, factsForm]);
 
@@ -287,13 +292,17 @@ export function ViraForgeCreatorStudio() {
         <Button
           type="button"
           onClick={handleGenerate}
-          disabled={generating}
+          disabled={generating || hydrating}
           aria-busy={generating}
           className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-base font-semibold hover:from-violet-500 hover:to-fuchsia-500"
         >
-          {generating
-            ? `Forging ${values.displayName}...`
-            : "Generate Avatar Package"}
+          {generating ? (
+            <InlineLoading label={`Forging ${values.displayName}…`} />
+          ) : hydrating ? (
+            <InlineLoading label="Loading persona…" />
+          ) : (
+            "Generate Avatar Package"
+          )}
         </Button>
       </div>
 
@@ -639,44 +648,90 @@ export function ViraForgeCreatorStudio() {
 
           <Button
             type="submit"
-            disabled={generating}
+            disabled={generating || hydrating}
             aria-busy={generating}
             className="w-full py-6 text-base font-bold"
           >
-            Generate fact-locked influencer portrait
+            {generating ? (
+              <InlineLoading label="Generating portrait…" />
+            ) : (
+              "Generate fact-locked influencer portrait"
+            )}
           </Button>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-border bg-card lg:col-span-5">
-          <div className="flex items-center justify-between border-b border-border bg-muted p-3 text-xs">
-            <span>Live preview • @{values.handle}</span>
-            <Camera className="h-4 w-4" aria-hidden />
-          </div>
-          <div className="relative flex aspect-video items-center justify-center bg-gradient-to-br from-pink-500/20 via-purple-500/20 to-cyan-500/20">
-            {previewImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={previewImage}
-                alt={`Generated portrait of ${values.displayName}`}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="px-4 text-center">
-                <div className="mb-2 text-5xl" aria-hidden>
-                  👩‍🦰
+        <div className="lg:sticky lg:top-6 lg:col-span-5 lg:self-start">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border bg-muted/80 px-4 py-3 text-xs">
+              <span className="font-medium text-foreground">
+                Live preview · @{values.handle}
+              </span>
+              <Camera className="h-4 w-4 text-muted-foreground" aria-hidden />
+            </div>
+
+            <div className="bg-gradient-to-b from-muted/40 to-muted/10 p-4 sm:p-6">
+              <div className="relative mx-auto w-full max-w-[280px]">
+                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl border border-border bg-muted shadow-inner">
+                  {hydrating ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6">
+                      <LoadingSkeleton className="h-full w-full rounded-none" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/60 backdrop-blur-[2px]">
+                        <Spinner size="md" className="border-violet-600" />
+                        <p className="text-sm font-medium text-foreground">
+                          Loading persona…
+                        </p>
+                      </div>
+                    </div>
+                  ) : previewImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={previewImage}
+                      alt={`Generated portrait of ${values.displayName}`}
+                      className="h-full w-full object-cover object-top"
+                    />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center px-5 text-center">
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                        <User className="h-8 w-8 opacity-70" aria-hidden />
+                      </div>
+                      <p className="text-sm font-semibold leading-snug text-foreground">
+                        {previewSummary}
+                      </p>
+                      <p className="mt-3 line-clamp-4 text-xs leading-relaxed text-muted-foreground">
+                        &quot;{values.sampleQuote}&quot;
+                      </p>
+                    </div>
+                  )}
+
+                  {generating && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/75 px-4 text-center backdrop-blur-sm">
+                      <Spinner size="lg" className="border-violet-600" />
+                      <p className="mt-4 text-sm font-semibold text-foreground">
+                        Forging {values.displayName}…
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Portrait generation in progress
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <p className="font-semibold text-foreground">{previewSummary}</p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  &quot;{values.sampleQuote}&quot;
+              </div>
+
+              <div className="mt-4 space-y-2 rounded-lg border border-border bg-card/80 p-3 text-xs">
+                <div className="flex items-start gap-2 text-muted-foreground">
+                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                  <p className="leading-relaxed">{previewSummary}</p>
+                </div>
+                <p className="border-t border-border pt-2 text-center text-emerald-600 dark:text-emerald-400">
+                  {generating
+                    ? "AI is rendering your influencer portrait…"
+                    : status === "success"
+                      ? "Portrait generated — learning from this session"
+                      : "Complete Product Facts, then generate"}
                 </p>
               </div>
-            )}
+            </div>
           </div>
-          <p className="p-3 text-center text-xs text-emerald-600 dark:text-emerald-400">
-            {status === "success"
-              ? "Portrait saved — learning from this session"
-              : "Fill Product Facts, then generate"}
-          </p>
         </div>
       </form>
 
