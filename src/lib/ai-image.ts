@@ -185,6 +185,16 @@ export async function generateAiImage(
   return generateImageFromPrompt(prompt, { size, platform, contentType });
 }
 
+export function getImageProviderAvailability(): {
+  openai: boolean;
+  xai: boolean;
+  any: boolean;
+} {
+  const openai = Boolean(process.env.OPENAI_API_KEY?.trim());
+  const xai = Boolean(process.env.XAI_API_KEY?.trim());
+  return { openai, xai, any: openai || xai };
+}
+
 export async function generateImageFromPrompt(
   prompt: string,
   options?: {

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { generateImageFromPrompt } from "@/lib/ai-image";
+import {
+  generateImageFromPrompt,
+  getImageProviderAvailability,
+} from "@/lib/ai-image";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
@@ -101,11 +104,14 @@ export async function POST(request: Request) {
     });
 
     if (!result) {
+      const providers = getImageProviderAvailability();
+      const error = providers.any
+        ? "Image API request failed. Check OPENAI_API_KEY billing/limits or server logs."
+        : process.env.NODE_ENV === "development"
+          ? "No AI image keys in .env.local. Set OPENAI_API_KEY or XAI_API_KEY, then restart npm run dev."
+          : "AI image generation unavailable. Add OPENAI_API_KEY or XAI_API_KEY in Vercel env vars and redeploy.";
       return NextResponse.json(
-        {
-          error:
-            "AI image generation unavailable. Add OPENAI_API_KEY or XAI_API_KEY.",
-        },
+        { error, providers },
         { status: 503 },
       );
     }
