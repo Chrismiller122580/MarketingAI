@@ -6,6 +6,7 @@ import {
 } from "@/lib/integrations";
 import { hasVideoProvider } from "@/lib/ai-video";
 import { generateSmartPost } from "@/lib/smart-generator";
+import { startVoiceoverGeneration } from "@/lib/voice-generator";
 import { startVideoGeneration } from "@/lib/video-generator";
 import type { ContentType, GenerateRequest, SiteData, StoryMedia } from "@/lib/types";
 import {
@@ -151,6 +152,7 @@ export async function POST(request: Request) {
     const post = await generateSmartPost(generateRequest);
 
     if (triggersVideoGeneration(contentType, storyMedia)) {
+      const durationSec = body.videoDuration === 10 ? 10 : 5;
       const videoRl = checkRateLimit(userId as string, "video");
       if (!videoRl.allowed) {
         post.image = { ...post.image, videoStatus: "failed" };
@@ -159,18 +161,21 @@ export async function POST(request: Request) {
           `Video rate limit exceeded. Retry in ~${videoRl.retryAfterSeconds}s.`,
         ];
       } else {
-        const videoResult = await startVideoGeneration(
-          userId as string,
-          body.site,
-          body.platform ?? "instagram",
-          {
-            prompt: body.prompt ?? "",
-            sourcePageUrl: body.sourcePageUrl,
-            durationSec: body.videoDuration === 10 ? 10 : 5,
-            visualTargeting: body.visualTargeting,
-            contentType,
-          },
-        );
+        const [videoResult, voiceResult] = await Promise.all([
+          startVideoGeneration(
+            userId as string,
+            body.site,
+            body.platform ?? "instagram",
+            {
+              prompt: body.prompt ?? "",
+              sourcePageUrl: body.sourcePageUrl,
+              durationSec,
+              visualTargeting: body.visualTargeting,
+              contentType,
+            },
+          ),
+          startVoiceoverGeneration(post.text, durationSec),
+        ]);
 
         if ("jobId" in videoResult) {
           post.image = {
@@ -183,6 +188,20 @@ export async function POST(request: Request) {
         } else {
           post.image = { ...post.image, videoStatus: "failed" };
           post.insights = [...post.insights, videoResult.error];
+        }
+
+        if (voiceResult && "audioUrl" in voiceResult) {
+          post.image = {
+            ...post.image,
+            audioUrl: voiceResult.audioUrl,
+            voiceoverScript: voiceResult.script,
+          };
+          post.insights = [
+            ...post.insights,
+            "AI voiceover ready — combine with video in your editor or publish as-is.",
+          ];
+        } else if (voiceResult && "error" in voiceResult) {
+          post.insights = [...post.insights, voiceResult.error];
         }
       }
     }

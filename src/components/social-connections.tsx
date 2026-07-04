@@ -11,10 +11,12 @@ type StatusResponse = {
   connectedCount: number;
   aiImageAvailable: boolean;
   aiVideoAvailable: boolean;
+  aiVoiceAvailable: boolean;
   aiCopyAvailable: boolean;
   aiCopyProvider: "openai" | "xai" | null;
   aiImageProvider: "openai" | "xai" | null;
   aiVideoProvider: "replicate" | null;
+  aiVoiceProvider: "elevenlabs" | null;
   twitterOAuthEnabled?: boolean;
   twitterBearerOnly?: boolean;
   guides: IntegrationGuide[];
@@ -172,6 +174,12 @@ export function SocialConnections() {
               <p className="text-xs text-slate-500 dark:text-slate-400">AI video</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {status?.aiVoiceAvailable ? "✓" : "—"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">AI voice</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 text-center dark:bg-slate-950">
               <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 {status?.aiCopyProvider ? providerLabel(status.aiCopyProvider) : "—"}
               </p>
@@ -248,7 +256,8 @@ export function SocialConnections() {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Set API keys as needed — copy: {providerLabel(status?.aiCopyProvider ?? null)},
             images: {providerLabel(status?.aiImageProvider ?? null)},
-            video: {status?.aiVideoAvailable ? "Replicate" : "Not configured"}
+            video: {status?.aiVideoAvailable ? "Replicate" : "Not configured"},
+            voice: {status?.aiVoiceAvailable ? "ElevenLabs" : "Not configured"}
           </p>
           <div className="mt-4 space-y-2">
             {aiGuides.map((guide) => (
@@ -261,7 +270,9 @@ export function SocialConnections() {
                       status?.aiImageProvider === "openai"
                     : guide.id === "replicate"
                       ? !!status?.aiVideoAvailable
-                      : guide.id === "instagram"
+                      : guide.id === "elevenlabs"
+                        ? !!status?.aiVoiceAvailable
+                        : guide.id === "instagram"
                         ? !!status?.connections?.find((c) => c.platform === "instagram")?.connected
                         : status?.aiCopyProvider === "xai" ||
                           status?.aiImageProvider === "xai"
@@ -411,6 +422,12 @@ export function SocialConnections() {
                 <span className="text-slate-700 dark:text-slate-300">REPLICATE_API_TOKEN</span>
                 <span className={status?.aiVideoAvailable ? "font-medium text-emerald-600" : "text-slate-400 dark:text-slate-500"}>
                   {status?.aiVideoAvailable ? "Active" : "Not active"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-700 dark:text-slate-300">ELEVENLABS_API_KEY</span>
+                <span className={status?.aiVoiceAvailable ? "font-medium text-emerald-600" : "text-slate-400 dark:text-slate-500"}>
+                  {status?.aiVoiceAvailable ? "Active" : "Not active"}
                 </span>
               </div>
               <div className="flex items-center justify-between">

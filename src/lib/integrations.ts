@@ -42,12 +42,12 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     name: "ElevenLabs",
     envVars: ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID"],
     summary:
-      "Powers ViraForge talking clips — natural voice from fact-locked scripts, paired with SadTalker lip-sync on Replicate.",
+      "ViraForge talking clips and Content Studio voiceovers — natural TTS for lip-sync and Reel narration.",
     steps: [
       "Go to elevenlabs.io → Profile → API keys → Create key.",
       "Add ELEVENLABS_API_KEY to .env or Vercel env vars.",
       "Optional: set ELEVENLABS_VOICE_ID to a voice from your ElevenLabs library.",
-      "Redeploy. Creator Studio → Motion & Voice → Talk will be enabled.",
+      "Requires BLOB_READ_WRITE_TOKEN for Content Studio MP3 voiceovers. Redeploy after saving.",
     ],
     docsUrl: "https://elevenlabs.io/docs/api-reference/text-to-speech",
   },
@@ -209,5 +209,10 @@ export function getAiImageProvider(): "openai" | "xai" | null {
 
 export function getAiVideoProvider(): "replicate" | null {
   if (process.env.REPLICATE_API_TOKEN) return "replicate";
+  return null;
+}
+
+export function getAiVoiceProvider(): "elevenlabs" | null {
+  if (process.env.ELEVENLABS_API_KEY?.trim()) return "elevenlabs";
   return null;
 }

@@ -181,6 +181,8 @@ export type PostMedia = {
   videoUrl?: string;
   videoStatus?: "processing" | "ready" | "failed";
   videoJobId?: string;
+  audioUrl?: string;
+  voiceoverScript?: string;
   durationSec?: number;
   aspectRatio?: VideoAspectRatio;
 };

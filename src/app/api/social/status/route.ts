@@ -3,6 +3,7 @@ import {
   getAiImageProvider,
   getAiProvider,
   getAiVideoProvider,
+  getAiVoiceProvider,
   hasTwitterOAuthCredentials,
   isTwitterBearerOnly,
   INTEGRATION_GUIDES,
@@ -15,6 +16,7 @@ export async function GET() {
   const copyProvider = getAiProvider();
   const imageProvider = getAiImageProvider();
   const videoProvider = getAiVideoProvider();
+  const voiceProvider = getAiVoiceProvider();
 
   return NextResponse.json({
     connections,
@@ -22,9 +24,11 @@ export async function GET() {
     aiCopyAvailable: !!copyProvider,
     aiImageAvailable: !!imageProvider,
     aiVideoAvailable: !!videoProvider,
+    aiVoiceAvailable: !!voiceProvider,
     aiCopyProvider: copyProvider,
     aiImageProvider: imageProvider,
     aiVideoProvider: videoProvider,
+    aiVoiceProvider: voiceProvider,
     twitterOAuthEnabled: hasTwitterOAuthCredentials(),
     twitterBearerOnly: isTwitterBearerOnly(),
     guides: INTEGRATION_GUIDES,

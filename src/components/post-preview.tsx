@@ -152,6 +152,25 @@ export function PostPreview({
         )}
       </div>
 
+      {post.image.audioUrl && (
+        <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3">
+          <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+            AI voiceover
+          </p>
+          <audio
+            src={post.image.audioUrl}
+            controls
+            preload="metadata"
+            className="h-9 w-full"
+          />
+          {post.image.voiceoverScript && (
+            <p className="mt-2 text-xs italic text-slate-500 dark:text-slate-400">
+              &ldquo;{post.image.voiceoverScript}&rdquo;
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3 p-4">
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800 dark:text-slate-200">
           {post.text}
