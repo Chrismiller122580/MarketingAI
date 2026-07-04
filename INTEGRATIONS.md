@@ -13,6 +13,7 @@ Check connection status in the app: **Settings → Integrations overview**.
 | OpenAI | `OPENAI_API_KEY` |
 | xAI (Grok) | `XAI_API_KEY` |
 | Replicate | `REPLICATE_API_TOKEN` |
+| ElevenLabs | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` (optional) |
 | X / Twitter | `TWITTER_ACCESS_TOKEN`, `TWITTER_CLIENT_ID`, `TWITTER_CLIENT_SECRET` |
 | LinkedIn | `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_AUTHOR_URN`, `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` |
 | Facebook | `FACEBOOK_PAGE_ACCESS_TOKEN`, `FACEBOOK_PAGE_ID`, `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `FACEBOOK_LOGIN_CONFIG_ID` |
@@ -66,13 +67,27 @@ npm run dev
 
 ### Replicate (`REPLICATE_API_TOKEN`)
 
-- **Video:** Seedance text-to-video for short AI video ads in Content Studio
+- **Content Studio:** Seedance text-to-video for Reels, Video Ads, and video Stories
+- **Creator Studio:** Kling image-to-video (walk, spin, jump) and SadTalker lip-sync (talk)
 
 **Steps:**
 1. Create an account at [replicate.com](https://replicate.com)
 2. **Account → API tokens** → Create token
 3. Set `REPLICATE_API_TOKEN=r8_...` in Vercel or `.env`
-4. Redeploy. Video Ad generation in Content Studio will show as Active in Settings.
+4. Redeploy. Video features in Content Studio and motion clips in Creator Studio will be enabled.
+
+### ElevenLabs (`ELEVENLABS_API_KEY`)
+
+- **Creator Studio:** Text-to-speech for ViraForge **Talk** clips (paired with SadTalker on Replicate)
+
+**Steps:**
+1. Create an account at [elevenlabs.io](https://elevenlabs.io)
+2. **Profile → API keys** → Create key
+3. Set `ELEVENLABS_API_KEY` in Vercel or `.env`
+4. Optional: `ELEVENLABS_VOICE_ID` from your voice library
+5. Redeploy. Creator Studio → **Motion & Voice** → **Talk** will be enabled.
+
+**Tip:** For reliable Replicate uploads from large portrait data URLs, also set `BLOB_READ_WRITE_TOKEN` (Vercel Blob).
 
 ---
 

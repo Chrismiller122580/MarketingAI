@@ -28,13 +28,28 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     name: "Replicate",
     envVars: ["REPLICATE_API_TOKEN"],
     summary:
-      "Powers AI video for Reels, Video Ads, and video Stories (Seedance text-to-video).",
+      "Powers AI video for Reels, Video Ads, video Stories (Seedance), and ViraForge influencer motion (Kling + SadTalker).",
     steps: [
       "Go to replicate.com → Account → API tokens → Create token.",
       "Add REPLICATE_API_TOKEN to .env locally or Vercel → Settings → Environment Variables.",
-      "Redeploy on Vercel after saving. Reels, Video Ads, and video Stories in Content Studio will be enabled.",
+      "Redeploy on Vercel after saving. Reels, Video Ads, video Stories, and Creator Studio motion clips will be enabled.",
     ],
     docsUrl: "https://replicate.com/account/api-tokens",
+  },
+  {
+    id: "elevenlabs",
+    category: "ai",
+    name: "ElevenLabs",
+    envVars: ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID"],
+    summary:
+      "Powers ViraForge talking clips — natural voice from fact-locked scripts, paired with SadTalker lip-sync on Replicate.",
+    steps: [
+      "Go to elevenlabs.io → Profile → API keys → Create key.",
+      "Add ELEVENLABS_API_KEY to .env or Vercel env vars.",
+      "Optional: set ELEVENLABS_VOICE_ID to a voice from your ElevenLabs library.",
+      "Redeploy. Creator Studio → Motion & Voice → Talk will be enabled.",
+    ],
+    docsUrl: "https://elevenlabs.io/docs/api-reference/text-to-speech",
   },
   {
     id: "xai",

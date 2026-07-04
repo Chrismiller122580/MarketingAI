@@ -21,8 +21,18 @@ import {
   type ProductFactsForm,
 } from "@/lib/schemas/product-facts-schema";
 import { buildAvatarPreviewSummary } from "@/lib/viraforge/avatar-prompts";
+import type {
+  InfluencerAssets,
+  InfluencerMotionType,
+} from "@/lib/viraforge/influencer-assets";
 
-type CreatorTab = "physical" | "demographics" | "cultural" | "style" | "facts";
+type CreatorTab =
+  | "physical"
+  | "demographics"
+  | "cultural"
+  | "style"
+  | "facts"
+  | "motion";
 
 const TABS: { id: CreatorTab; label: string }[] = [
   { id: "physical", label: "Physical" },
@@ -30,6 +40,34 @@ const TABS: { id: CreatorTab; label: string }[] = [
   { id: "cultural", label: "Culture + Class" },
   { id: "style", label: "Personality + Voice" },
   { id: "facts", label: "Product Facts" },
+  { id: "motion", label: "Motion & Voice" },
+];
+
+const MOTION_ACTIONS: {
+  type: InfluencerMotionType;
+  label: string;
+  description: string;
+}[] = [
+  {
+    type: "talk",
+    label: "Talk",
+    description: "ElevenLabs voice + lip-sync talking clip",
+  },
+  {
+    type: "walk",
+    label: "Walk",
+    description: "Natural forward walk from portrait",
+  },
+  {
+    type: "spin",
+    label: "Spin",
+    description: "Smooth 360° turn",
+  },
+  {
+    type: "jump",
+    label: "Jump",
+    description: "Energetic jump motion",
+  },
 ];
 
 const BODY_TYPE_HINTS: Record<number, string> = {
@@ -95,6 +133,22 @@ export function ViraForgeCreatorStudio() {
   );
   const [quoteValidation, setQuoteValidation] = useState<string[] | null>(null);
   const [hydrating, setHydrating] = useState(Boolean(editId));
+  const [motionScript, setMotionScript] = useState(
+    defaultCreatorAvatarValues.sampleQuote,
+  );
+  const [motionVideo, setMotionVideo] = useState<string | null>(null);
+  const [voiceAudio, setVoiceAudio] = useState<string | null>(null);
+  const [motionLoading, setMotionLoading] = useState<InfluencerMotionType | null>(
+    null,
+  );
+  const [previewMode, setPreviewMode] = useState<"portrait" | "motion">(
+    "portrait",
+  );
+  const [capabilities, setCapabilities] = useState<{
+    motionVideoAvailable: boolean;
+    voiceAvailable: boolean;
+    motionTypes: Record<InfluencerMotionType, boolean>;
+  } | null>(null);
 
   const personaForm = useForm<CreatorAvatarForm>({
     resolver: zodResolver(creatorAvatarSchema),
@@ -109,6 +163,7 @@ export function ViraForgeCreatorStudio() {
   const watched = useWatch({ control: personaForm.control });
   const values = { ...defaultCreatorAvatarValues, ...watched };
   const generating = status === "loading";
+  const motionBusy = motionLoading !== null;
   const previewSummary = buildAvatarPreviewSummary(values);
 
   const loadInfluencers = useCallback(async () => {
@@ -119,7 +174,7 @@ export function ViraForgeCreatorStudio() {
         influencers?: Array<{
           id: string;
           persona: CreatorAvatarForm;
-          assets?: { portraitUrl?: string };
+          assets?: InfluencerAssets;
           productFacts?: ProductFactsForm;
         }>;
         defaults?: Partial<CreatorAvatarForm>;
@@ -136,6 +191,18 @@ export function ViraForgeCreatorStudio() {
           }
           if (match.assets?.portraitUrl) {
             setPreviewImage(match.assets.portraitUrl);
+          }
+          if (match.assets?.videoUrl) {
+            setMotionVideo(match.assets.videoUrl);
+            setPreviewMode("motion");
+          }
+          if (match.assets?.voiceAudioUrl) {
+            setVoiceAudio(match.assets.voiceAudioUrl);
+          }
+          if (match.assets?.lastScript) {
+            setMotionScript(match.assets.lastScript);
+          } else if (match.persona.sampleQuote) {
+            setMotionScript(match.persona.sampleQuote);
           }
           setInfluencerId(match.id);
           return;
@@ -159,6 +226,101 @@ export function ViraForgeCreatorStudio() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate form from API on mount
     void loadInfluencers();
   }, [loadInfluencers]);
+
+  useEffect(() => {
+    fetch("/api/creator-studio/capabilities")
+      .then((r) => r.json())
+      .then((data) => setCapabilities(data))
+      .catch(() => setCapabilities(null));
+  }, []);
+
+  const pollMotionJob = useCallback(
+    async (jobId: string, motionType: InfluencerMotionType) => {
+      const maxAttempts = 90;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+        const res = await fetch(`/api/creator-studio/motion/status/${jobId}`);
+        const data = (await res.json()) as {
+          status?: string;
+          videoUrl?: string;
+          voiceAudioUrl?: string;
+          error?: string;
+        };
+
+        if (data.status === "ready" && data.videoUrl) {
+          setMotionVideo(data.videoUrl);
+          setPreviewMode("motion");
+          if (data.voiceAudioUrl) setVoiceAudio(data.voiceAudioUrl);
+          setMotionLoading(null);
+          toast.success(
+            motionType === "talk"
+              ? "Talking clip ready — lip-sync video saved."
+              : `${motionType.charAt(0).toUpperCase()}${motionType.slice(1)} clip ready.`,
+          );
+          return;
+        }
+
+        if (data.status === "failed") {
+          setMotionLoading(null);
+          toast.error(data.error ?? "Motion generation failed");
+          return;
+        }
+      }
+
+      setMotionLoading(null);
+      toast.error("Motion generation timed out. Check back on dashboard later.");
+    },
+    [],
+  );
+
+  const handleMotion = async (motionType: InfluencerMotionType) => {
+    if (!previewImage) {
+      toast.error("Generate a portrait before motion clips");
+      setActiveTab("physical");
+      return;
+    }
+
+    if (!influencerId) {
+      toast.error("Save the influencer first so motion clips can be stored");
+      return;
+    }
+
+    setMotionLoading(motionType);
+    setQuoteValidation(null);
+
+    try {
+      const res = await fetch("/api/creator-studio/motion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          influencerId,
+          motionType,
+          script: motionType === "talk" ? motionScript : undefined,
+        }),
+      });
+
+      const payload = (await res.json()) as {
+        error?: string;
+        jobId?: string;
+        voiceAudioUrl?: string;
+        quoteValidation?: { violations: string[] };
+      };
+
+      if (!res.ok) {
+        if (payload.quoteValidation?.violations) {
+          setQuoteValidation(payload.quoteValidation.violations);
+        }
+        throw new Error(payload.error ?? "Motion request failed");
+      }
+
+      if (payload.voiceAudioUrl) setVoiceAudio(payload.voiceAudioUrl);
+      if (payload.jobId) void pollMotionJob(payload.jobId, motionType);
+      else setMotionLoading(null);
+    } catch (err) {
+      setMotionLoading(null);
+      toast.error(err instanceof Error ? err.message : "Motion failed");
+    }
+  };
 
   const recordFieldEdit = (field: string, value: unknown) => {
     postLearn("field_edit", { field, value }, influencerId ?? undefined);
@@ -686,6 +848,108 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
+          {activeTab === "motion" && (
+            <div className="space-y-5">
+              <p className="text-xs text-muted-foreground">
+                Turn the saved portrait into motion clips. Talk uses ElevenLabs
+                voice + SadTalker lip-sync. Walk, spin, and jump use Kling
+                image-to-video via Replicate.
+              </p>
+
+              {!previewImage && (
+                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                  Generate a portrait first — motion builds from that still image.
+                </p>
+              )}
+
+              {capabilities && !capabilities.motionVideoAvailable && (
+                <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  Add REPLICATE_API_TOKEN to enable motion clips.
+                </p>
+              )}
+
+              {capabilities && !capabilities.voiceAvailable && (
+                <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  Add ELEVENLABS_API_KEY for talking clips (walk/spin/jump still
+                  work with Replicate only).
+                </p>
+              )}
+
+              <div>
+                <label htmlFor="motionScript" className="text-sm font-medium">
+                  Talking script (fact-locked)
+                </label>
+                <textarea
+                  id="motionScript"
+                  className={`${inputClass} min-h-24`}
+                  value={motionScript}
+                  onChange={(e) => setMotionScript(e.target.value)}
+                  placeholder="Script for Talk clips — must match verified product facts"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {MOTION_ACTIONS.map((action) => {
+                  const enabled =
+                    !!previewImage &&
+                    !!capabilities?.motionTypes[action.type] &&
+                    !motionBusy;
+                  const busy = motionLoading === action.type;
+
+                  return (
+                    <button
+                      key={action.type}
+                      type="button"
+                      disabled={!enabled && !busy}
+                      onClick={() => void handleMotion(action.type)}
+                      className={`rounded-xl border px-3 py-4 text-left transition-colors ${
+                        busy
+                          ? "border-violet-500 bg-violet-500/10"
+                          : enabled
+                            ? "border-border bg-card hover:border-violet-500/50 hover:bg-muted/50"
+                            : "cursor-not-allowed border-border/60 bg-muted/30 opacity-60"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-foreground">
+                        {busy ? (
+                          <InlineLoading label={action.label} />
+                        ) : (
+                          action.label
+                        )}
+                      </p>
+                      <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                        {action.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {voiceAudio && (
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-medium text-foreground">
+                    Latest voice track
+                  </p>
+                  <audio controls src={voiceAudio} className="w-full" />
+                </div>
+              )}
+
+              {motionVideo && (
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-medium text-foreground">
+                    Latest motion clip
+                  </p>
+                  <video
+                    src={motionVideo}
+                    controls
+                    playsInline
+                    className="mx-auto max-h-80 w-full rounded-lg bg-black object-contain"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {error && (
             <p className="text-sm text-destructive" role="alert">
               {error}
@@ -715,11 +979,39 @@ export function ViraForgeCreatorStudio() {
 
         <div className="lg:sticky lg:top-6 lg:col-span-5 lg:self-start">
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-            <div className="flex items-center justify-between border-b border-border bg-muted/80 px-4 py-3 text-xs">
+            <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/80 px-4 py-3 text-xs">
               <span className="font-medium text-foreground">
                 Live preview · @{values.handle}
               </span>
-              <Camera className="h-4 w-4 text-muted-foreground" aria-hidden />
+              <div className="flex items-center gap-2">
+                {motionVideo && (
+                  <div className="flex rounded-md border border-border bg-background p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMode("portrait")}
+                      className={`rounded px-2 py-1 text-[10px] font-medium ${
+                        previewMode === "portrait"
+                          ? "bg-violet-600 text-white"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      Portrait
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewMode("motion")}
+                      className={`rounded px-2 py-1 text-[10px] font-medium ${
+                        previewMode === "motion"
+                          ? "bg-violet-600 text-white"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      Motion
+                    </button>
+                  </div>
+                )}
+                <Camera className="h-4 w-4 text-muted-foreground" aria-hidden />
+              </div>
             </div>
 
             <div className="bg-gradient-to-b from-muted/40 to-muted/10 p-4 sm:p-6">
@@ -735,6 +1027,16 @@ export function ViraForgeCreatorStudio() {
                         </p>
                       </div>
                     </div>
+                  ) : previewMode === "motion" && motionVideo ? (
+                    <video
+                      src={motionVideo}
+                      controls
+                      playsInline
+                      autoPlay
+                      loop
+                      muted
+                      className="h-full w-full object-cover object-top"
+                    />
                   ) : previewImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -777,14 +1079,18 @@ export function ViraForgeCreatorStudio() {
                     </div>
                   )}
 
-                  {generating && (
+                  {(generating || motionBusy) && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/75 px-4 text-center backdrop-blur-sm">
                       <Spinner size="lg" className="border-violet-600" />
                       <p className="mt-4 text-sm font-semibold text-foreground">
-                        Generating {values.displayName}…
+                        {motionBusy
+                          ? `Rendering ${motionLoading} clip…`
+                          : `Generating ${values.displayName}…`}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Portrait generation in progress
+                        {motionBusy
+                          ? "Usually 1–3 minutes on Replicate"
+                          : "Portrait generation in progress"}
                       </p>
                     </div>
                   )}
@@ -796,11 +1102,15 @@ export function ViraForgeCreatorStudio() {
                   {previewSummary}
                 </p>
                 <p className="border-t border-border pt-2 text-center text-emerald-600 dark:text-emerald-400">
-                  {generating
-                    ? "AI is rendering your influencer portrait…"
-                    : status === "success"
-                      ? "Portrait generated — learning from this session"
-                      : "Complete Product Facts, then generate"}
+                  {motionBusy
+                    ? `Motion clip (${motionLoading}) rendering…`
+                    : generating
+                      ? "AI is rendering your influencer portrait…"
+                      : motionVideo
+                        ? "Motion clip saved to Influencer.assets.videoUrl"
+                        : status === "success"
+                          ? "Portrait generated — open Motion & Voice tab next"
+                          : "Complete Product Facts, then generate"}
                 </p>
               </div>
             </div>

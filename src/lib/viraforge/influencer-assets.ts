@@ -1,0 +1,20 @@
+export type InfluencerMotionType = "talk" | "walk" | "spin" | "jump";
+
+export type InfluencerAssets = {
+  portraitUrl?: string;
+  voiceAudioUrl?: string;
+  videoUrl?: string;
+  motionType?: InfluencerMotionType;
+  motionJobId?: string;
+  voiceId?: string;
+  lastScript?: string;
+  motionStatus?: "processing" | "ready" | "failed";
+  motionError?: string;
+};
+
+export function mergeInfluencerAssets(
+  prior: unknown,
+  patch: Partial<InfluencerAssets>,
+): InfluencerAssets {
+  return { ...((prior ?? {}) as InfluencerAssets), ...patch };
+}

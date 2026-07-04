@@ -11,7 +11,7 @@ type InfluencerRow = {
   displayName: string;
   handle: string;
   updatedAt: string;
-  assets?: { portraitUrl?: string } | null;
+  assets?: { portraitUrl?: string; videoUrl?: string } | null;
   productFacts?: { name: string } | null;
 };
 
@@ -92,7 +92,14 @@ export function InfluencersPanel() {
               className="flex items-center gap-4 rounded-lg border border-border p-3"
             >
               <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
-                {inf.assets?.portraitUrl ? (
+                {inf.assets?.videoUrl ? (
+                  <video
+                    src={inf.assets.videoUrl}
+                    muted
+                    playsInline
+                    className="h-full w-full object-cover object-top"
+                  />
+                ) : inf.assets?.portraitUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={inf.assets.portraitUrl}

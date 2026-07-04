@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
+import {
+  mergeInfluencerAssets,
+  type InfluencerAssets,
+} from "./influencer-assets";
 
 export type CreatorEventType =
   | "field_edit"
@@ -239,7 +243,7 @@ export async function upsertInfluencerWithFacts(
   userId: string,
   persona: CreatorAvatarForm,
   productFacts: ProductFactsForm,
-  assets?: { portraitUrl?: string },
+  assets?: Partial<InfluencerAssets>,
 ): Promise<{ influencerId: string; productFactsId: string }> {
   const existing = await prisma.influencer.findUnique({
     where: { userId_handle: { userId, handle: persona.handle } },
@@ -275,8 +279,7 @@ export async function upsertInfluencerWithFacts(
     factsId = facts.id;
   }
 
-  const priorAssets = (existing?.assets ?? {}) as Record<string, unknown>;
-  const mergedAssets = { ...priorAssets, ...assets };
+  const mergedAssets = mergeInfluencerAssets(existing?.assets, assets ?? {});
 
   const influencer = await prisma.influencer.upsert({
     where: {
