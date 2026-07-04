@@ -99,14 +99,21 @@ In standalone mode the app uses `display: standalone` and your brand icon + them
 
 ## Default Admin Account
 
-Created by `npm run db:seed` (override via env vars):
+Created by `npm run db:seed` after you set credentials in `.env.local` (or Vercel env vars):
 
 | Field | Default |
 |-------|---------|
-| Email | `admin@crawlspark.ai` |
-| Password | `CrawlSpark2026!` |
+| Email | `chrismiller122580@gmail.com` |
+| Password | **You set this** — `ADMIN_PASSWORD` in `.env.local` / Vercel (required; seed will fail without it) |
+| Name | `Chris` |
 
-Customize with `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_NAME` in `.env`.
+```bash
+# 1. Edit .env.local — set ADMIN_PASSWORD to your chosen password
+# 2. Apply seed (creates or updates the admin user)
+npm run db:seed
+```
+
+Override email/name with `ADMIN_EMAIL` and `ADMIN_NAME` if needed.
 
 ## Environment Variables
 

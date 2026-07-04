@@ -15,10 +15,17 @@ const DEFAULT_SETTINGS = {
 
 async function main() {
   const email = (
-    process.env.ADMIN_EMAIL ?? "admin@crawlspark.ai"
+    process.env.ADMIN_EMAIL ?? "chrismiller122580@gmail.com"
   ).toLowerCase();
-  const password = process.env.ADMIN_PASSWORD ?? "CrawlSpark2026!";
-  const name = process.env.ADMIN_NAME ?? "Admin";
+  const password = process.env.ADMIN_PASSWORD?.trim();
+  const name = process.env.ADMIN_NAME ?? "Chris";
+
+  if (!password || password === "your-secure-password-here") {
+    console.error(
+      "ADMIN_PASSWORD is required. Set it in .env.local (local) or Vercel env vars, then run: npm run db:seed",
+    );
+    process.exit(1);
+  }
 
   const passwordHash = await bcrypt.hash(password, 12);
 
