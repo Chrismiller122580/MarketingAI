@@ -4,8 +4,12 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 type Mode = "login" | "signup";
+
+const inputClass =
+  "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-900/40";
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -30,8 +34,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, email, password }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Registration failed");
+        const data = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          throw new Error(data.error ?? "Registration failed");
+        }
       }
 
       const result = await signIn("credentials", {
@@ -51,7 +57,18 @@ export function AuthForm({ mode }: { mode: Mode }) {
       router.push(callbackUrl);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      const message =
+        err instanceof Error ? err.message : "Something went wrong";
+      if (
+        message.includes("Can't reach database") ||
+        message.includes("Environment variable not found: DATABASE_URL")
+      ) {
+        setError(
+          "Database is not configured. Set DATABASE_URL in .env.local and run npm run db:push.",
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -65,10 +82,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-crawl-700 to-spark-500 text-lg font-bold text-white">
           C
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+        <h1 className="text-2xl font-bold text-foreground">
           {isSignup ? "Create your account" : "Welcome back"}
         </h1>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-2 text-sm text-muted-foreground">
           {isSignup
             ? "Start generating AI-powered marketing content"
             : "Sign in to your crawlspark.ai workspace"}
@@ -77,14 +94,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm"
+        className="rounded-xl border border-border bg-card p-6 shadow-sm"
       >
         <div className="space-y-4">
           {isSignup && (
             <div>
               <label
                 htmlFor="name"
-                className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                className="mb-1.5 block text-sm font-medium text-foreground"
               >
                 Full name
               </label>
@@ -95,7 +112,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 onChange={(e) => setName(e.target.value)}
                 required
                 autoComplete="name"
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                className={inputClass}
                 placeholder="Jane Doe"
               />
             </div>
@@ -104,7 +121,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <div>
             <label
               htmlFor="email"
-              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="mb-1.5 block text-sm font-medium text-foreground"
             >
               Email
             </label>
@@ -115,7 +132,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              className={inputClass}
               placeholder="you@company.com"
             />
           </div>
@@ -123,7 +140,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <div>
             <label
               htmlFor="password"
-              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="mb-1.5 block text-sm font-medium text-foreground"
             >
               Password
             </label>
@@ -135,11 +152,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
               required
               minLength={8}
               autoComplete={isSignup ? "new-password" : "current-password"}
-              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              className={inputClass}
               placeholder="••••••••"
             />
             {isSignup && (
-              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 At least 8 characters
               </p>
             )}
@@ -147,29 +164,32 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </div>
 
         {error && (
-          <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          <p
+            className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            role="alert"
+          >
             {error}
           </p>
         )}
 
-        <button
+        <Button
           type="submit"
           disabled={loading}
-          className="mt-6 w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-50"
+          className="mt-6 w-full bg-amber-600 py-2.5 text-sm font-medium text-white hover:bg-amber-700"
         >
           {loading
             ? "Please wait…"
             : isSignup
               ? "Create account"
               : "Sign in"}
-        </button>
+        </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
         <Link
           href={isSignup ? "/login" : "/signup"}
-          className="font-medium text-amber-600 hover:text-amber-700"
+          className="font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400"
         >
           {isSignup ? "Sign in" : "Sign up"}
         </Link>

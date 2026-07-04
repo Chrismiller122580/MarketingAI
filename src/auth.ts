@@ -5,13 +5,22 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getAppOrigin } from "@/lib/app-url";
 
-// Ensure NextAuth uses the canonical domain (not per-deployment VERCEL_URL).
-if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
-  process.env.AUTH_URL = getAppOrigin();
-}
+// Ensure NextAuth uses the correct origin (localhost in dev, canonical URL in prod).
+const resolvedAuthOrigin = getAppOrigin();
+process.env.AUTH_URL = resolvedAuthOrigin;
+process.env.NEXTAUTH_URL = resolvedAuthOrigin;
 
 const authSecret =
   process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+
+if (
+  process.env.NODE_ENV === "development" &&
+  (!authSecret || authSecret === "your-secret-here")
+) {
+  console.warn(
+    "[auth] AUTH_SECRET is missing or placeholder. Generate one with: openssl rand -base64 32",
+  );
+}
 
 // Loose typing helpers to avoid `any` while supporting extended NextAuth JWT/session fields
 type ExtToken = Record<string, unknown>;
@@ -20,6 +29,7 @@ type ExtUser = Record<string, unknown>;
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: authSecret,
   trustHost: true,
+  useSecureCookies: process.env.NODE_ENV === "production",
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
@@ -37,25 +47,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!email || !password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase().trim() },
-        });
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: email.toLowerCase().trim() },
+          });
 
-        if (!user?.passwordHash) return null;
+          if (!user?.passwordHash) return null;
 
-        const valid = await bcrypt.compare(password, user.passwordHash);
-        if (!valid) return null;
+          const valid = await bcrypt.compare(password, user.passwordHash);
+          if (!valid) return null;
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role,
-          plan: user.plan,
-          subscriptionStatus: user.subscriptionStatus,
-          subscriptionEndsAt: user.subscriptionEndsAt,
-        };
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role,
+            plan: user.plan,
+            subscriptionStatus: user.subscriptionStatus,
+            subscriptionEndsAt: user.subscriptionEndsAt,
+          };
+        } catch (err) {
+          console.error("[auth] credentials authorize failed:", err);
+          return null;
+        }
       },
     }),
     Twitter({

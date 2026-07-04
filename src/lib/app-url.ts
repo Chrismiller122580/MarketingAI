@@ -12,6 +12,21 @@ function canonicalizeProductionHost(host: string): string {
 
 /** Canonical app origin for redirects, OAuth callbacks, and Meta URLs. */
 export function getAppOrigin(): string {
+  // Local `next dev` must use localhost — production AUTH_URL in .env breaks sign-in.
+  if (
+    process.env.NODE_ENV === "development" &&
+    !process.env.VERCEL &&
+    !process.env.VERCEL_URL
+  ) {
+    const local =
+      process.env.AUTH_URL_LOCAL ??
+      (process.env.AUTH_URL?.includes("localhost")
+        ? process.env.AUTH_URL
+        : undefined);
+    if (local) return normalizeOrigin(local);
+    return "http://localhost:3000";
+  }
+
   const explicit =
     process.env.AUTH_URL ??
     process.env.NEXTAUTH_URL ??
