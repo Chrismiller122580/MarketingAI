@@ -8,8 +8,8 @@ export const creatorAvatarSchema = z.object({
     .max(40)
     .regex(/^[a-zA-Z0-9_]+$/, "Handle must be alphanumeric or underscore"),
   gender: z.enum(["female", "male", "nonbinary"]),
-  age: z.coerce.number().min(18).max(80),
-  bodyType: z.coerce.number().min(0).max(100),
+  age: z.number().min(18).max(80),
+  bodyType: z.number().min(0).max(100),
   height: z.string().min(1).max(40),
   faceShape: z.string().min(1).max(40),
   hair: z.string().min(1).max(120),

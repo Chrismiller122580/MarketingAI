@@ -21,6 +21,12 @@ async function main() {
   const name = process.env.ADMIN_NAME ?? "Chris";
 
   if (!password || password === "your-secure-password-here") {
+    if (process.env.VERCEL) {
+      console.warn(
+        "ADMIN_PASSWORD not set on Vercel — skipping admin seed. Add ADMIN_PASSWORD and redeploy to create/update the admin account.",
+      );
+      return;
+    }
     console.error(
       "ADMIN_PASSWORD is required. Set it in .env.local (local) or Vercel env vars, then run: npm run db:seed",
     );

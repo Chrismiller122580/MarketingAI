@@ -372,7 +372,7 @@ export function ViraForgeCreatorStudio() {
                   min={18}
                   max={80}
                   className={inputClass}
-                  {...personaForm.register("age")}
+                  {...personaForm.register("age", { valueAsNumber: true })}
                 />
               </div>
               <div className="sm:col-span-2">
@@ -386,6 +386,7 @@ export function ViraForgeCreatorStudio() {
                   max={100}
                   className="mt-3 w-full"
                   {...personaForm.register("bodyType", {
+                    valueAsNumber: true,
                     onChange: (e) =>
                       recordFieldEdit("bodyType", Number(e.target.value)),
                   })}

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
@@ -42,7 +43,7 @@ export async function recordCreatorEvent(
       userId,
       influencerId,
       eventType,
-      payload,
+      payload: payload as Prisma.InputJsonValue,
     },
   });
 
