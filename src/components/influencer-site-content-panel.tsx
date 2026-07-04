@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Globe, Lock, Sparkles } from "lucide-react";
+import { ArrowUpRight, Globe, Lock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSite } from "@/context/site-context";
@@ -315,6 +315,21 @@ export function InfluencerSiteContentPanel({
           </>
         )}
       </Button>
+
+      {influencerId && selectedDomain && (
+        <Button
+          asChild
+          variant="outline"
+          className="w-full border-violet-500/40 text-violet-700 hover:bg-violet-500/10 dark:text-violet-300"
+        >
+          <Link
+            href={`/content?influencer=${encodeURIComponent(influencerId)}&domain=${encodeURIComponent(selectedDomain)}&page=${encodeURIComponent(selectedPage)}`}
+          >
+            <ArrowUpRight className="mr-2 h-4 w-4" />
+            Open in Content Studio (full pipeline)
+          </Link>
+        </Button>
+      )}
 
       {content && (
         <div className="space-y-3 rounded-xl border border-border bg-card p-4">

@@ -172,7 +172,7 @@ export type ImageOverlayLayer =
 
 export type PostMedia = {
   url: string;
-  source: "site" | "branded" | "ai" | "edited";
+  source: "site" | "branded" | "ai" | "edited" | "influencer";
   alt: string;
   originalUrl?: string;
   editedUrl?: string;
@@ -266,10 +266,24 @@ export type CampaignPack = {
 };
 
 import type { VisualTargeting } from "./visual-targeting";
+import type { CreatorAvatarForm } from "./schemas/creator-avatar-schema";
+import type { ProductFactsForm } from "./schemas/product-facts-schema";
+import type { FactPinpoint } from "./viraforge/site-facts-extractor";
+import type { InfluencerAssets } from "./viraforge/influencer-assets";
 
 export type { VisualTargeting };
 
 export type StoryMedia = "image" | "video";
+
+export type InfluencerGenerateContext = {
+  id: string;
+  displayName: string;
+  handle: string;
+  persona: CreatorAvatarForm;
+  facts: ProductFactsForm;
+  pinpoints: FactPinpoint[];
+  assets: InfluencerAssets;
+};
 
 export type GenerateRequest = {
   site: SiteData;
@@ -284,6 +298,9 @@ export type GenerateRequest = {
   visualTargeting?: VisualTargeting;
   contentAngle?: ContentAngle;
   existingPosts?: PostHistorySnapshot[];
+  influencer?: InfluencerGenerateContext;
+  useInfluencerPortrait?: boolean;
+  influencerVoice?: boolean;
 };
 
 export type VideoJobStatus = {

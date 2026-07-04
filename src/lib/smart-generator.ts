@@ -29,6 +29,7 @@ import {
   describeVisualTargeting,
   hasActiveVisualTargeting,
 } from "./visual-targeting";
+import { generateInfluencerSiteContent } from "./viraforge/influencer-content";
 import type {
   BatchGenerateRequest,
   ContentType,
@@ -397,7 +398,9 @@ function buildInsights(
       ? "Used highest-scoring image from crawled pages."
       : imageSource === "ai"
         ? "Generated unique AI visual tailored to your brand and page."
-        : "Generated branded visual — no suitable site image found.",
+        : imageSource === "influencer"
+          ? "Used influencer portrait from Creator Studio."
+          : "Generated branded visual — no suitable site image found.",
     `Optimized for ${platform} (${PLATFORM_LIMITS[platform]} chars).`,
   ];
 
@@ -412,6 +415,30 @@ function buildInsights(
   return insights;
 }
 
+function resolveInfluencerPortrait(
+  request: GenerateRequest,
+  page: SitePage,
+  contentType: ContentType,
+): GeneratedPost["image"] | null {
+  const influencer = request.influencer;
+  if (!influencer || request.useInfluencerPortrait === false) return null;
+
+  const portraitUrl = influencer.assets.portraitUrl;
+  if (!portraitUrl) return null;
+
+  const alt = `${influencer.displayName} (@${influencer.handle}) — ${page.title}`;
+
+  return {
+    url: portraitUrl,
+    source: "influencer",
+    alt,
+    originalUrl: portraitUrl,
+    ...(isVerticalContentType(contentType)
+      ? { aspectRatio: "9:16" as const }
+      : {}),
+  };
+}
+
 async function resolveImage(
   site: SiteData,
   page: SitePage,
@@ -420,7 +447,12 @@ async function resolveImage(
   preferAi: boolean,
   visualTargeting?: GenerateRequest["visualTargeting"],
   contentType: ContentType = "Social Post",
+  request?: GenerateRequest,
 ): Promise<GeneratedPost["image"]> {
+  const influencerImage = request
+    ? resolveInfluencerPortrait(request, page, contentType)
+    : null;
+  if (influencerImage) return influencerImage;
   const brandedFormat =
     contentType === "Story" ? "story" : contentType === "Reel" ? "reel" : undefined;
 
@@ -554,10 +586,36 @@ export async function generateSmartPost(
   const angleRequest = { ...request, contentAngle };
   const page = await pickPage(site, sourcePageUrl, prompt, contentType);
   const relatedPages = await getRelatedPages(site, page, prompt, contentType);
-  const text =
+
+  let text =
     platform === "email" && contentType === "Social Post"
       ? emailCopy(site, page, platform, prompt, settings)
       : generators[contentType](site, page, platform, prompt, settings);
+  let influencerInsights: string[] = [];
+
+  if (request.influencer && request.influencerVoice) {
+    const influencerPost = await generateInfluencerSiteContent({
+      persona: request.influencer.persona,
+      facts: request.influencer.facts,
+      pinpoints: request.influencer.pinpoints,
+      site,
+      page,
+      platform:
+        isInstagramFormat(contentType) ? "instagram" : platform,
+      brief: prompt || undefined,
+    });
+    text = truncate(influencerPost.text, PLATFORM_LIMITS[platform]);
+    influencerInsights = [
+      `Influencer voice: @${request.influencer.handle} with fact-locked citations.`,
+      `Cited ${influencerPost.citedFacts.length} verified fact(s) from crawl + product facts.`,
+    ];
+    if (!influencerPost.validation.valid) {
+      influencerInsights.push(
+        "Fact validation flagged possible issues — review copy before publishing.",
+      );
+    }
+  }
+
   const hashtags = buildHashtags(site, page, prompt, settings);
 
   const context = `${page.title} ${page.description} ${prompt}`;
@@ -583,29 +641,36 @@ export async function generateSmartPost(
     preferAi,
     effectiveTargeting,
     contentType,
+    request,
   );
 
-  const { variants, recommendation } = await enhanceWithDualAi(
-    angleRequest,
-    text,
-    page,
-    settings,
-    relatedPages,
-  );
+  const useInfluencerVoice = !!(request.influencer && request.influencerVoice);
+  const { variants, recommendation } = useInfluencerVoice
+    ? { variants: [], recommendation: undefined as undefined }
+    : await enhanceWithDualAi(
+        angleRequest,
+        text,
+        page,
+        settings,
+        relatedPages,
+      );
 
   const selectedVariant =
     variants.find((v) => v.provider === recommendation) ?? variants[0];
   const finalText = selectedVariant?.text ?? text;
 
   const aiProviders = getAvailableAiProviders();
-  const insights = buildInsights(
-    site,
-    page,
-    image.source,
-    platform,
-    settings,
-    aiProviders,
-  );
+  const insights = [
+    ...buildInsights(
+      site,
+      page,
+      image.source,
+      platform,
+      settings,
+      useInfluencerVoice ? [] : aiProviders,
+    ),
+    ...influencerInsights,
+  ];
 
   if (preferAi && image.source !== "ai") {
     insights.push(

@@ -7,10 +7,18 @@ import {
 import { hasVideoProvider } from "@/lib/ai-video";
 import { generateSmartPost } from "@/lib/smart-generator";
 import { startVideoGeneration } from "@/lib/video-generator";
-import type { ContentType, GenerateRequest, StoryMedia } from "@/lib/types";
-import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
+import type { ContentType, GenerateRequest, SiteData, StoryMedia } from "@/lib/types";
+import {
+  getUserPlanInfo,
+  isActivePaidPlan,
+  isAuthError,
+  requirePaidUserId,
+} from "@/lib/auth-helpers";
+import { prisma } from "@/lib/db";
 import { getPromptPreferences } from "@/lib/learning-preferences";
+import { isEnterprisePlusPlan } from "@/lib/plans";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
 
 export async function POST(request: Request) {
   const userId = await requirePaidUserId();
@@ -76,9 +84,50 @@ export async function POST(request: Request) {
     }
 
     const promptPreferences = await getPromptPreferences(userId as string);
+    const site = body.site as SiteData;
+
+    let influencerContext;
+    let influencerVoice = false;
+    const influencerId =
+      typeof body.influencerId === "string" ? body.influencerId : undefined;
+
+    if (influencerId) {
+      const sourcePageUrl = body.sourcePageUrl as string | undefined;
+      const page =
+        (sourcePageUrl
+          ? site.pages.find((p) => p.url === sourcePageUrl)
+          : undefined) ??
+        site.pages.find((p) => p.path === "/") ??
+        site.pages[0];
+
+      influencerContext = await loadInfluencerGenerateContext(
+        userId as string,
+        influencerId,
+        site,
+        page,
+      );
+
+      if (!influencerContext) {
+        return NextResponse.json(
+          { error: "Influencer not found or missing product facts." },
+          { status: 404 },
+        );
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId as string },
+        select: { role: true, plan: true, subscriptionEndsAt: true },
+      });
+      const planInfo = await getUserPlanInfo(userId as string);
+      influencerVoice =
+        user?.role === "admin" ||
+        (!!planInfo &&
+          isEnterprisePlusPlan(planInfo.plan) &&
+          isActivePaidPlan(planInfo.plan, planInfo.subscriptionEndsAt));
+    }
 
     const generateRequest: GenerateRequest = {
-      site: body.site,
+      site,
       contentType,
       platform: body.platform ?? "instagram",
       prompt: body.prompt ?? "",
@@ -93,6 +142,9 @@ export async function POST(request: Request) {
       visualTargeting: body.visualTargeting,
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
+      influencer: influencerContext ?? undefined,
+      useInfluencerPortrait: body.useInfluencerPortrait ?? true,
+      influencerVoice,
     };
 
     const post = await generateSmartPost(generateRequest);

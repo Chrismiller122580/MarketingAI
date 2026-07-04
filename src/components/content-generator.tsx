@@ -2,8 +2,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { UserRound, X } from "lucide-react";
 import { useSite } from "@/context/site-context";
 import { useSettings } from "@/context/settings-context";
 import { usePosts } from "@/context/posts-context";
@@ -29,8 +32,16 @@ import {
   triggersVideoGeneration,
 } from "@/lib/content-formats";
 import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
+import { ENTERPRISE_PLUS_LABEL, isEnterprisePlusPlan } from "@/lib/plans";
 import { ContentAnglePicker } from "./content-angle-picker";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
+
+type AttachedInfluencer = {
+  id: string;
+  displayName: string;
+  handle: string;
+  portraitUrl?: string;
+};
 
 const VisualPostEditor = dynamic(
   () =>
@@ -66,13 +77,17 @@ const platforms: { value: Platform; label: string }[] = [
 ];
 
 export function ContentGenerator() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
-  const { site } = useSite();
+  const { site, loadSavedSite } = useSite();
   const { settings } = useSettings();
   const { posts, savePost, updatePostMedia } = usePosts();
 
   const su = (session?.user ?? {}) as Record<string, unknown>;
   const userPlan = (su.plan as string) || "free";
+  const isAdmin = su.role === "admin";
+  const hasEnterprisePlus = isAdmin || isEnterprisePlusPlan(userPlan);
   const endsAtRaw = su.subscriptionEndsAt;
   const isPaid = userPlan !== "free" && (!endsAtRaw || (() => { try { return new Date(endsAtRaw as any) > new Date(); } catch { return false; } })());
 
@@ -94,6 +109,9 @@ export function ContentGenerator() {
   const [contentAngle, setContentAngle] = useState<ContentAngle>("auto");
   const [storyMedia, setStoryMedia] = useState<StoryMedia>("image");
   const [aiCaps, setAiCaps] = useState<AiCapabilities | null>(null);
+  const [attachedInfluencer, setAttachedInfluencer] =
+    useState<AttachedInfluencer | null>(null);
+  const [useInfluencerPortrait, setUseInfluencerPortrait] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const postHistory = posts.map((p) => ({
@@ -130,9 +148,7 @@ export function ContentGenerator() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const type = params.get("type");
+    const type = searchParams.get("type");
     if (type === "video") {
       Promise.resolve().then(() => setContentType("Video Ad"));
     } else if (type === "reel") {
@@ -151,11 +167,71 @@ export function ContentGenerator() {
         setPlatform("instagram");
       });
     }
-    const angle = params.get("angle");
+    const angle = searchParams.get("angle");
     if (angle) {
       Promise.resolve().then(() => setContentAngle(angle as ContentAngle));
     }
-  }, []);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const influencerId = searchParams.get("influencer");
+    if (!influencerId) {
+      Promise.resolve().then(() => setAttachedInfluencer(null));
+      return;
+    }
+
+    let cancelled = false;
+    fetch("/api/creator-studio/influencers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: {
+        influencers?: Array<{
+          id: string;
+          persona?: { displayName?: string; handle?: string };
+          assets?: { portraitUrl?: string };
+        }>;
+      } | null) => {
+        if (cancelled || !data?.influencers) return;
+        const match = data.influencers.find((i) => i.id === influencerId);
+        if (!match) return;
+        const persona = match.persona ?? {};
+        setAttachedInfluencer({
+          id: match.id,
+          displayName: persona.displayName ?? "Influencer",
+          handle: persona.handle ?? "creator",
+          portraitUrl: match.assets?.portraitUrl,
+        });
+        setUseInfluencerPortrait(true);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
+
+  useEffect(() => {
+    const domainParam = searchParams.get("domain");
+    if (domainParam && site?.domain !== domainParam) {
+      void loadSavedSite(domainParam);
+    }
+  }, [searchParams, site?.domain, loadSavedSite]);
+
+  useEffect(() => {
+    const pageParam = searchParams.get("page");
+    if (!pageParam || !site) return;
+    const match =
+      site.pages.find((p) => p.path === pageParam) ??
+      site.pages.find((p) => p.url === pageParam);
+    if (match) {
+      Promise.resolve().then(() => setSelectedPage(match.url));
+    }
+  }, [searchParams, site]);
+
+  function detachInfluencer() {
+    setAttachedInfluencer(null);
+    setUseInfluencerPortrait(true);
+    router.replace("/content");
+  }
 
   useEffect(() => {
     if (isInstagramFormat(contentType)) {
@@ -271,6 +347,10 @@ export function ContentGenerator() {
           visualTargeting: usesAiVisuals ? visualTargeting : undefined,
           contentAngle,
           existingPosts: postHistory,
+          influencerId: attachedInfluencer?.id,
+          useInfluencerPortrait: attachedInfluencer
+            ? useInfluencerPortrait
+            : undefined,
         }),
       });
 
@@ -380,6 +460,71 @@ export function ContentGenerator() {
               <strong>Reel</strong> or <strong>Story</strong> for Instagram
               vertical formats, or <strong>Video Ad</strong> for short AI video
               ads (5–10 seconds).
+            </div>
+          )}
+
+          {site && attachedInfluencer && (
+            <div className="rounded-lg border border-violet-200 bg-violet-50/70 px-4 py-3 dark:border-violet-900/50 dark:bg-violet-950/20">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  {attachedInfluencer.portraitUrl ? (
+                    <img
+                      src={attachedInfluencer.portraitUrl}
+                      alt=""
+                      className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-violet-200 dark:ring-violet-800"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-200">
+                      <UserRound className="h-5 w-5" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      Linked from Creator Studio
+                    </p>
+                    <p className="truncate text-sm text-slate-600 dark:text-slate-400">
+                      {attachedInfluencer.displayName} · @
+                      {attachedInfluencer.handle}
+                    </p>
+                    {hasEnterprisePlus ? (
+                      <p className="mt-1 text-xs text-violet-700 dark:text-violet-300">
+                        {ENTERPRISE_PLUS_LABEL}: fact-locked influencer copy from
+                        crawled pages.
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                        Standard site copy — upgrade to {ENTERPRISE_PLUS_LABEL}{" "}
+                        for influencer voice with locked facts.{" "}
+                        <Link href="/billing" className="underline">
+                          Upgrade
+                        </Link>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={detachInfluencer}
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-white/80 dark:text-slate-300 dark:hover:bg-slate-800"
+                  aria-label="Detach influencer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Detach
+                </button>
+              </div>
+              {!isVideoContent && !isStory && (
+                <label className="mt-3 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={useInfluencerPortrait}
+                    onChange={(e) => setUseInfluencerPortrait(e.target.checked)}
+                    className="rounded border-slate-300 text-violet-600"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">
+                    Use influencer portrait (uncheck for site or AI image)
+                  </span>
+                </label>
+              )}
             </div>
           )}
 
@@ -556,7 +701,10 @@ export function ContentGenerator() {
             </div>
           )}
 
-          {site && !isVideoContent && !isStory && (
+          {site &&
+            !isVideoContent &&
+            !isStory &&
+            (!attachedInfluencer || !useInfluencerPortrait) && (
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
