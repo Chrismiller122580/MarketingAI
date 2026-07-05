@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { sendVerificationEmail } from "@/lib/auth-email";
+import { createVerificationToken } from "@/lib/auth-tokens";
+import { checkIpRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const DEFAULT_SETTINGS = {
   brandVoice:
@@ -14,6 +17,15 @@ const DEFAULT_SETTINGS = {
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const rl = checkIpRateLimit(ip, "authRegister");
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: `Too many registration attempts. Retry in ~${rl.retryAfterSeconds}s.` },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const email =
@@ -54,10 +66,19 @@ export async function POST(request: Request) {
       select: { id: true, name: true, email: true },
     });
 
+    try {
+      const token = await createVerificationToken("verify", email);
+      await sendVerificationEmail(email, token);
+    } catch (emailErr) {
+      console.error("[register] verification email failed:", emailErr);
+    }
+
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Registration failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[register] failed:", error);
+    return NextResponse.json(
+      { error: "Registration failed. Please try again." },
+      { status: 500 },
+    );
   }
 }

@@ -41,11 +41,54 @@ function extractFeaturesFromPage(page: SitePage): string[] {
   return uniqueStrings(candidates, 8);
 }
 
+export type SitePageRole = "home" | "pricing" | "about" | "contact" | "product" | "other";
+
+export function classifySitePage(page: SitePage): SitePageRole {
+  const hay = `${page.path} ${page.title} ${page.description}`.toLowerCase();
+  if (/\/(pricing|plans|packages|rates)/.test(page.path) || /pricing|plans/.test(hay)) {
+    return "pricing";
+  }
+  if (/\/(contact|locations?|visit)/.test(page.path) || /contact|visit us|hours/.test(hay)) {
+    return "contact";
+  }
+  if (/\/(about|team|story|who-we-are)/.test(page.path) || /about us|our story/.test(hay)) {
+    return "about";
+  }
+  if (/\/(product|shop|menu|services?)/.test(page.path) || /product|menu|services/.test(hay)) {
+    return "product";
+  }
+  if (page.path === "/" || page.path === "") return "home";
+  return "other";
+}
+
+export function pickBestPageForFacts(
+  site: SiteData,
+  preferredPath?: string,
+): SitePage | undefined {
+  if (preferredPath) {
+    const match =
+      site.pages.find((p) => p.path === preferredPath) ??
+      site.pages.find((p) => p.url === preferredPath);
+    if (match) return match;
+  }
+
+  const byRole = (role: SitePageRole) =>
+    site.pages.find((p) => classifySitePage(p) === role);
+
+  return (
+    byRole("product") ??
+    byRole("pricing") ??
+    byRole("home") ??
+    site.pages.find((p) => p.path === "/") ??
+    site.pages[0]
+  );
+}
+
 export function extractCrawledProductFacts(
   site: SiteData,
   page?: SitePage,
 ): Partial<ProductFactsForm> {
-  const target = page ?? site.pages[0];
+  const target = page ?? pickBestPageForFacts(site);
   if (!target) return {};
 
   const corpus = site.pages

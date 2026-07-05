@@ -17,7 +17,23 @@ export const RATE_LIMITS = {
   metrics: { max: 20, windowMs: WINDOW_MS }, // social metrics refresh
 };
 
+export const IP_RATE_LIMITS = {
+  authRegister: { max: 5, windowMs: WINDOW_MS },
+  authForgotPassword: { max: 3, windowMs: WINDOW_MS },
+  authLogin: { max: 20, windowMs: WINDOW_MS },
+  authResendVerification: { max: 3, windowMs: WINDOW_MS },
+};
+
 export type RateLimitAction = keyof typeof RATE_LIMITS;
+export type IpRateLimitAction = keyof typeof IP_RATE_LIMITS;
+
+const ipBuckets = new Map<string, Bucket>();
+
+export function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return request.headers.get("x-real-ip") ?? "unknown";
+}
 
 export function checkRateLimit(
   userId: string,
@@ -31,6 +47,29 @@ export function checkRateLimit(
   if (!bucket || now >= bucket.reset) {
     bucket = { count: 0, reset: now + cfg.windowMs };
     buckets.set(key, bucket);
+  }
+
+  if (bucket.count >= cfg.max) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((bucket.reset - now) / 1000));
+    return { allowed: false, retryAfterSeconds, limit: cfg.max };
+  }
+
+  bucket.count += 1;
+  return { allowed: true, limit: cfg.max };
+}
+
+export function checkIpRateLimit(
+  ip: string,
+  action: IpRateLimitAction,
+): { allowed: boolean; retryAfterSeconds?: number; limit: number } {
+  const cfg = IP_RATE_LIMITS[action];
+  const key = `ip:${ip}:${action}`;
+  const now = Date.now();
+
+  let bucket = ipBuckets.get(key);
+  if (!bucket || now >= bucket.reset) {
+    bucket = { count: 0, reset: now + cfg.windowMs };
+    ipBuckets.set(key, bucket);
   }
 
   if (bucket.count >= cfg.max) {

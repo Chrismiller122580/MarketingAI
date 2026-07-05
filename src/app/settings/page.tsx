@@ -3,6 +3,7 @@ import { DomainInput } from "@/components/domain-input";
 import { SettingsForm } from "@/components/settings-form";
 import { SocialConnections } from "@/components/social-connections";
 import { BrandInsights } from "@/components/brand-insights";
+import { AccountSettings } from "@/components/account-settings";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -25,6 +26,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <AccountSettings />
         <DomainInput />
         <SocialConnections />
         <SettingsForm />

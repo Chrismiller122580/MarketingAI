@@ -9,6 +9,7 @@ declare module "next-auth" {
       plan?: string;
       subscriptionStatus?: string | null;
       subscriptionEndsAt?: string | null;
+      emailVerified?: string | null;
       twitterAccessToken?: string;
       name?: string | null;
       email?: string | null;
@@ -21,7 +22,8 @@ declare module "next-auth" {
     role?: string;
     plan?: string;
     subscriptionStatus?: string | null;
-    subscriptionEndsAt?: Date | null;
+    subscriptionEndsAt?: Date | string | null;
+    emailVerified?: string | null;
   }
 }
 

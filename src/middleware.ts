@@ -5,7 +5,11 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password";
   const isLanding = pathname === "/";
   const isPublicPage =
     pathname === "/privacy" ||
@@ -17,7 +21,8 @@ export default auth((req) => {
     pathname.startsWith("/api/og/") ||
     pathname.startsWith("/api/cron/") ||
     pathname === "/api/facebook/data-deletion" ||
-    pathname === "/api/billing/stripe/webhook";
+    pathname === "/api/billing/stripe/webhook" ||
+    pathname === "/api/health/db";
   const isPwaAsset =
     pathname === "/manifest.webmanifest" || pathname === "/sw.js";
 

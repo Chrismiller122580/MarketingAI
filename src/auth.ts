@@ -4,6 +4,7 @@ import Twitter from "next-auth/providers/twitter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getAppOrigin } from "@/lib/app-url";
+import { checkIpRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // Ensure NextAuth uses the correct origin (localhost in dev, canonical URL in prod).
 const resolvedAuthOrigin = getAppOrigin();
@@ -41,11 +42,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const email = credentials?.email as string | undefined;
         const password = credentials?.password as string | undefined;
 
         if (!email || !password) return null;
+
+        if (request) {
+          const ip = getClientIp(request);
+          const rl = checkIpRateLimit(ip, "authLogin");
+          if (!rl.allowed) return null;
+        }
 
         try {
           const user = await prisma.user.findUnique({
@@ -65,7 +72,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: user.role,
             plan: user.plan,
             subscriptionStatus: user.subscriptionStatus,
-            subscriptionEndsAt: user.subscriptionEndsAt,
+            subscriptionEndsAt:
+              user.subscriptionEndsAt?.toISOString() ?? null,
+            emailVerified: user.emailVerified?.toISOString() ?? null,
           };
         } catch (err) {
           console.error("[auth] credentials authorize failed:", err);
@@ -207,7 +216,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           tt.subscriptionStatus = u.subscriptionStatus;
         }
         if (u.subscriptionEndsAt !== undefined) {
-          tt.subscriptionEndsAt = u.subscriptionEndsAt;
+          tt.subscriptionEndsAt =
+            u.subscriptionEndsAt instanceof Date
+              ? u.subscriptionEndsAt.toISOString()
+              : u.subscriptionEndsAt;
+        }
+        if (u.emailVerified !== undefined) {
+          tt.emailVerified = u.emailVerified;
         }
       }
 
@@ -219,6 +234,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             subscriptionStatus: true,
             subscriptionEndsAt: true,
             role: true,
+            emailVerified: true,
           },
         });
         if (fresh) {
@@ -227,6 +243,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           tt.subscriptionEndsAt =
             fresh.subscriptionEndsAt?.toISOString() ?? null;
           token.role = fresh.role;
+          tt.emailVerified = fresh.emailVerified?.toISOString() ?? null;
         }
       }
 
@@ -277,6 +294,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         su.plan = (tt.plan as string) ?? "free";
         su.subscriptionStatus = (tt.subscriptionStatus as string) ?? null;
         su.subscriptionEndsAt = tt.subscriptionEndsAt as string | null | undefined;
+        su.emailVerified = (tt.emailVerified as string | null | undefined) ?? null;
 
         // Expose social tokens on session (used for linking to specific sites)
         su.twitterAccessToken = tt.twitterAccessToken;

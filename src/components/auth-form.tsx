@@ -160,6 +160,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 At least 8 characters
               </p>
             )}
+            {!isSignup && (
+              <p className="mt-1.5 text-right text-xs">
+                <Link
+                  href="/forgot-password"
+                  className="font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400"
+                >
+                  Forgot password?
+                </Link>
+              </p>
+            )}
           </div>
         </div>
 
