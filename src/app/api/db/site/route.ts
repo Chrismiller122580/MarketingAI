@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { siteToData } from "@/lib/db-mappers";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { normalizeDomain } from "@/lib/crawl";
+import { clearActiveSiteIfMatches } from "@/lib/active-site";
 import type { SiteData } from "@/lib/types";
 
 export async function GET(request: Request) {
@@ -48,13 +49,28 @@ export async function GET(request: Request) {
       return NextResponse.json({ site: siteToData(site) });
     }
 
-    // default: latest site
-    const site = await prisma.site.findFirst({
+    // default: active site from settings, else latest (legacy fallback)
+    const settings = await prisma.userSettings.findUnique({
       where: { userId },
-      orderBy: { updatedAt: "desc" },
+      select: { activeSiteDomain: true, activeSiteChosen: true },
     });
-    if (!site) return NextResponse.json({ site: null });
-    return NextResponse.json({ site: siteToData(site) });
+
+    if (settings?.activeSiteChosen && settings.activeSiteDomain) {
+      const site = await prisma.site.findFirst({
+        where: { userId, domain: settings.activeSiteDomain },
+      });
+      if (site) return NextResponse.json({ site: siteToData(site) });
+    }
+
+    if (!settings?.activeSiteChosen) {
+      const site = await prisma.site.findFirst({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+      });
+      if (site) return NextResponse.json({ site: siteToData(site) });
+    }
+
+    return NextResponse.json({ site: null });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Database error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -100,12 +116,36 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;
 
+  const { searchParams } = new URL(request.url);
+  const domainParam = searchParams.get("domain");
+
+  if (!domainParam) {
+    return NextResponse.json(
+      { error: "domain query parameter is required to delete a site" },
+      { status: 400 },
+    );
+  }
+
   try {
-    await prisma.site.deleteMany({ where: { userId } });
+    let lookup = domainParam;
+    try {
+      lookup = normalizeDomain(domainParam);
+    } catch {}
+
+    const deleted = await prisma.site.deleteMany({
+      where: { userId, domain: lookup },
+    });
+
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+
+    await clearActiveSiteIfMatches(userId, lookup);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Database error";

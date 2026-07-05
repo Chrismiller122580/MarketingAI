@@ -1,9 +1,30 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useSite } from "@/context/site-context";
 import { InlineLoading } from "./loading-indicator";
 
-export function DomainInput({ compact = false }: { compact?: boolean }) {
+function formatRelativeDate(iso: string): string {
+  const date = new Date(iso);
+  const diffMs = Date.now() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return date.toLocaleDateString();
+}
+
+function displayDomain(domain: string): string {
+  return domain.replace(/^https?:\/\//, "");
+}
+
+type DomainInputProps = {
+  compact?: boolean;
+  variant?: "default" | "dashboard";
+};
+
+export function DomainInput({ compact = false, variant = "default" }: DomainInputProps) {
   const {
     domainInput,
     setDomainInput,
@@ -13,6 +34,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
     crawlSite,
     clearSite,
     loadSavedSite,
+    deleteSavedSite,
     savedSites,
   } = useSite();
 
@@ -45,11 +67,15 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
     );
   }
 
+  const isDashboard = variant === "dashboard";
+
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Site domain</h2>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            Site domain
+          </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Crawl your site to extract pages, images, brand voice, and keywords
             for AI-powered posts.
@@ -59,9 +85,9 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
           <button
             type="button"
             onClick={clearSite}
-            className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300"
+            className="shrink-0 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
           >
-            Clear
+            {isDashboard ? "Deselect" : "Clear"}
           </button>
         )}
       </div>
@@ -111,7 +137,36 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-      {site && status === "success" && (
+      {isDashboard && site && status === "success" && (
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            Active client
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-800 dark:text-emerald-200">
+            <strong>{site.brand.name}</strong>
+            <span className="text-emerald-600/80 dark:text-emerald-400/80">
+              {displayDomain(site.domain)}
+            </span>
+            <span className="text-emerald-700/70 dark:text-emerald-300/70">
+              · {site.pages.length} pages · {site.images.length} images
+            </span>
+            <span className="text-emerald-700/70 dark:text-emerald-300/70">
+              · crawled {formatRelativeDate(site.crawledAt)}
+            </span>
+            <span
+              className="rounded-full px-2 py-0.5 text-xs font-medium"
+              style={{
+                backgroundColor: `${site.brand.themeColor}20`,
+                color: site.brand.themeColor,
+              }}
+            >
+              {site.brand.tone}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {!isDashboard && site && status === "success" && (
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           <span>✓</span>
           <span>
@@ -137,7 +192,84 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
-      {savedSites.length > 0 && (
+      {isDashboard && savedSites.length > 0 && (
+        <div className="mt-4 border-t border-slate-200 dark:border-slate-800 pt-4">
+          <p className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
+            Your clients ({savedSites.length})
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {savedSites.map((s) => {
+              const isActive = !!site && s.domain === site.domain;
+              return (
+                <div
+                  key={s.domain}
+                  className={`relative rounded-lg border p-4 transition ${
+                    isActive
+                      ? "border-emerald-300 bg-emerald-50/40 dark:border-emerald-800 dark:bg-emerald-950/20"
+                      : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => !isActive && loadSavedSite(s.domain)}
+                      disabled={isActive || isLoading}
+                      className={`min-w-0 flex-1 text-left ${isActive ? "cursor-default" : "cursor-pointer"}`}
+                    >
+                      <p className="truncate font-medium text-slate-900 dark:text-slate-100">
+                        {s.brandName}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-amber-600 dark:text-amber-500">
+                        {displayDomain(s.domain)}
+                      </p>
+                    </button>
+                    {isActive ? (
+                      <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                        Active
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (
+                            window.confirm(
+                              `Delete ${displayDomain(s.domain)}? Crawled data will be removed. Posts are kept.`,
+                            )
+                          ) {
+                            void deleteSavedSite(s.domain);
+                          }
+                        }}
+                        className="shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                        title="Delete client"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                    <span>{s.pages} pages</span>
+                    <span>{s.images} images</span>
+                    <span>Crawled {formatRelativeDate(s.crawledAt)}</span>
+                  </div>
+                  {!isActive && (
+                    <button
+                      type="button"
+                      onClick={() => loadSavedSite(s.domain)}
+                      disabled={isLoading}
+                      className="mt-3 text-xs font-medium text-amber-600 hover:text-amber-700 disabled:opacity-50 dark:text-amber-500"
+                    >
+                      Load client →
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!isDashboard && savedSites.length > 0 && (
         <div className="mt-4 border-t border-slate-200 dark:border-slate-800 pt-4">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
             Your saved sites — click to load (no re-crawl needed):
@@ -157,7 +289,7 @@ export function DomainInput({ compact = false }: { compact?: boolean }) {
                   }`}
                   title={`Last crawled ${new Date(s.crawledAt).toLocaleDateString()} • ${s.pages} pages, ${s.images} images`}
                 >
-                  {s.domain.replace(/^https?:\/\//, "")}
+                  {displayDomain(s.domain)}
                   {isCurrent && " (current)"}
                 </button>
               );

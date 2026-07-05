@@ -160,9 +160,11 @@ model UserSettings {
   defaultPlatforms String[]
   includeHashtags  Boolean  @default(true)
   emojiStyle       String   @default("light")
-  preferAiImages    Boolean  @default(false)
+  preferAiImages     Boolean  @default(false)
   promptPreferences  Json?
   creatorPreferences Json?
+  activeSiteDomain   String?
+  activeSiteChosen   Boolean  @default(false)
   updatedAt          DateTime @updatedAt
 }
 

@@ -36,7 +36,7 @@ export async function GET() {
   }
 }
 
-function sanitizePatch(patch: Partial<UserSettings>): Partial<UserSettings> {
+function sanitizePatch(patch: Partial<UserSettings>): Record<string, unknown> {
   const {
     brandVoice,
     targetAudience,
@@ -44,6 +44,10 @@ function sanitizePatch(patch: Partial<UserSettings>): Partial<UserSettings> {
     includeHashtags,
     emojiStyle,
     preferAiImages,
+    promptPreferences,
+    creatorPreferences,
+    activeSiteDomain,
+    activeSiteChosen,
   } = patch;
   return {
     ...(brandVoice !== undefined && { brandVoice }),
@@ -52,6 +56,10 @@ function sanitizePatch(patch: Partial<UserSettings>): Partial<UserSettings> {
     ...(includeHashtags !== undefined && { includeHashtags }),
     ...(emojiStyle !== undefined && { emojiStyle }),
     ...(preferAiImages !== undefined && { preferAiImages }),
+    ...(promptPreferences !== undefined && { promptPreferences }),
+    ...(creatorPreferences !== undefined && { creatorPreferences }),
+    ...(activeSiteDomain !== undefined && { activeSiteDomain }),
+    ...(activeSiteChosen !== undefined && { activeSiteChosen }),
   };
 }
 

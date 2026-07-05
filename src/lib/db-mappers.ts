@@ -92,6 +92,9 @@ export function settingsToData(row: {
   emojiStyle: string;
   preferAiImages: boolean;
   promptPreferences?: unknown;
+  creatorPreferences?: unknown;
+  activeSiteDomain?: string | null;
+  activeSiteChosen?: boolean;
 }): UserSettings {
   return {
     brandVoice: row.brandVoice,
@@ -101,6 +104,9 @@ export function settingsToData(row: {
     emojiStyle: row.emojiStyle as UserSettings["emojiStyle"],
     preferAiImages: row.preferAiImages,
     promptPreferences: row.promptPreferences as UserSettings["promptPreferences"],
+    creatorPreferences: row.creatorPreferences as UserSettings["creatorPreferences"],
+    activeSiteDomain: row.activeSiteDomain ?? null,
+    activeSiteChosen: row.activeSiteChosen ?? false,
   };
 }
 

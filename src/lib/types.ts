@@ -214,6 +214,8 @@ export type UserSettings = {
   preferAiImages: boolean;
   promptPreferences?: PromptPreferences;
   creatorPreferences?: CreatorPreferences;
+  activeSiteDomain?: string | null;
+  activeSiteChosen?: boolean;
 };
 
 export type ContentGapAnalysis = {

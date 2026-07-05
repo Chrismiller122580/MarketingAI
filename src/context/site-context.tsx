@@ -9,7 +9,15 @@ import {
   useState,
 } from "react";
 import { signIn } from "next-auth/react";
-import type { CrawlStatus, SiteData } from "@/lib/types";
+import type { CrawlStatus, SiteData, UserSettings } from "@/lib/types";
+
+type SavedSiteSummary = {
+  domain: string;
+  crawledAt: string;
+  brandName: string;
+  pages: number;
+  images: number;
+};
 
 type SiteContextValue = {
   domainInput: string;
@@ -21,14 +29,9 @@ type SiteContextValue = {
   clearSite: () => Promise<void>;
   saveSite: () => Promise<void>;
   loadSavedSite: (domain: string) => Promise<void>;
-  savedSites: Array<{
-    domain: string;
-    crawledAt: string;
-    brandName: string;
-    pages: number;
-    images: number;
-  }>;
-  siteSocialConnections: Record<string, Record<string, unknown>>; // platform -> connection data
+  deleteSavedSite: (domain: string) => Promise<void>;
+  savedSites: SavedSiteSummary[];
+  siteSocialConnections: Record<string, Record<string, unknown>>;
   connectSocial: (platform: string) => void;
   loadSiteSocialConnections: () => Promise<void>;
   loading: boolean;
@@ -46,21 +49,45 @@ function isValidSiteData(data: unknown): data is SiteData {
   );
 }
 
+function stripDomain(domain: string): string {
+  return domain.replace(/^https?:\/\//, "");
+}
+
+async function patchActiveSite(domain: string | null): Promise<void> {
+  await fetch("/api/db/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      settings: {
+        activeSiteDomain: domain,
+        activeSiteChosen: true,
+      },
+    }),
+  });
+}
+
 export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [domainInput, setDomainInput] = useState("");
   const [site, setSite] = useState<SiteData | null>(null);
   const [status, setStatus] = useState<CrawlStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savedSites, setSavedSites] = useState<SiteContextValue["savedSites"]>([]);
-  const [siteSocialConnections, setSiteSocialConnections] = useState<Record<string, Record<string, unknown>>>({});
+  const [savedSites, setSavedSites] = useState<SavedSiteSummary[]>([]);
+  const [siteSocialConnections, setSiteSocialConnections] = useState<
+    Record<string, Record<string, unknown>>
+  >({});
 
-  const loadSavedSitesList = useCallback(async () => {
+  const loadSavedSitesList = useCallback(async (): Promise<SavedSiteSummary[]> => {
     try {
       const res = await fetch("/api/db/site?list=true");
       const data = await res.json();
-      if (data.sites) setSavedSites(data.sites);
-    } catch {}
+      const sites = (data.sites ?? []) as SavedSiteSummary[];
+      setSavedSites(sites);
+      return sites;
+    } catch {
+      setSavedSites([]);
+      return [];
+    }
   }, []);
 
   const loadSiteSocialConnections = useCallback(async () => {
@@ -69,7 +96,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      const res = await fetch(`/api/db/site/social?domain=${encodeURIComponent(site.domain)}`);
+      const res = await fetch(
+        `/api/db/site/social?domain=${encodeURIComponent(site.domain)}`,
+      );
       const data = await res.json();
       if (data.connections) {
         const map: Record<string, Record<string, unknown>> = {};
@@ -83,39 +112,58 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     }
   }, [site]);
 
-  const connectSocial = useCallback((platform: string) => {
-    if (!site) return;
+  const connectSocial = useCallback(
+    (platform: string) => {
+      if (!site) return;
 
-    // Store which site we are connecting social for
-    localStorage.setItem("pendingSocialConnectSite", site.domain);
+      localStorage.setItem("pendingSocialConnectSite", site.domain);
 
-    // Trigger the OAuth flow for the platform
-    // After success, a useEffect (in providers or layout) will detect the pending site
-    // and call the link API with the token from session.
-    const returnPath =
-      typeof window !== "undefined"
-        ? `${window.location.pathname}${window.location.search}`
-        : "/settings";
-    signIn(platform.toLowerCase(), { callbackUrl: returnPath });
-  }, [site]);
+      const returnPath =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/settings";
+      signIn(platform.toLowerCase(), { callbackUrl: returnPath });
+    },
+    [site],
+  );
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/db/site")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.site && isValidSiteData(data.site)) {
-            setSite(data.site);
-            setDomainInput(data.site.domain.replace(/^https?:\/\//, ""));
+    async function bootstrap() {
+      try {
+        const [settingsRes, sites] = await Promise.all([
+          fetch("/api/db/settings").then((r) => r.json()),
+          loadSavedSitesList(),
+        ]);
+
+        const settings = settingsRes.settings as UserSettings | undefined;
+        let activeDomain = settings?.activeSiteDomain ?? null;
+
+        if (!settings?.activeSiteChosen && sites.length > 0) {
+          activeDomain = sites[0].domain;
+          await patchActiveSite(activeDomain);
+        }
+
+        if (activeDomain) {
+          const siteRes = await fetch(
+            `/api/db/site?domain=${encodeURIComponent(activeDomain)}`,
+          );
+          const siteData = await siteRes.json();
+          if (siteData.site && isValidSiteData(siteData.site)) {
+            setSite(siteData.site);
+            setDomainInput(stripDomain(siteData.site.domain));
+            setStatus("success");
           }
-        }),
-      Promise.resolve().then(() => loadSavedSitesList()),
-    ])
-      .catch(() => {})
-      .finally(() => setLoading(false));
+        }
+      } catch {
+        /* keep empty state */
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void bootstrap();
   }, [loadSavedSitesList]);
 
-  // Load social connections whenever the current site changes
   useEffect(() => {
     const t = setTimeout(() => {
       void loadSiteSocialConnections();
@@ -155,8 +203,8 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       setSite(data);
       setStatus("success");
 
-      // Auto-persist crawled client/site data to DB so libraries and clients are always saved
       await persistSite(data);
+      await patchActiveSite(data.domain);
       await loadSavedSitesList();
     } catch (err) {
       setStatus("error");
@@ -169,7 +217,8 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     setDomainInput("");
     setStatus("idle");
     setError(null);
-    await fetch("/api/db/site", { method: "DELETE" });
+    setSiteSocialConnections({});
+    await patchActiveSite(null);
   }, []);
 
   const saveSite = useCallback(async () => {
@@ -179,25 +228,59 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     await loadSiteSocialConnections();
   }, [site, persistSite, loadSavedSitesList, loadSiteSocialConnections]);
 
-  const loadSavedSite = useCallback(async (domain: string) => {
-    setStatus("loading");
-    setError(null);
+  const loadSavedSite = useCallback(
+    async (domain: string) => {
+      setStatus("loading");
+      setError(null);
 
-    try {
-      const res = await fetch(`/api/db/site?domain=${encodeURIComponent(domain)}`);
-      const data = await res.json();
-      if (!res.ok || !data.site) throw new Error(data.error || "Site not found");
-      if (!isValidSiteData(data.site)) throw new Error("Invalid site data");
+      try {
+        const res = await fetch(
+          `/api/db/site?domain=${encodeURIComponent(domain)}`,
+        );
+        const data = await res.json();
+        if (!res.ok || !data.site) throw new Error(data.error || "Site not found");
+        if (!isValidSiteData(data.site)) throw new Error("Invalid site data");
 
-      setSite(data.site);
-      setDomainInput(data.site.domain.replace(/^https?:\/\//, ""));
-      setStatus("success");
-      await loadSiteSocialConnections();
-    } catch (err) {
-      setStatus("error");
-      setError(err instanceof Error ? err.message : "Failed to load saved site");
-    }
-  }, [loadSiteSocialConnections]);
+        setSite(data.site);
+        setDomainInput(stripDomain(data.site.domain));
+        setStatus("success");
+        await patchActiveSite(data.site.domain);
+        await loadSiteSocialConnections();
+      } catch (err) {
+        setStatus("error");
+        setError(err instanceof Error ? err.message : "Failed to load saved site");
+      }
+    },
+    [loadSiteSocialConnections],
+  );
+
+  const deleteSavedSite = useCallback(
+    async (domain: string) => {
+      setError(null);
+
+      try {
+        const res = await fetch(
+          `/api/db/site?domain=${encodeURIComponent(domain)}`,
+          { method: "DELETE" },
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Failed to delete site");
+
+        if (site?.domain === domain) {
+          setSite(null);
+          setDomainInput("");
+          setStatus("idle");
+          setSiteSocialConnections({});
+        }
+
+        await loadSavedSitesList();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to delete site");
+        setStatus("error");
+      }
+    },
+    [site, loadSavedSitesList],
+  );
 
   const value = useMemo(
     () => ({
@@ -210,6 +293,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       clearSite,
       saveSite,
       loadSavedSite,
+      deleteSavedSite,
       savedSites,
       siteSocialConnections,
       connectSocial,
@@ -225,6 +309,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       clearSite,
       saveSite,
       loadSavedSite,
+      deleteSavedSite,
       savedSites,
       siteSocialConnections,
       connectSocial,
