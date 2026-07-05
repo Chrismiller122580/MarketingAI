@@ -1,8 +1,6 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 
-export const runtime = "edge";
-
 const SIZES: Record<string, { width: number; height: number }> = {
   instagram: { width: 1080, height: 1080 },
   twitter: { width: 1200, height: 675 },

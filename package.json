@@ -48,9 +48,6 @@
     "xrpl": "^5.0.0",
     "zod": "^4.4.3"
   },
-  "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
-  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",

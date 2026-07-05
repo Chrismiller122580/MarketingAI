@@ -80,9 +80,14 @@ export async function POST(request: Request) {
       influencerId,
     );
 
+    const siteContext = body.siteContext as
+      | { domain?: string; brandName?: string; tone?: string; tagline?: string }
+      | undefined;
+
     const prompt = buildAvatarImagePrompt(parsed.data, {
       personalization,
       productFacts: productFacts.data,
+      site: siteContext,
     });
 
     const result = await generateImageFromPrompt(prompt, {
@@ -109,12 +114,21 @@ export async function POST(request: Request) {
       productFacts.data,
     );
 
+    const suggestionSnapshot = body.suggestionSnapshot as
+      | Record<string, unknown>
+      | undefined;
+
     const { durableUrl: imageUrl } = await savePortraitRender({
       userId: authResult,
       influencerId: saved.influencerId,
       imageUrl: result.url,
       provider: result.provider,
       prompt: result.prompt,
+      metadata: suggestionSnapshot
+        ? { suggestionSnapshot, siteDomain: siteContext?.domain }
+        : siteContext?.domain
+          ? { siteDomain: siteContext.domain }
+          : undefined,
     });
 
     const eventType = body.influencerId ? "regenerate" : "generate";

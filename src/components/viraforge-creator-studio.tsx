@@ -9,9 +9,11 @@ import { useSearchParams } from "next/navigation";
 import {
   Camera,
   Database,
+  Globe,
   Hand,
   Mic,
   Pointer,
+  Sparkles,
   Volume2,
   Wand2,
 } from "lucide-react";
@@ -34,6 +36,15 @@ import {
   productFactsSchema,
   type ProductFactsForm,
 } from "@/lib/schemas/product-facts-schema";
+import { AvatarFieldPicker } from "@/components/avatar-field-picker";
+import { useSite } from "@/context/site-context";
+import {
+  applyRecommendations,
+  buildAvatarBrief,
+  type AvatarFieldKey,
+  type AvatarFieldOptions,
+} from "@/lib/viraforge/avatar-from-site";
+import type { FieldOption } from "@/lib/viraforge/avatar-option-presets";
 import { buildAvatarPreviewSummary } from "@/lib/viraforge/avatar-prompts";
 import type {
   InfluencerAssets,
@@ -156,6 +167,8 @@ export function ViraForgeCreatorStudio() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const editId = searchParams.get("influencer");
+  const domainParam = searchParams.get("domain");
+  const { site, loadSavedSite, savedSites } = useSite();
 
   const [activeTab, setActiveTab] = useState<CreatorTab>("physical");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
@@ -191,6 +204,12 @@ export function ViraForgeCreatorStudio() {
   } | null>(null);
   const [scriptGenerating, setScriptGenerating] = useState(false);
   const [voicePreviewLoading, setVoicePreviewLoading] = useState(false);
+  const [suggestion, setSuggestion] = useState<AvatarFieldOptions | null>(null);
+  const [selectedIds, setSelectedIds] = useState<
+    Partial<Record<AvatarFieldKey, string>>
+  >({});
+  const [suggesting, setSuggesting] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
 
   const personaForm = useForm<CreatorAvatarForm>({
     resolver: zodResolver(creatorAvatarSchema),
@@ -491,6 +510,154 @@ export function ViraForgeCreatorStudio() {
     postLearn("field_edit", { field, value }, influencerId ?? undefined);
   };
 
+  const applySuggestionToForms = useCallback(
+    (next: AvatarFieldOptions) => {
+      setSuggestion(next);
+      setSelectedIds(next.recommended);
+
+      const personaPatch = applyRecommendations(next.recommended, next.fields);
+      personaForm.reset({
+        ...defaultCreatorAvatarValues,
+        ...personaForm.getValues(),
+        ...Object.fromEntries(
+          Object.entries(personaPatch).filter(([, v]) => v !== undefined),
+        ),
+      });
+
+      if (next.productFacts) {
+        const pf = {
+          ...defaultProductFactsValues,
+          ...factsForm.getValues(),
+          name: next.productFacts.name ?? factsForm.getValues("name"),
+          price: next.productFacts.price ?? factsForm.getValues("price"),
+          features:
+            next.productFacts.features ?? defaultProductFactsValues.features,
+          location: next.productFacts.location,
+          hours: next.productFacts.hours,
+        };
+        factsForm.reset(pf);
+        setFeaturesText(pf.features.join("\n"));
+      }
+    },
+    [personaForm, factsForm],
+  );
+
+  const handleSuggest = useCallback(
+    async (domainOverride?: string) => {
+      const targetDomain = domainOverride ?? site?.domain;
+      if (!targetDomain && !site) {
+        toast.error("Crawl a site on the dashboard first, or open with ?domain=");
+        return;
+      }
+
+      setSuggesting(true);
+      try {
+        const res = await fetch("/api/creator-studio/suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            domain: targetDomain,
+            site: site ?? undefined,
+          }),
+        });
+        const data = (await res.json()) as AvatarFieldOptions & { error?: string };
+        if (!res.ok) throw new Error(data.error ?? "Suggest failed");
+
+        applySuggestionToForms(data);
+        toast.success(
+          data.aiEnhanced
+            ? `Site-smart options ready for ${data.domain} (AI-enhanced)`
+            : `Site-smart options ready for ${data.domain}`,
+        );
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Could not suggest options");
+      } finally {
+        setSuggesting(false);
+      }
+    },
+    [site, applySuggestionToForms],
+  );
+
+  const pickOption = useCallback(
+    (field: AvatarFieldKey, option: FieldOption) => {
+      setSelectedIds((prev) => ({ ...prev, [field]: option.id }));
+
+      if (field === "age" || field === "bodyType") {
+        personaForm.setValue(field, Number(option.value), { shouldDirty: true });
+      } else if (field === "gender") {
+        personaForm.setValue(
+          "gender",
+          option.value as CreatorAvatarForm["gender"],
+          { shouldDirty: true },
+        );
+      } else {
+        personaForm.setValue(field, option.value, { shouldDirty: true });
+      }
+      recordFieldEdit(field, option.value);
+    },
+    [personaForm],
+  );
+
+  const pickCustom = useCallback(
+    (field: AvatarFieldKey, value: string) => {
+      setSelectedIds((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+
+      if (field === "age" || field === "bodyType") {
+        const num = Number(value);
+        if (!Number.isNaN(num)) {
+          personaForm.setValue(field, num, { shouldDirty: true });
+        }
+      } else if (field === "gender") {
+        if (["female", "male", "nonbinary"].includes(value)) {
+          personaForm.setValue(
+            "gender",
+            value as CreatorAvatarForm["gender"],
+            { shouldDirty: true },
+          );
+        }
+      } else {
+        personaForm.setValue(field, value, { shouldDirty: true });
+      }
+      recordFieldEdit(field, value);
+    },
+    [personaForm],
+  );
+
+  const renderPicker = (
+    field: AvatarFieldKey,
+    label: string,
+    options?: FieldOption[],
+    allowCustom = true,
+  ) => {
+    if (!options?.length) return null;
+    return (
+      <AvatarFieldPicker
+        key={field}
+        fieldId={field}
+        label={label}
+        options={options}
+        selectedId={selectedIds[field]}
+        customValue={String(personaForm.getValues(field) ?? "")}
+        onSelect={(opt) => pickOption(field, opt)}
+        onCustom={(v) => pickCustom(field, v)}
+        allowCustom={allowCustom}
+        className={field === "personalityVoice" || field === "sampleQuote" ? "sm:col-span-2" : ""}
+      />
+    );
+  };
+
+  useEffect(() => {
+    if (!domainParam || editId) return;
+    void loadSavedSite(domainParam).then(() => {
+      void handleSuggest(domainParam);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for deep link
+  }, [domainParam, editId]);
+
   const parseFacts = (): ProductFactsForm => {
     const base = factsForm.getValues();
     return {
@@ -563,6 +730,27 @@ export function ViraForgeCreatorStudio() {
           persona,
           productFacts: factsParsed.data,
           influencerId,
+          siteContext: site
+            ? {
+                domain: site.domain,
+                brandName: site.brand.name,
+                tone: site.brand.tone,
+                tagline: site.brand.tagline,
+              }
+            : suggestion
+              ? {
+                  domain: suggestion.domain,
+                  brandName: suggestion.productFacts?.name,
+                }
+              : undefined,
+          suggestionSnapshot: suggestion
+            ? {
+                fitScore: suggestion.fitScore,
+                rationale: suggestion.rationale,
+                recommended: suggestion.recommended,
+                domain: suggestion.domain,
+              }
+            : undefined,
         }),
       });
 
@@ -687,6 +875,81 @@ export function ViraForgeCreatorStudio() {
         </Button>
       </div>
 
+      {(site || domainParam || savedSites.length > 0) && (
+        <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 px-4 py-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2 text-sm">
+              <Globe className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
+              <div>
+                <p className="font-medium text-foreground">
+                  {site
+                    ? `${site.brand.name} · ${site.domain}`
+                    : domainParam
+                      ? `Loading ${domainParam}…`
+                      : "Select a crawled site"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {suggestion
+                    ? `${suggestion.rationale} Fit score: ${suggestion.fitScore}%`
+                    : "Suggest selectable avatar options from your crawl — religion, class, voice, and more."}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {!site && savedSites.length > 0 && (
+                <select
+                  className="rounded-lg border border-border bg-card px-3 py-2 text-xs"
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) void loadSavedSite(e.target.value);
+                  }}
+                >
+                  <option value="" disabled>
+                    Load client…
+                  </option>
+                  {savedSites.map((s) => (
+                    <option key={s.domain} value={s.domain}>
+                      {s.brandName}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={suggesting || (!site && !domainParam)}
+                onClick={() => void handleSuggest()}
+              >
+                {suggesting ? (
+                  <InlineLoading label="Suggesting…" />
+                ) : (
+                  <>
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                    Suggest options from site
+                  </>
+                )}
+              </Button>
+              {suggestion && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBrief((v) => !v)}
+                >
+                  Avatar brief
+                </Button>
+              )}
+            </div>
+          </div>
+          {showBrief && suggestion && (
+            <pre className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+              {buildAvatarBrief(values, suggestion)}
+            </pre>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleGenerate} className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="space-y-6 rounded-2xl border border-border bg-card p-6 lg:col-span-7">
           <div
@@ -714,180 +977,277 @@ export function ViraForgeCreatorStudio() {
 
           {activeTab === "physical" && (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label htmlFor="displayName" className="text-sm font-medium">
-                  Display name
-                </label>
-                <input
-                  id="displayName"
-                  className={inputClass}
-                  {...personaForm.register("displayName", {
-                    onBlur: (e) => recordFieldEdit("displayName", e.target.value),
-                  })}
-                />
-              </div>
-              <div>
-                <label htmlFor="handle" className="text-sm font-medium">
-                  Social handle
-                </label>
-                <input
-                  id="handle"
-                  className={inputClass}
-                  {...personaForm.register("handle", {
-                    onBlur: (e) => recordFieldEdit("handle", e.target.value),
-                  })}
-                />
-              </div>
-              <div>
-                <label htmlFor="gender" className="text-sm font-medium">
-                  Gender
-                </label>
-                <select
-                  id="gender"
-                  className={inputClass}
-                  {...personaForm.register("gender")}
-                >
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                  <option value="nonbinary">Non-binary</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="age" className="text-sm font-medium">
-                  Age
-                </label>
-                <input
-                  id="age"
-                  type="number"
-                  min={18}
-                  max={80}
-                  className={inputClass}
-                  {...personaForm.register("age", { valueAsNumber: true })}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="bodyType" className="text-sm font-medium">
-                  Body type + skin tone
-                </label>
-                <input
-                  id="bodyType"
-                  type="range"
-                  min={0}
-                  max={100}
-                  className="mt-3 w-full"
-                  {...personaForm.register("bodyType", {
-                    valueAsNumber: true,
-                    onChange: (e) =>
-                      recordFieldEdit("bodyType", Number(e.target.value)),
-                  })}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {bodyTypeHint(Number(values.bodyType))}
-                </p>
-              </div>
-              <div>
-                <label htmlFor="height" className="text-sm font-medium">
-                  Height
-                </label>
-                <input id="height" className={inputClass} {...personaForm.register("height")} />
-              </div>
-              <div>
-                <label htmlFor="faceShape" className="text-sm font-medium">
-                  Face shape
-                </label>
-                <input
-                  id="faceShape"
-                  className={inputClass}
-                  {...personaForm.register("faceShape")}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="hair" className="text-sm font-medium">
-                  Hair
-                </label>
-                <input id="hair" className={inputClass} {...personaForm.register("hair")} />
-              </div>
+              {suggestion ? (
+                <>
+                  {renderPicker("displayName", "Display name", suggestion.fields.displayName)}
+                  {renderPicker("handle", "Social handle", suggestion.fields.handle)}
+                  {renderPicker("gender", "Gender", suggestion.fields.gender)}
+                  {renderPicker("age", "Age", suggestion.fields.age)}
+                  {renderPicker("bodyType", "Body type + skin tone", suggestion.fields.bodyType)}
+                  <p className="sm:col-span-2 text-xs text-muted-foreground">
+                    {bodyTypeHint(Number(values.bodyType))}
+                  </p>
+                  {renderPicker("height", "Height", suggestion.fields.height)}
+                  {renderPicker("faceShape", "Face shape", suggestion.fields.faceShape)}
+                  {renderPicker("hair", "Hair", suggestion.fields.hair)}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="displayName" className="text-sm font-medium">
+                      Display name
+                    </label>
+                    <input
+                      id="displayName"
+                      className={inputClass}
+                      {...personaForm.register("displayName", {
+                        onBlur: (e) => recordFieldEdit("displayName", e.target.value),
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="handle" className="text-sm font-medium">
+                      Social handle
+                    </label>
+                    <input
+                      id="handle"
+                      className={inputClass}
+                      {...personaForm.register("handle", {
+                        onBlur: (e) => recordFieldEdit("handle", e.target.value),
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="gender" className="text-sm font-medium">
+                      Gender
+                    </label>
+                    <select
+                      id="gender"
+                      className={inputClass}
+                      {...personaForm.register("gender")}
+                    >
+                      <option value="female">Female</option>
+                      <option value="male">Male</option>
+                      <option value="nonbinary">Non-binary</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="age" className="text-sm font-medium">
+                      Age
+                    </label>
+                    <input
+                      id="age"
+                      type="number"
+                      min={18}
+                      max={80}
+                      className={inputClass}
+                      {...personaForm.register("age", { valueAsNumber: true })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="bodyType" className="text-sm font-medium">
+                      Body type + skin tone
+                    </label>
+                    <input
+                      id="bodyType"
+                      type="range"
+                      min={0}
+                      max={100}
+                      className="mt-3 w-full"
+                      {...personaForm.register("bodyType", {
+                        valueAsNumber: true,
+                        onChange: (e) =>
+                          recordFieldEdit("bodyType", Number(e.target.value)),
+                      })}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {bodyTypeHint(Number(values.bodyType))}
+                    </p>
+                  </div>
+                  <div>
+                    <label htmlFor="height" className="text-sm font-medium">
+                      Height
+                    </label>
+                    <input id="height" className={inputClass} {...personaForm.register("height")} />
+                  </div>
+                  <div>
+                    <label htmlFor="faceShape" className="text-sm font-medium">
+                      Face shape
+                    </label>
+                    <input
+                      id="faceShape"
+                      className={inputClass}
+                      {...personaForm.register("faceShape")}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="hair" className="text-sm font-medium">
+                      Hair
+                    </label>
+                    <input id="hair" className={inputClass} {...personaForm.register("hair")} />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {activeTab === "demographics" && (
             <div className="space-y-4">
-              <div>
-                <label htmlFor="location" className="text-sm font-medium">
-                  Primary location
-                </label>
-                <input
-                  id="location"
-                  className={inputClass}
-                  {...personaForm.register("location", {
-                    onBlur: (e) => recordFieldEdit("location", e.target.value),
-                  })}
-                />
-              </div>
-              <div>
-                <label htmlFor="neighborhoods" className="text-sm font-medium">
-                  Neighborhoods + social status
-                </label>
-                <input
-                  id="neighborhoods"
-                  className={inputClass}
-                  {...personaForm.register("neighborhoods")}
-                />
-              </div>
-              <div>
-                <label htmlFor="ageRangeShown" className="text-sm font-medium">
-                  Age range shown
-                </label>
-                <input
-                  id="ageRangeShown"
-                  className={inputClass}
-                  {...personaForm.register("ageRangeShown")}
-                />
-              </div>
+              {suggestion ? (
+                <>
+                  {renderPicker("location", "Primary location", suggestion.fields.location)}
+                  {renderPicker(
+                    "neighborhoods",
+                    "Neighborhoods + social status",
+                    suggestion.fields.neighborhoods,
+                  )}
+                  {renderPicker(
+                    "ageRangeShown",
+                    "Age range shown",
+                    suggestion.fields.ageRangeShown,
+                  )}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="location" className="text-sm font-medium">
+                      Primary location
+                    </label>
+                    <input
+                      id="location"
+                      className={inputClass}
+                      {...personaForm.register("location", {
+                        onBlur: (e) => recordFieldEdit("location", e.target.value),
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="neighborhoods" className="text-sm font-medium">
+                      Neighborhoods + social status
+                    </label>
+                    <input
+                      id="neighborhoods"
+                      className={inputClass}
+                      {...personaForm.register("neighborhoods")}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="ageRangeShown" className="text-sm font-medium">
+                      Age range shown
+                    </label>
+                    <input
+                      id="ageRangeShown"
+                      className={inputClass}
+                      {...personaForm.register("ageRangeShown")}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {activeTab === "cultural" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="religion" className="text-sm font-medium">
-                  Religion
-                </label>
-                <input
-                  id="religion"
-                  className={inputClass}
-                  {...personaForm.register("religion", {
-                    onBlur: (e) => recordFieldEdit("religion", e.target.value),
-                  })}
-                />
-              </div>
-              <div>
-                <label htmlFor="socialClass" className="text-sm font-medium">
-                  Social class
-                </label>
-                <input
-                  id="socialClass"
-                  className={inputClass}
-                  {...personaForm.register("socialClass", {
-                    onBlur: (e) => recordFieldEdit("socialClass", e.target.value),
-                  })}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="culturalNotes" className="text-sm font-medium">
-                  Cultural notes
-                </label>
-                <input
-                  id="culturalNotes"
-                  className={inputClass}
-                  {...personaForm.register("culturalNotes")}
-                />
-              </div>
+              {suggestion ? (
+                <>
+                  {renderPicker("religion", "Religion", suggestion.fields.religion)}
+                  {renderPicker("socialClass", "Social class", suggestion.fields.socialClass)}
+                  {renderPicker(
+                    "culturalNotes",
+                    "Cultural notes",
+                    suggestion.fields.culturalNotes,
+                  )}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="religion" className="text-sm font-medium">
+                      Religion
+                    </label>
+                    <input
+                      id="religion"
+                      className={inputClass}
+                      {...personaForm.register("religion", {
+                        onBlur: (e) => recordFieldEdit("religion", e.target.value),
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="socialClass" className="text-sm font-medium">
+                      Social class
+                    </label>
+                    <input
+                      id="socialClass"
+                      className={inputClass}
+                      {...personaForm.register("socialClass", {
+                        onBlur: (e) => recordFieldEdit("socialClass", e.target.value),
+                      })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="culturalNotes" className="text-sm font-medium">
+                      Cultural notes
+                    </label>
+                    <input
+                      id="culturalNotes"
+                      className={inputClass}
+                      {...personaForm.register("culturalNotes")}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {activeTab === "style" && (
             <div className="space-y-4">
+              {suggestion ? (
+                <>
+                  {renderPicker(
+                    "personalityVoice",
+                    "Personality + voice",
+                    suggestion.fields.personalityVoice,
+                  )}
+                  {renderPicker(
+                    "sampleQuote",
+                    "Sample quote (validated against product facts)",
+                    suggestion.fields.sampleQuote,
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        postLearn(
+                          "approve_quote",
+                          { quote: personaForm.getValues("sampleQuote") },
+                          influencerId ?? undefined,
+                        );
+                        toast.success("Quote style saved to influencer memory");
+                      }}
+                    >
+                      Approve quote style
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        postLearn(
+                          "reject_quote",
+                          { quote: personaForm.getValues("sampleQuote") },
+                          influencerId ?? undefined,
+                        );
+                        toast.info("Quote style noted — will avoid similar phrasing");
+                      }}
+                    >
+                      Reject quote style
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
               <div>
                 <label htmlFor="personalityVoice" className="text-sm font-medium">
                   Personality + voice
@@ -940,6 +1300,8 @@ export function ViraForgeCreatorStudio() {
                   </Button>
                 </div>
               </div>
+                </>
+              )}
             </div>
           )}
 

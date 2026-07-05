@@ -195,7 +195,7 @@ src/
 ├── context/                  # React context (site, posts, settings)
 ├── lib/                      # Crawl, generation, publishing, DB helpers
 ├── auth.ts                   # NextAuth configuration
-└── middleware.ts             # Route protection
+└── proxy.ts                  # Route protection (Next.js 16+ proxy)
 prisma/
 ├── schema.prisma             # Database models
 └── seed.ts                   # Admin seed script

@@ -363,6 +363,7 @@ export async function savePortraitRender(input: {
   imageUrl: string;
   provider: string;
   prompt: string;
+  metadata?: Record<string, unknown>;
 }): Promise<{ renderId: string; durableUrl: string }> {
   const { id: renderId } = await createInfluencerRender({
     userId: input.userId,
@@ -371,6 +372,7 @@ export async function savePortraitRender(input: {
     status: "processing",
     provider: input.provider,
     prompt: input.prompt,
+    metadata: input.metadata,
   });
 
   const durableUrl = await persistRenderMedia(

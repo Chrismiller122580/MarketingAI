@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { useSite } from "@/context/site-context";
 import { InlineLoading } from "./loading-indicator";
@@ -162,6 +163,12 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
             >
               {site.brand.tone}
             </span>
+            <Link
+              href={`/creator-studio?domain=${encodeURIComponent(site.domain)}`}
+              className="ml-auto rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500"
+            >
+              Create site-smart avatar →
+            </Link>
           </div>
         </div>
       )}

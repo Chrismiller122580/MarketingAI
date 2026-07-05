@@ -22,9 +22,20 @@ function bodyTypeLabel(value: number): string {
   return BODY_TYPE_LABELS[closest] ?? "athletic";
 }
 
+export type AvatarSiteContext = {
+  domain?: string;
+  brandName?: string;
+  tone?: string;
+  tagline?: string;
+};
+
 export function buildAvatarImagePrompt(
   persona: CreatorAvatarForm,
-  options?: { personalization?: string; productFacts?: ProductFactsForm },
+  options?: {
+    personalization?: string;
+    productFacts?: ProductFactsForm;
+    site?: AvatarSiteContext;
+  },
 ): string {
   const genderLabel =
     persona.gender === "female"
@@ -44,6 +55,10 @@ export function buildAvatarImagePrompt(
     `Wardrobe: culturally accurate, modern, upper-middle-class casual activewear suitable for ${persona.location}.`,
     `Expression and mood: ${persona.personalityVoice.slice(0, 200)}.`,
     options?.personalization ?? "",
+    options?.site?.brandName
+      ? `Brand alignment: spokesperson for ${options.site.brandName}${options.site.domain ? ` (${options.site.domain})` : ""}. Tone: ${options.site.tone ?? "on-brand"}.`
+      : "",
+    options?.site?.tagline ? `Brand message: ${options.site.tagline}.` : "",
     options?.productFacts ? formatFactsForPrompt(options.productFacts) : "",
     "Professional influencer headshot, natural lighting, shallow depth of field, 85mm lens look.",
     "Photorealistic, consistent facial features, no text overlays, no watermarks, no logos.",

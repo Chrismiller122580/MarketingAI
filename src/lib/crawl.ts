@@ -8,29 +8,154 @@ import type { SiteData, SitePage } from "./types";
 
 const MAX_PAGES = 25;
 const FETCH_TIMEOUT_MS = 10_000;
+const CRAWLER_USER_AGENT = "CrawlSpark-Crawler/1.0";
 
-async function isAllowedByRobots(origin: string, path: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${origin}/robots.txt`, {
-      headers: { "User-Agent": "CrawlSpark-Crawler/1.0" },
-      redirect: "follow",
-    });
-    if (!res.ok) return true; // absence of robots.txt means allowed
-    const txt = await res.text();
-    for (const raw of txt.split(/\r?\n/)) {
-      const line = raw.trim();
-      if (!line || line.startsWith("#")) continue;
-      const m = line.match(/^Disallow:\s*(\S*)/i);
-      if (m) {
-        const rule = m[1] || "";
-        if (rule === "/" || (rule && path.startsWith(rule))) {
-          return false;
+type RobotsGroup = {
+  agents: string[];
+  allow: string[];
+  disallow: string[];
+};
+
+function parseRobotsGroups(txt: string): RobotsGroup[] {
+  const groups: RobotsGroup[] = [];
+  let current: RobotsGroup | null = null;
+
+  const flush = () => {
+    if (current) {
+      groups.push(current);
+      current = null;
+    }
+  };
+
+  for (const raw of txt.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    const uaMatch = line.match(/^User-agent:\s*(.+)$/i);
+    if (uaMatch) {
+      const agent = uaMatch[1].trim().toLowerCase();
+      if (
+        current &&
+        (current.allow.length > 0 || current.disallow.length > 0)
+      ) {
+        flush();
+      }
+      if (current) {
+        current.agents.push(agent);
+      } else {
+        current = { agents: [agent], allow: [], disallow: [] };
+      }
+      continue;
+    }
+
+    if (!current) continue;
+
+    const allowMatch = line.match(/^Allow:\s*(\S*)/i);
+    if (allowMatch) {
+      current.allow.push(allowMatch[1] ?? "");
+      continue;
+    }
+
+    const disallowMatch = line.match(/^Disallow:\s*(\S*)/i);
+    if (disallowMatch) {
+      current.disallow.push(disallowMatch[1] ?? "");
+    }
+  }
+
+  flush();
+  return groups;
+}
+
+function agentMatchesPattern(pattern: string, userAgent: string): boolean {
+  if (pattern === "*") return true;
+  const ua = userAgent.toLowerCase();
+  const token = ua.split("/")[0];
+  return ua.includes(pattern) || pattern.includes(token);
+}
+
+function findApplicableRobotsRules(
+  groups: RobotsGroup[],
+  userAgent: string,
+): Pick<RobotsGroup, "allow" | "disallow"> {
+  let bestSpecificity = -1;
+  const specificAllow: string[] = [];
+  const specificDisallow: string[] = [];
+  const wildcardAllow: string[] = [];
+  const wildcardDisallow: string[] = [];
+
+  for (const group of groups) {
+    for (const agent of group.agents) {
+      if (!agentMatchesPattern(agent, userAgent)) continue;
+
+      if (agent === "*") {
+        wildcardAllow.push(...group.allow);
+        wildcardDisallow.push(...group.disallow);
+      } else {
+        const specificity = agent.length;
+        if (specificity > bestSpecificity) {
+          bestSpecificity = specificity;
+          specificAllow.length = 0;
+          specificDisallow.length = 0;
+        }
+        if (specificity === bestSpecificity) {
+          specificAllow.push(...group.allow);
+          specificDisallow.push(...group.disallow);
         }
       }
     }
-    return true;
+  }
+
+  if (bestSpecificity > 0) {
+    return { allow: specificAllow, disallow: specificDisallow };
+  }
+
+  return { allow: wildcardAllow, disallow: wildcardDisallow };
+}
+
+function isPathAllowedByRules(
+  path: string,
+  rules: Pick<RobotsGroup, "allow" | "disallow">,
+): boolean {
+  let longestAllow = -1;
+  let longestDisallow = -1;
+
+  for (const rule of rules.allow) {
+    if (path.startsWith(rule) && rule.length > longestAllow) {
+      longestAllow = rule.length;
+    }
+  }
+
+  for (const rule of rules.disallow) {
+    if (!rule) continue;
+    if (path.startsWith(rule) && rule.length > longestDisallow) {
+      longestDisallow = rule.length;
+    }
+  }
+
+  if (longestAllow === -1 && longestDisallow === -1) return true;
+  return longestAllow >= longestDisallow;
+}
+
+function isPathAllowedByRobots(
+  path: string,
+  groups: RobotsGroup[],
+  userAgent = CRAWLER_USER_AGENT,
+): boolean {
+  const rules = findApplicableRobotsRules(groups, userAgent);
+  if (rules.allow.length === 0 && rules.disallow.length === 0) return true;
+  return isPathAllowedByRules(path, rules);
+}
+
+async function fetchRobotsGroups(origin: string): Promise<RobotsGroup[]> {
+  try {
+    const res = await fetch(`${origin}/robots.txt`, {
+      headers: { "User-Agent": CRAWLER_USER_AGENT },
+      redirect: "follow",
+    });
+    if (!res.ok) return [];
+    return parseRobotsGroups(await res.text());
   } catch {
-    return true; // on error, be permissive but log would be ideal in prod
+    return [];
   }
 }
 
@@ -144,7 +269,7 @@ async function fetchPage(url: string): Promise<string> {
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "CrawlSpark-Crawler/1.0",
+        "User-Agent": CRAWLER_USER_AGENT,
         Accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",
@@ -167,7 +292,10 @@ export async function crawlDomain(domainInput: string): Promise<SiteData> {
   const origin = normalizeDomain(domainInput);
   const startUrl = new URL("/", origin).href;
 
-  const sitemapUrls = await fetchSitemapUrls(origin);
+  const [sitemapUrls, robotsGroups] = await Promise.all([
+    fetchSitemapUrls(origin),
+    fetchRobotsGroups(origin),
+  ]);
   const visited = new Set<string>();
   const queue = [
     startUrl,
@@ -181,7 +309,7 @@ export async function crawlDomain(domainInput: string): Promise<SiteData> {
     if (!nextUrl || visited.has(nextUrl)) continue;
 
     const pageUrl = new URL(nextUrl);
-    if (!(await isAllowedByRobots(origin, pageUrl.pathname))) continue;
+    if (!isPathAllowedByRobots(pageUrl.pathname, robotsGroups)) continue;
 
     visited.add(nextUrl);
 
