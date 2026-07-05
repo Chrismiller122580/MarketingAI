@@ -46,7 +46,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     steps: [
       "Sign in at elevenlabs.io → Developers → API keys → Create key (or Profile → API Keys).",
       "Add ELEVENLABS_API_KEY to .env locally or Vercel → Settings → Environment Variables.",
-      "Optional: elevenlabs.io/app/voice-library → copy a Voice ID → set ELEVENLABS_VOICE_ID.",
+      "Optional: elevenlabs.io/app/voice-library → copy a Voice ID (e.g. 21m00Tcm4TlvDq8ikWAM) → set ELEVENLABS_VOICE_ID. Do not paste an sk_ API key here.",
       "ViraForge: Talk motion clips also need REPLICATE_API_TOKEN. Voice previews are saved in Creator Studio → Render Library.",
       "Content Studio: MP3 narration on video posts also needs BLOB_READ_WRITE_TOKEN (Vercel Blob).",
       "Redeploy on Vercel after saving. Refresh Integrations — ELEVENLABS_API_KEY should show Active.",

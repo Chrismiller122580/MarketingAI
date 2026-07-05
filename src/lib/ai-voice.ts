@@ -11,7 +11,12 @@ export function hasVoiceProvider(): boolean {
 }
 
 export function getDefaultVoiceId(): string {
-  return process.env.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE_ID;
+  const configured = process.env.ELEVENLABS_VOICE_ID?.trim();
+  // Voice IDs look like "21m00Tcm4TlvDq8ikWAM" — not sk_* API keys
+  if (configured && !configured.startsWith("sk_")) {
+    return configured;
+  }
+  return DEFAULT_VOICE_ID;
 }
 
 /** Trim caption to a short spoken script that fits video length. */
