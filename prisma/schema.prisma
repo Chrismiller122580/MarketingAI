@@ -30,6 +30,7 @@ model User {
   influencers        Influencer[]
   productFacts       ProductFacts[]
   creatorEvents      CreatorLearningEvent[]
+  videoJobs          VideoJob[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 }
@@ -187,6 +188,21 @@ model Influencer {
 
   @@unique([userId, handle])
   @@index([userId])
+}
+
+model VideoJob {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  predictionId String
+  prompt       String   @db.Text
+  aspectRatio  String
+  status       String
+  videoUrl     String?  @db.Text
+  error        String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model InfluencerRender {

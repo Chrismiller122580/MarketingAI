@@ -279,8 +279,18 @@ export function ContentGenerator() {
     saved: SavedPost,
   ) {
     setVideoLoading(true);
+    let attempts = 0;
+    const maxAttempts = 225;
 
     const poll = async () => {
+      attempts += 1;
+      if (attempts > maxAttempts) {
+        setVideoLoading(false);
+        setError("Video generation timed out. Try regenerating the post.");
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+
       try {
         const res = await fetch(`/api/video/status/${jobId}`);
         const data = await res.json();
@@ -313,7 +323,7 @@ export function ContentGenerator() {
           if (pollRef.current) clearInterval(pollRef.current);
         }
       } catch {
-        /* keep polling */
+        /* keep polling until timeout */
       }
     };
 

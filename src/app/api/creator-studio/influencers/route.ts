@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { getCreatorDefaults } from "@/lib/viraforge/learning";
-import { repairPortraitUrlIfNeeded } from "@/lib/viraforge/influencer-renders";
 import {
   resolveInfluencerAssets,
   type InfluencerAssets,
@@ -19,21 +18,7 @@ export async function GET() {
     take: 50,
   });
 
-  const influencers = await Promise.all(
-    rows.map(async (row) => {
-      const assets = (row.assets ?? {}) as InfluencerAssets;
-      const portraitUrl = await repairPortraitUrlIfNeeded(
-        authResult,
-        row.id,
-        assets.portraitUrl,
-      );
-      if (!portraitUrl || portraitUrl === assets.portraitUrl) return row;
-      return {
-        ...row,
-        assets: { ...assets, portraitUrl },
-      };
-    }),
-  );
+  const influencers = rows;
 
   const defaults = await getCreatorDefaults(authResult);
   const settings = await prisma.userSettings.findUnique({

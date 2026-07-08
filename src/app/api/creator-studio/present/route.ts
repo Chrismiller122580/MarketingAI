@@ -19,6 +19,7 @@ import {
   type InfluencerAssets,
 } from "@/lib/viraforge/influencer-assets";
 import { startInfluencerMotion } from "@/lib/viraforge/influencer-motion";
+import { prepareMotionPortrait } from "@/lib/viraforge/influencer-renders";
 import {
   buildPersonalizationContext,
   recordCreatorEvent,
@@ -192,9 +193,15 @@ export async function POST(request: Request) {
         });
       }
 
+      const portrait = await prepareMotionPortrait(
+        authResult,
+        influencerId,
+        assets.portraitUrl,
+      );
+
       const started = await startInfluencerMotion(
         "talk",
-        assets.portraitUrl,
+        portrait,
         persona.data,
         scriptResult.script,
         assets.voiceId,

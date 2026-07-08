@@ -64,7 +64,7 @@ export async function startVideoGeneration(
     return { error: "Failed to start video generation. Check REPLICATE_API_TOKEN." };
   }
 
-  const job = createVideoJob(
+  const job = await createVideoJob(
     userId,
     prediction.predictionId,
     videoPrompt,

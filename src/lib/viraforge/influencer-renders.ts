@@ -1,6 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 import { prisma } from "@/lib/db";
+import { isBlobUrl } from "@/lib/blob-storage";
+import { isBlobServeUrl } from "@/lib/display-media-url";
+import type { DetectedImageFormat } from "@/lib/image-bytes";
 import {
   ensurePublicMediaUrl,
   isNonPublicMediaUrl,
@@ -129,12 +132,18 @@ async function listPortraitCandidateUrls(
   return urls;
 }
 
-/** Validates portrait bytes and stores a fresh copy in Blob for motion models. */
-export async function ensureMotionPortraitUrl(
+export type PreparedMotionPortrait = {
+  portraitUrl: string;
+  bytes: Buffer;
+  format: DetectedImageFormat;
+};
+
+/** Validates portrait bytes; only re-persists when the source URL is fragile. */
+export async function prepareMotionPortrait(
   userId: string,
   influencerId: string,
   portraitUrl: string,
-): Promise<string> {
+): Promise<PreparedMotionPortrait> {
   const repaired =
     (await repairPortraitUrlIfNeeded(userId, influencerId, portraitUrl)) ??
     portraitUrl;
@@ -153,6 +162,11 @@ export async function ensureMotionPortraitUrl(
         candidate,
         "Portrait",
       );
+
+      if (isBlobServeUrl(candidate) || isBlobUrl(candidate)) {
+        return { portraitUrl: candidate, bytes, format };
+      }
+
       const durableUrl = await uploadBytesToBlob(
         bytes,
         `influencers/${userId}/${influencerId}/portrait-motion-${Date.now()}.${format.ext}`,
@@ -161,7 +175,7 @@ export async function ensureMotionPortraitUrl(
       await patchInfluencerAssets(userId, influencerId, {
         portraitUrl: durableUrl,
       });
-      return durableUrl;
+      return { portraitUrl: durableUrl, bytes, format };
     } catch (error) {
       lastError =
         error instanceof Error ? error : new Error("Portrait load failed");
@@ -172,6 +186,20 @@ export async function ensureMotionPortraitUrl(
     lastError ??
     new Error("Portrait image is missing or corrupt. Regenerate the portrait.")
   );
+}
+
+/** @deprecated Use prepareMotionPortrait — kept for callers that only need the URL. */
+export async function ensureMotionPortraitUrl(
+  userId: string,
+  influencerId: string,
+  portraitUrl: string,
+): Promise<string> {
+  const prepared = await prepareMotionPortrait(
+    userId,
+    influencerId,
+    portraitUrl,
+  );
+  return prepared.portraitUrl;
 }
 
 export async function createInfluencerRender(input: {

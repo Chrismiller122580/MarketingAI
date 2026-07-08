@@ -257,3 +257,17 @@ export async function ensureReplicateInputUrl(
   const filename = `viraforge-${label}-${Date.now()}.${format.ext}`;
   return uploadBytesToReplicate(bytes, format.mime, filename);
 }
+
+/** Uploads validated image bytes directly to Replicate Files. */
+export async function uploadImageBytesToReplicate(
+  bytes: Buffer,
+  format: DetectedImageFormat,
+  label: string,
+): Promise<string> {
+  if (bytes.length === 0) {
+    throw new Error(`${label} is empty`);
+  }
+  assertValidImageBytes(bytes, label);
+  const filename = `viraforge-${label}-${Date.now()}.${format.ext}`;
+  return uploadBytesToReplicate(bytes, format.mime, filename);
+}

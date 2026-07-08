@@ -790,9 +790,13 @@ export async function generateCampaignPack(
   ];
   const varyAngles = request.varyAngles !== false;
 
-  for (const [index, item] of plan.items.slice(0, maxPosts).entries()) {
+  const items = plan.items.slice(0, maxPosts);
+  const CONCURRENCY = 3;
+
+  async function generatePackItem(index: number) {
+    const item = items[index];
     const page = site.pages.find((p) => p.path === item.pagePath);
-    if (!page) continue;
+    if (!page) return null;
 
     const itemPrompt = planItemToPrompt(item, prompt);
     const contentAngle = varyAngles
@@ -812,26 +816,46 @@ export async function generateCampaignPack(
       existingPosts: history,
     });
 
-    history.push({
-      text: post.text,
-      sourcePage: post.sourcePage,
-      platform: post.platform,
-    });
-
     const scheduled = new Date();
     scheduled.setDate(scheduled.getDate() + item.dayOffset);
 
-    posts.push({
-      ...post,
-      id: `${Date.now()}-${posts.length}`,
-      createdAt: new Date().toISOString(),
-      scheduledFor: scheduled.toISOString().split("T")[0],
-      insights: [
-        `Campaign: ${plan.theme} (${plan.source === "ai" ? "AI-planned" : "smart calendar"}).`,
-        `Angle: ${item.angle} on ${item.platform}.`,
-        ...post.insights,
-      ],
-    });
+    return {
+      index,
+      post: {
+        ...post,
+        id: `${Date.now()}-${index}`,
+        createdAt: new Date().toISOString(),
+        scheduledFor: scheduled.toISOString().split("T")[0],
+        insights: [
+          `Campaign: ${plan.theme} (${plan.source === "ai" ? "AI-planned" : "smart calendar"}).`,
+          `Angle: ${item.angle} on ${item.platform}.`,
+          ...post.insights,
+        ],
+      } as SavedPost,
+      historyEntry: {
+        text: post.text,
+        sourcePage: post.sourcePage,
+        platform: post.platform,
+      },
+    };
+  }
+
+  for (let offset = 0; offset < items.length; offset += CONCURRENCY) {
+    const batch = await Promise.all(
+      Array.from(
+        { length: Math.min(CONCURRENCY, items.length - offset) },
+        (_, i) => generatePackItem(offset + i),
+      ),
+    );
+
+    const completed = batch
+      .filter((result): result is NonNullable<typeof result> => result !== null)
+      .sort((a, b) => a.index - b.index);
+
+    for (const result of completed) {
+      history.push(result.historyEntry);
+      posts.push(result.post);
+    }
   }
 
   return { posts, plan };

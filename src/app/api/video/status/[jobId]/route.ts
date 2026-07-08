@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 import { getVideoPredictionStatus } from "@/lib/ai-video";
 import { getVideoJob, updateVideoJob } from "@/lib/video-jobs";
+import { persistDisplayableMedia } from "@/lib/media-url";
 import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
 
 export async function GET(
@@ -12,7 +14,7 @@ export async function GET(
 
   try {
     const { jobId } = await params;
-    const job = getVideoJob(jobId, userId as string);
+    const job = await getVideoJob(jobId, userId as string);
 
     if (!job) {
       return NextResponse.json({ error: "Video job not found" }, { status: 404 });
@@ -22,7 +24,7 @@ export async function GET(
       return NextResponse.json({
         jobId: job.jobId,
         status: "ready",
-        videoUrl: job.videoUrl,
+        videoUrl: resolveDisplayMediaUrl(job.videoUrl),
         prompt: job.prompt,
         aspectRatio: job.aspectRatio,
       });
@@ -46,21 +48,32 @@ export async function GET(
     }
 
     if (prediction.status === "ready" && prediction.videoUrl) {
-      updateVideoJob(jobId, {
+      let durableUrl = prediction.videoUrl;
+      try {
+        durableUrl = await persistDisplayableMedia(
+          prediction.videoUrl,
+          `videos/${userId}/${jobId}.mp4`,
+        );
+      } catch {
+        /* keep ephemeral Replicate URL */
+      }
+
+      await updateVideoJob(jobId, {
         status: "ready",
-        videoUrl: prediction.videoUrl,
+        videoUrl: durableUrl,
       });
+
       return NextResponse.json({
         jobId: job.jobId,
         status: "ready",
-        videoUrl: prediction.videoUrl,
+        videoUrl: resolveDisplayMediaUrl(durableUrl),
         prompt: job.prompt,
         aspectRatio: job.aspectRatio,
       });
     }
 
     if (prediction.status === "failed") {
-      updateVideoJob(jobId, {
+      await updateVideoJob(jobId, {
         status: "failed",
         error: prediction.error,
       });

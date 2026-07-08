@@ -49,11 +49,6 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   if (prediction.status === "ready" && prediction.outputUrl) {
-    await updateInfluencerMotionJob(job.renderId, {
-      status: "ready",
-      videoUrl: prediction.outputUrl,
-    });
-
     let videoUrl = prediction.outputUrl;
     if (job.renderId) {
       const render = await finalizeInfluencerRender({

@@ -1,8 +1,24 @@
 import { NextResponse } from "next/server";
 import { generateAiImage } from "@/lib/ai-image";
+import { isAuthError, requirePaidUserId } from "@/lib/auth-helpers";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { Platform, SiteData, SitePage } from "@/lib/types";
 
 export async function POST(request: Request) {
+  const userId = await requirePaidUserId();
+  if (isAuthError(userId)) return userId;
+
+  const rl = checkRateLimit(userId as string, "generate");
+  if (!rl.allowed) {
+    return NextResponse.json(
+      {
+        error: `Generation rate limit exceeded. Retry in ~${rl.retryAfterSeconds}s.`,
+        retryAfter: rl.retryAfterSeconds,
+      },
+      { status: 429 },
+    );
+  }
+
   try {
     const body = await request.json();
     const site = body.site as SiteData;

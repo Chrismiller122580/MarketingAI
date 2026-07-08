@@ -43,6 +43,7 @@ export async function POST(request: Request) {
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
       varyAngles: body.varyAngles,
+      focusPagePaths: body.focusPagePaths,
     };
 
     const result = await generateCampaignPack(batchRequest);

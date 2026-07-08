@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { pollUntilComplete } from "@/hooks/use-generation-poll";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Mic, Presentation, Sparkles } from "lucide-react";
@@ -24,10 +25,17 @@ type PresentResult = {
   content?: { text: string };
   script?: string;
   motionJobId?: string;
+  motionVideoUrl?: string;
   contentStudioUrl?: string;
   creatorStudioUrl?: string;
   talkError?: string;
   talkSkipped?: string;
+  error?: string;
+};
+
+type MotionPollData = {
+  status?: string;
+  videoUrl?: string;
   error?: string;
 };
 
@@ -45,7 +53,33 @@ export function AvatarPresentPanel() {
   const [platform, setPlatform] = useState<Platform>("instagram");
   const [talkNow, setTalkNow] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [motionPolling, setMotionPolling] = useState(false);
   const [result, setResult] = useState<PresentResult | null>(null);
+
+  const pollPresentMotion = useCallback(async (jobId: string) => {
+    setMotionPolling(true);
+    const data = await pollUntilComplete<MotionPollData>({
+      url: `/api/creator-studio/motion/status/${jobId}`,
+      isReady: (payload) => payload.status === "ready" && !!payload.videoUrl,
+      isFailed: (payload) => payload.status === "failed",
+      immediate: true,
+    });
+
+    setMotionPolling(false);
+    if (data?.status === "ready" && data.videoUrl) {
+      setResult((prev) =>
+        prev ? { ...prev, motionVideoUrl: data.videoUrl } : prev,
+      );
+      toast.success("Talk clip ready");
+      return;
+    }
+
+    if (data?.status === "failed") {
+      toast.error(data.error ?? "Talk clip failed");
+    } else {
+      toast.error("Talk clip timed out — check Creator Studio later");
+    }
+  }, []);
 
   useEffect(() => {
     if (!hasAccess) return;
@@ -119,6 +153,7 @@ export function AvatarPresentPanel() {
       setResult(data);
       if (data.motionJobId) {
         toast.success("Avatar is presenting — talk clip rendering");
+        void pollPresentMotion(data.motionJobId);
       } else if (data.talkSkipped || data.talkError) {
         toast.warning(data.talkSkipped ?? data.talkError ?? "Talk skipped");
       } else {
@@ -247,12 +282,18 @@ export function AvatarPresentPanel() {
 
         <Button
           type="button"
-          disabled={loading || !selectedInfluencer}
+          disabled={loading || motionPolling || !selectedInfluencer}
           onClick={() => void handlePresent()}
           className="w-full bg-violet-600 py-5 text-base font-bold hover:bg-violet-500"
         >
-          {loading ? (
-            <InlineLoading label="Avatar is presenting this page…" />
+          {loading || motionPolling ? (
+            <InlineLoading
+              label={
+                motionPolling
+                  ? "Rendering talk clip…"
+                  : "Avatar is presenting this page…"
+              }
+            />
           ) : (
             <>
               <Sparkles className="mr-2 inline h-4 w-4" />
@@ -276,6 +317,14 @@ export function AvatarPresentPanel() {
                   {result.script}
                 </p>
               </>
+            )}
+            {result.motionVideoUrl && (
+              <video
+                src={result.motionVideoUrl}
+                controls
+                playsInline
+                className="mt-3 w-full max-w-sm rounded-lg border border-border"
+              />
             )}
             <div className="flex flex-wrap gap-2 border-t border-border pt-3">
               {result.contentStudioUrl && (

@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { planItemToPrompt } from "@/lib/campaign-planner";
-import { pickFreshAngle } from "@/lib/content-uniqueness";
-import type { GeneratedPost } from "@/lib/types";
+
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
@@ -117,12 +115,8 @@ export function CampaignPack() {
     setPosts([]);
     setLoadingProgress(0);
 
-    const accumulatedHistory = [...postHistory];
-    const generated: SavedPost[] = [];
-
     try {
-      // Step 1: Get the campaign plan (real planning on server)
-      const planRes = await fetch("/api/generate/plan", {
+      const batchRes = await fetch("/api/generate/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -134,96 +128,29 @@ export function CampaignPack() {
           contentAngle,
           existingPosts: postHistory,
           varyAngles,
+          preferAiImage,
+          visualTargeting: preferAiImage ? visualTargeting : undefined,
           focusPagePaths:
             focusPagePaths.length > 0 ? focusPagePaths : undefined,
         }),
       });
 
-      const planData = await planRes.json();
-      if (!planRes.ok) {
-        if (planRes.status === 402 || planData?.code === "SUBSCRIPTION_REQUIRED") {
-          throw new Error(planData.error || "Paid subscription required. Upgrade at /billing.");
+      const batchData = await batchRes.json();
+      if (!batchRes.ok) {
+        if (batchRes.status === 402 || batchData?.code === "SUBSCRIPTION_REQUIRED") {
+          throw new Error(batchData.error || "Paid subscription required. Upgrade at /billing.");
         }
-        throw new Error(planData.error ?? "Failed to plan campaign");
+        throw new Error(batchData.error ?? "Failed to generate campaign pack");
       }
 
-      const p = planData.plan;
-      const items = planData.items ?? [];
-      setPlanInfo(p);
-
-      // Step 2: Generate posts one-by-one for real progress + live UI updates
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        setLoadingProgress(i + 1);
-
-        const page = site.pages.find((pp) => pp.path === item.pagePath);
-        if (!page) continue;
-
-        const thisAngle = varyAngles
-          ? pickFreshAngle(accumulatedHistory, i, contentAngle)
-          : contentAngle ?? "auto";
-
-        const itemPrompt = planItemToPrompt(item, prompt.trim());
-
-        const genRes = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            site,
-            settings,
-            contentType: "Social Post",
-            platform: item.platform,
-            prompt: itemPrompt,
-            sourcePageUrl: page.url,
-            preferAiImage: preferAiImage,
-            visualTargeting: preferAiImage ? visualTargeting : undefined,
-            contentAngle: thisAngle,
-            existingPosts: accumulatedHistory,
-          }),
-        });
-
-        const genData = await genRes.json();
-        if (!genRes.ok) {
-          if (genRes.status === 402 || genData?.code === "SUBSCRIPTION_REQUIRED") {
-            throw new Error(genData.error || "Paid subscription required. Upgrade at /billing.");
-          }
-          // continue on single post failure to not lose the whole pack
-          console.warn("Single post generation failed in pack:", genData.error);
-          continue;
-        }
-
-        const post = genData as GeneratedPost;
-
-        const scheduled = new Date();
-        scheduled.setDate(scheduled.getDate() + item.dayOffset);
-
-        const campaignPost: SavedPost = {
-          ...post,
-          id: `temp-${Date.now()}-${i}`,
-          createdAt: new Date().toISOString(),
-          scheduledFor: scheduled.toISOString().split("T")[0],
-          insights: [
-            `Campaign: ${p.theme} (${p.source === "ai" ? "AI-planned" : "smart calendar"}).`,
-            `Angle: ${item.angle} on ${item.platform}.`,
-            ...(post.insights ?? []),
-          ],
-        } as SavedPost;
-
-        generated.push(campaignPost);
-        // live update the grid
-        setPosts([...generated]);
-
-        // update history for next uniqueness/angle decisions
-        accumulatedHistory.push({
-          text: post.text,
-          sourcePage: post.sourcePage,
-          platform: post.platform,
-        });
-      }
-
+      const generated = (batchData.posts ?? []) as SavedPost[];
       if (generated.length === 0) {
         throw new Error("No posts were generated. Try adjusting your settings or brief.");
       }
+
+      setPlanInfo(batchData.plan ?? null);
+      setPosts(generated);
+      setLoadingProgress(generated.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Campaign generation failed");
     } finally {

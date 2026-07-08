@@ -407,7 +407,9 @@ export function ViraForgeCreatorStudio() {
     async (jobId: string, motionType: InfluencerMotionType) => {
       const maxAttempts = 90;
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 4000));
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+        }
         const res = await fetch(`/api/creator-studio/motion/status/${jobId}`);
         const data = (await res.json()) as {
           status?: string;

@@ -12,11 +12,15 @@ import {
   type InfluencerAssets,
   type InfluencerMotionType,
 } from "@/lib/viraforge/influencer-assets";
-import { startInfluencerMotion } from "@/lib/viraforge/influencer-motion";
+import {
+  startInfluencerMotion,
+  type PreparedTalkAudio,
+} from "@/lib/viraforge/influencer-motion";
+import { synthesizeSpeech } from "@/lib/viraforge/elevenlabs";
 import { recordCreatorEvent } from "@/lib/viraforge/learning";
 import {
   createInfluencerRender,
-  ensureMotionPortraitUrl,
+  prepareMotionPortrait,
 } from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
@@ -129,13 +133,27 @@ export async function POST(request: Request) {
       }
     }
 
-    let portraitUrl: string;
+    let portrait;
+    let preparedTalk: PreparedTalkAudio | undefined;
     try {
-      portraitUrl = await ensureMotionPortraitUrl(
+      const portraitPromise = prepareMotionPortrait(
         authResult,
         influencerId,
         assets.portraitUrl,
       );
+      if (motionType === "talk") {
+        const [preparedPortrait, speech] = await Promise.all([
+          portraitPromise,
+          synthesizeSpeech(talkScript, { voiceId: assets.voiceId }),
+        ]);
+        portrait = preparedPortrait;
+        preparedTalk = {
+          audioDataUrl: speech.audioDataUrl,
+          voiceId: speech.voiceId,
+        };
+      } else {
+        portrait = await portraitPromise;
+      }
     } catch (error) {
       const message =
         error instanceof Error
@@ -151,10 +169,11 @@ export async function POST(request: Request) {
 
     const started = await startInfluencerMotion(
       motionType as InfluencerMotionType,
-      portraitUrl,
+      portrait,
       persona.data,
       motionType === "talk" ? talkScript : undefined,
       motionType === "talk" ? assets.voiceId : undefined,
+      preparedTalk,
     );
 
     if ("error" in started) {
