@@ -401,18 +401,23 @@ export function ViraForgeCreatorStudio() {
           status?: string;
           videoUrl?: string;
           voiceAudioUrl?: string;
+          audioEmbeddedInVideo?: boolean;
           error?: string;
         };
 
         if (data.status === "ready" && data.videoUrl) {
           setMotionVideo(data.videoUrl);
           setPreviewMode("motion");
-          if (data.voiceAudioUrl) setVoiceAudioUrl(data.voiceAudioUrl);
+          if (motionType === "talk" && data.audioEmbeddedInVideo) {
+            setVoiceAudio(null);
+          } else if (data.voiceAudioUrl) {
+            setVoiceAudioUrl(data.voiceAudioUrl);
+          }
           setMotionLoading(null);
           bumpRenderLibrary();
           toast.success(
             motionType === "talk"
-              ? "Talking clip ready — lip-sync video saved."
+              ? "Talking clip ready — voice synced into video."
               : `${motionType.charAt(0).toUpperCase()}${motionType.slice(1)} clip ready.`,
           );
           return;
@@ -2083,7 +2088,7 @@ export function ViraForgeCreatorStudio() {
                 </div>
               )}
 
-              {voiceAudio && (
+              {voiceAudio && !motionVideo && (
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="mb-2 text-xs font-medium text-foreground">
                     Latest voice track
@@ -2103,6 +2108,7 @@ export function ViraForgeCreatorStudio() {
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="mb-2 text-xs font-medium text-foreground">
                     Latest motion clip
+                    {motionLoading === "talk" ? "" : " — play for synced audio"}
                   </p>
                   <video
                     src={motionVideo}

@@ -7,6 +7,11 @@ import {
 } from "@/lib/influencer-motion-jobs";
 import { getPredictionStatus } from "@/lib/replicate-client";
 import { finalizeInfluencerRender } from "@/lib/viraforge/influencer-renders";
+import { muxTalkVideoWithVoice } from "@/lib/viraforge/talk-video-mux";
+import { uploadBytesToBlob } from "@/lib/media-url";
+
+export const maxDuration = 120;
+export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ jobId: string }> };
 
@@ -25,9 +30,13 @@ export async function GET(_request: Request, context: RouteContext) {
       status: "ready",
       videoUrl: resolveDisplayMediaUrl(job.videoUrl),
       motionType: job.motionType,
-      voiceAudioUrl: job.voiceAudioUrl
-        ? resolveDisplayMediaUrl(job.voiceAudioUrl)
-        : undefined,
+      audioEmbeddedInVideo: job.motionType === "talk",
+      voiceAudioUrl:
+        job.motionType === "talk"
+          ? undefined
+          : job.voiceAudioUrl
+            ? resolveDisplayMediaUrl(job.voiceAudioUrl)
+            : undefined,
       renderId: job.renderId,
     });
   }
@@ -50,13 +59,34 @@ export async function GET(_request: Request, context: RouteContext) {
 
   if (prediction.status === "ready" && prediction.outputUrl) {
     let videoUrl = prediction.outputUrl;
+    let audioEmbeddedInVideo = false;
+
+    if (job.motionType === "talk" && job.voiceAudioUrl) {
+      try {
+        const voiceUrl = resolveDisplayMediaUrl(job.voiceAudioUrl);
+        const muxed = await muxTalkVideoWithVoice(prediction.outputUrl, voiceUrl);
+        const muxedBlobUrl = await uploadBytesToBlob(
+          muxed.buffer,
+          `influencers/${authResult}/${job.influencerId}/talk-mux-${job.renderId}.mp4`,
+          "video/mp4",
+        );
+        videoUrl = muxedBlobUrl;
+        audioEmbeddedInVideo = true;
+      } catch (error) {
+        console.error(
+          "Talk mux failed — using raw SadTalker output:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
     if (job.renderId) {
       const render = await finalizeInfluencerRender({
         userId: authResult,
         influencerId: job.influencerId,
         renderId: job.renderId,
         status: "ready",
-        url: prediction.outputUrl,
+        url: videoUrl,
         voiceUrl: job.voiceAudioUrl,
         activate: true,
       });
@@ -67,9 +97,13 @@ export async function GET(_request: Request, context: RouteContext) {
       status: "ready",
       videoUrl: resolveDisplayMediaUrl(videoUrl),
       motionType: job.motionType,
-      voiceAudioUrl: job.voiceAudioUrl
-        ? resolveDisplayMediaUrl(job.voiceAudioUrl)
-        : undefined,
+      audioEmbeddedInVideo,
+      voiceAudioUrl:
+        audioEmbeddedInVideo || job.motionType === "talk"
+          ? undefined
+          : job.voiceAudioUrl
+            ? resolveDisplayMediaUrl(job.voiceAudioUrl)
+            : undefined,
       renderId: job.renderId,
     });
   }

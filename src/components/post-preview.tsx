@@ -149,7 +149,9 @@ export function PostPreview({
             </p>
             <p className="mt-1 text-xs text-slate-300">
               {post.image.motionJobId
-                ? "Voice tracks appear below — video usually 1–3 minutes"
+                ? post.image.motionType === "talk"
+                  ? "Muxing voice into video — usually 1–3 minutes"
+                  : "Voice tracks appear below — video usually 1–3 minutes"
                 : "Usually 1–3 minutes"}
             </p>
           </div>
@@ -165,7 +167,7 @@ export function PostPreview({
         )}
       </div>
 
-      {post.image.audioUrl && (
+      {post.image.audioUrl && !post.image.audioEmbeddedInVideo && (
         <MotionAudioBlock
           label={
             post.image.motionType

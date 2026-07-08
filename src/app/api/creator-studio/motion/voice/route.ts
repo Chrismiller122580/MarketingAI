@@ -18,6 +18,7 @@ import {
   analyzeTalkScript,
   hashTalkScript,
 } from "@/lib/viraforge/talk-settings";
+import { getAudioDurationSec } from "@/lib/viraforge/talk-video-mux";
 
 const voiceSchema = z.object({
   influencerId: z.string().min(1),
@@ -157,7 +158,9 @@ export async function POST(request: Request) {
       voiceId: speech.voiceId,
       script: analysis.script,
       scriptHash: hashTalkScript(analysis.script),
-      durationSec: speech.durationSec,
+      durationSec: await getAudioDurationSec(speech.buffer).catch(
+        () => speech.durationSec,
+      ),
       wordCount: analysis.wordCount,
       estimatedDurationSec: analysis.estimatedDurationSec,
       renderId,

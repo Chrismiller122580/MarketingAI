@@ -324,6 +324,7 @@ export function ContentGenerator() {
       status: string;
       videoUrl?: string;
       voiceAudioUrl?: string;
+      audioEmbeddedInVideo?: boolean;
       error?: string;
     },
   ): GeneratedPost["image"] {
@@ -335,7 +336,11 @@ export function ContentGenerator() {
           videoUrl: data.videoUrl,
           originalUrl: data.videoUrl,
           videoStatus: "ready",
-          ...(data.voiceAudioUrl ? { audioUrl: data.voiceAudioUrl } : {}),
+          ...(data.audioEmbeddedInVideo
+            ? { audioEmbeddedInVideo: true, audioUrl: undefined }
+            : data.voiceAudioUrl
+              ? { audioUrl: data.voiceAudioUrl }
+              : {}),
         };
       }
       if (data.status === "failed") {
@@ -356,7 +361,11 @@ export function ContentGenerator() {
             ...clip,
             videoUrl: data.videoUrl,
             videoStatus: "ready" as const,
-            ...(data.voiceAudioUrl ? { audioUrl: data.voiceAudioUrl } : {}),
+            ...(data.audioEmbeddedInVideo
+              ? { audioUrl: undefined }
+              : data.voiceAudioUrl
+                ? { audioUrl: data.voiceAudioUrl }
+                : {}),
           };
         }
         if (data.status === "failed") {

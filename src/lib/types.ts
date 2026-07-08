@@ -195,6 +195,7 @@ export type PostMedia = {
   supplementalClips?: InfluencerMotionClip[];
   audioUrl?: string;
   voiceoverScript?: string;
+  audioEmbeddedInVideo?: boolean;
   durationSec?: number;
   aspectRatio?: VideoAspectRatio;
 };
