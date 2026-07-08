@@ -18,10 +18,8 @@ import {
 } from "@/lib/viraforge/influencer-motion";
 import { synthesizeSpeech } from "@/lib/viraforge/elevenlabs";
 import { recordCreatorEvent } from "@/lib/viraforge/learning";
-import {
-  createInfluencerRender,
-  prepareMotionPortrait,
-} from "@/lib/viraforge/influencer-renders";
+import { resolveMotionVoiceId } from "@/lib/viraforge/motion-voice";
+import { prepareMotionPortrait } from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
@@ -109,6 +107,18 @@ export async function POST(request: Request) {
       assets.lastScript ||
       "";
 
+    if (motionType === "talk" && !talkScript) {
+      return NextResponse.json(
+        {
+          error:
+            "Add a script in Motion & Voice (or a sample quote) before generating a talk clip.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const motionVoiceId = resolveMotionVoiceId(assets.voiceId);
+
     if (motionType === "talk" && influencer.productFacts) {
       const facts = productFactsSchema.safeParse({
         name: influencer.productFacts.name,
@@ -144,7 +154,7 @@ export async function POST(request: Request) {
       if (motionType === "talk") {
         const [preparedPortrait, speech] = await Promise.all([
           portraitPromise,
-          synthesizeSpeech(talkScript, { voiceId: assets.voiceId }),
+          synthesizeSpeech(talkScript, { voiceId: motionVoiceId }),
         ]);
         portrait = preparedPortrait;
         preparedTalk = {
@@ -172,34 +182,26 @@ export async function POST(request: Request) {
       portrait,
       persona.data,
       motionType === "talk" ? talkScript : undefined,
-      motionType === "talk" ? assets.voiceId : undefined,
+      motionType === "talk" ? motionVoiceId : undefined,
       preparedTalk,
     );
 
     if ("error" in started) {
-      return NextResponse.json({ error: started.error }, { status: 500 });
+      const providerError =
+        /replicate|elevenlabs|portrait|voice|script/i.test(started.error);
+      return NextResponse.json(
+        { error: started.error },
+        { status: providerError ? 502 : 500 },
+      );
     }
-
-    const { id: renderId } = await createInfluencerRender({
-      userId: authResult,
-      influencerId,
-      type: "motion",
-      status: "processing",
-      motionType,
-      script: motionType === "talk" ? talkScript : undefined,
-      voiceUrl: started.voiceAudioUrl,
-      voiceId: started.voiceId,
-      provider: "replicate",
-      predictionId: started.predictionId,
-    });
 
     const job = await createInfluencerMotionJob({
       userId: authResult,
       influencerId,
       predictionId: started.predictionId,
       motionType: motionType as InfluencerMotionType,
-      renderId,
       voiceAudioUrl: started.voiceAudioUrl,
+      voiceId: started.voiceId,
       script: motionType === "talk" ? talkScript : undefined,
     });
 

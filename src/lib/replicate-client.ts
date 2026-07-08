@@ -5,6 +5,17 @@ type ReplicatePrediction = {
   error?: string | null;
 };
 
+type ReplicateModel = {
+  latest_version?: { id?: string };
+  detail?: string;
+};
+
+/** Pinned fallbacks when model metadata lookup fails. */
+const PINNED_VERSIONS: Record<string, string> = {
+  "cjwbw/sadtalker":
+    "3aa3dac9353cc4d6bd62a8f95957bd844003b401ca4e4a9b33baa574c549d376",
+};
+
 export function getReplicateToken(): string | undefined {
   return process.env.REPLICATE_API_TOKEN;
 }
@@ -13,7 +24,68 @@ export function hasReplicate(): boolean {
   return !!getReplicateToken();
 }
 
-export async function createModelPrediction(
+function modelEnvVersion(model: string): string | undefined {
+  const slug = model.replace("/", "_").replace(/-/g, "_").toUpperCase();
+  return process.env[`REPLICATE_${slug}_VERSION`]?.trim();
+}
+
+async function resolveModelVersion(model: string): Promise<string | null> {
+  const pinned = modelEnvVersion(model) ?? PINNED_VERSIONS[model];
+  if (pinned) return pinned;
+
+  const token = getReplicateToken();
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`https://api.replicate.com/v1/models/${model}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = (await response.json()) as ReplicateModel;
+    if (!response.ok) return null;
+    return data.latest_version?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function createVersionedPrediction(
+  version: string,
+  input: Record<string, unknown>,
+): Promise<{ predictionId: string } | { error: string }> {
+  const token = getReplicateToken();
+  if (!token) {
+    return { error: "REPLICATE_API_TOKEN is not configured" };
+  }
+
+  const response = await fetch("https://api.replicate.com/v1/predictions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ version, input }),
+  });
+
+  const data = (await response.json()) as ReplicatePrediction & {
+    detail?: string;
+    title?: string;
+  };
+
+  if (!response.ok) {
+    return {
+      error:
+        data.detail ??
+        data.title ??
+        data.error ??
+        `Replicate error (${response.status})`,
+    };
+  }
+
+  if (!data.id) return { error: "Replicate did not return a prediction id" };
+  return { predictionId: data.id };
+}
+
+async function createModelEndpointPrediction(
   model: string,
   input: Record<string, unknown>,
 ): Promise<{ predictionId: string } | { error: string }> {
@@ -22,31 +94,50 @@ export async function createModelPrediction(
     return { error: "REPLICATE_API_TOKEN is not configured" };
   }
 
-  try {
-    const response = await fetch(
-      `https://api.replicate.com/v1/models/${model}/predictions`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ input }),
+  const response = await fetch(
+    `https://api.replicate.com/v1/models/${model}/predictions`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({ input }),
+    },
+  );
 
-    const data = (await response.json()) as ReplicatePrediction & {
-      detail?: string;
+  const data = (await response.json()) as ReplicatePrediction & {
+    detail?: string;
+    title?: string;
+  };
+
+  if (!response.ok) {
+    return {
+      error:
+        data.detail ??
+        data.title ??
+        data.error ??
+        `Replicate error (${response.status})`,
     };
+  }
 
-    if (!response.ok) {
-      return {
-        error: data.detail ?? data.error ?? `Replicate error (${response.status})`,
-      };
+  if (!data.id) return { error: "Replicate did not return a prediction id" };
+  return { predictionId: data.id };
+}
+
+export async function createModelPrediction(
+  model: string,
+  input: Record<string, unknown>,
+): Promise<{ predictionId: string } | { error: string }> {
+  try {
+    const version = await resolveModelVersion(model);
+    if (version) {
+      const result = await createVersionedPrediction(version, input);
+      if (!("error" in result)) return result;
+      if (!result.error.toLowerCase().includes("not found")) return result;
     }
 
-    if (!data.id) return { error: "Replicate did not return a prediction id" };
-    return { predictionId: data.id };
+    return await createModelEndpointPrediction(model, input);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Replicate request failed",

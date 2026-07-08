@@ -94,6 +94,7 @@ export async function createInfluencerMotionJob(
     motionType: InfluencerMotionType;
     renderId?: string;
     voiceAudioUrl?: string;
+    voiceId?: string;
     script?: string;
     status?: InfluencerMotionJob["status"];
   },
@@ -127,6 +128,7 @@ export async function createInfluencerMotionJob(
     motionType: record.motionType,
     script: record.script,
     voiceUrl: record.voiceAudioUrl,
+    voiceId: record.voiceId,
     provider: "replicate",
     predictionId: record.predictionId,
   });

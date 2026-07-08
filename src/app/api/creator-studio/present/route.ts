@@ -19,6 +19,7 @@ import {
   type InfluencerAssets,
 } from "@/lib/viraforge/influencer-assets";
 import { startInfluencerMotion } from "@/lib/viraforge/influencer-motion";
+import { resolveMotionVoiceId } from "@/lib/viraforge/motion-voice";
 import { prepareMotionPortrait } from "@/lib/viraforge/influencer-renders";
 import {
   buildPersonalizationContext,
@@ -204,7 +205,7 @@ export async function POST(request: Request) {
         portrait,
         persona.data,
         scriptResult.script,
-        assets.voiceId,
+        resolveMotionVoiceId(assets.voiceId),
       );
 
       if ("error" in started) {
