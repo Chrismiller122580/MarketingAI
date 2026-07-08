@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
@@ -50,6 +50,10 @@ import type {
   InfluencerAssets,
   InfluencerMotionType,
 } from "@/lib/viraforge/influencer-assets";
+import {
+  inferProductFactFields,
+  normalizeProductFactsForSite,
+} from "@/lib/viraforge/site-facts-extractor";
 
 type CreatorTab =
   | "physical"
@@ -214,6 +218,12 @@ export function ViraForgeCreatorStudio() {
   >({});
   const [suggesting, setSuggesting] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
+  const [showAllFactFields, setShowAllFactFields] = useState(false);
+
+  const factFieldConfig = useMemo(
+    () => inferProductFactFields(site),
+    [site],
+  );
 
   const personaForm = useForm<CreatorAvatarForm>({
     resolver: zodResolver(creatorAvatarSchema),
@@ -301,6 +311,10 @@ export function ViraForgeCreatorStudio() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate form from API on mount
     void loadInfluencers();
   }, [loadInfluencers]);
+
+  useEffect(() => {
+    setShowAllFactFields(false);
+  }, [site?.domain]);
 
   useEffect(() => {
     fetch("/api/creator-studio/capabilities")
@@ -547,21 +561,37 @@ export function ViraForgeCreatorStudio() {
       });
 
       if (next.productFacts) {
-        const pf = {
+        const fieldConfig = inferProductFactFields(site);
+        const current = factsForm.getValues();
+        const pf: ProductFactsForm = {
           ...defaultProductFactsValues,
-          ...factsForm.getValues(),
-          name: next.productFacts.name ?? factsForm.getValues("name"),
-          price: next.productFacts.price ?? factsForm.getValues("price"),
+          ...current,
+          name: next.productFacts.name ?? current.name,
+          price: next.productFacts.price ?? current.price,
           features:
             next.productFacts.features ?? defaultProductFactsValues.features,
-          location: next.productFacts.location,
-          hours: next.productFacts.hours,
         };
-        factsForm.reset(pf);
+
+        if (fieldConfig.location.show && next.productFacts.location) {
+          pf.location = next.productFacts.location;
+        }
+        if (fieldConfig.hours.show && next.productFacts.hours) {
+          pf.hours = next.productFacts.hours;
+        }
+        if (fieldConfig.ingredients.show && next.productFacts.ingredients) {
+          pf.ingredients = next.productFacts.ingredients;
+        }
+
+        factsForm.reset(
+          normalizeProductFactsForSite(pf, fieldConfig, { showAllFields: false }),
+        );
         setFeaturesText(pf.features.join("\n"));
+        if (pf.ingredients?.length) {
+          setIngredientsText(pf.ingredients.join("\n"));
+        }
       }
     },
-    [personaForm, factsForm],
+    [personaForm, factsForm, site],
   );
 
   const handleSuggest = useCallback(
@@ -682,7 +712,7 @@ export function ViraForgeCreatorStudio() {
 
   const parseFacts = (): ProductFactsForm => {
     const base = factsForm.getValues();
-    return {
+    const parsed = {
       ...base,
       features: featuresText
         .split("\n")
@@ -693,7 +723,17 @@ export function ViraForgeCreatorStudio() {
         .map((s) => s.trim())
         .filter(Boolean),
     };
+    return normalizeProductFactsForSite(parsed, factFieldConfig, {
+      showAllFields: showAllFactFields,
+    });
   };
+
+  const shouldShowFactField = (
+    field: keyof Pick<
+      typeof factFieldConfig,
+      "price" | "location" | "hours" | "ingredients"
+    >,
+  ) => showAllFactFields || factFieldConfig[field].show;
 
   const handleSave = async () => {
     const persona = personaForm.getValues();
@@ -1329,72 +1369,139 @@ export function ViraForgeCreatorStudio() {
 
           {activeTab === "facts" && (
             <div className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Structured fields only — the influencer may only cite these verified
-                facts in scripts and quotes.
-              </p>
+              <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
+                <p className="text-xs text-muted-foreground">
+                  {factFieldConfig.summary} The influencer may only cite verified
+                  facts in scripts and quotes.
+                </p>
+                <button
+                  type="button"
+                  className="mt-2 text-xs font-medium text-violet-600 hover:text-violet-500 dark:text-violet-300"
+                  onClick={() => setShowAllFactFields((value) => !value)}
+                >
+                  {showAllFactFields ? "Show site-tailored fields" : "Show all fields"}
+                </button>
+              </div>
               <div>
                 <label htmlFor="productName" className="text-sm font-medium">
-                  Product name
+                  {factFieldConfig.name.label}
                 </label>
                 <input
                   id="productName"
                   className={inputClass}
+                  placeholder={factFieldConfig.name.placeholder}
                   {...factsForm.register("name")}
                 />
               </div>
               <div>
-                <label htmlFor="productPrice" className="text-sm font-medium">
-                  Price
-                </label>
-                <input
-                  id="productPrice"
-                  className={inputClass}
-                  {...factsForm.register("price")}
-                />
-              </div>
-              <div>
                 <label htmlFor="productFeatures" className="text-sm font-medium">
-                  Features (one per line)
+                  {factFieldConfig.features.label}
                 </label>
                 <textarea
                   id="productFeatures"
                   className={`${inputClass} min-h-28 font-mono text-xs`}
+                  placeholder={factFieldConfig.features.placeholder}
                   value={featuresText}
                   onChange={(e) => setFeaturesText(e.target.value)}
                 />
+                {factFieldConfig.features.hint && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {factFieldConfig.features.hint}
+                  </p>
+                )}
               </div>
-              <div>
-                <label htmlFor="productLocation" className="text-sm font-medium">
-                  Business location
-                </label>
-                <input
-                  id="productLocation"
-                  className={inputClass}
-                  {...factsForm.register("location")}
-                />
-              </div>
-              <div>
-                <label htmlFor="productHours" className="text-sm font-medium">
-                  Hours
-                </label>
-                <input
-                  id="productHours"
-                  className={inputClass}
-                  {...factsForm.register("hours")}
-                />
-              </div>
-              <div>
-                <label htmlFor="productIngredients" className="text-sm font-medium">
-                  Ingredients (one per line)
-                </label>
-                <textarea
-                  id="productIngredients"
-                  className={`${inputClass} min-h-20 font-mono text-xs`}
-                  value={ingredientsText}
-                  onChange={(e) => setIngredientsText(e.target.value)}
-                />
-              </div>
+              {shouldShowFactField("price") && (
+                <div>
+                  <label htmlFor="productPrice" className="text-sm font-medium">
+                    {factFieldConfig.price.label}
+                    {!factFieldConfig.price.show && showAllFactFields && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        Optional for this site
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    id="productPrice"
+                    className={inputClass}
+                    placeholder={factFieldConfig.price.placeholder}
+                    {...factsForm.register("price")}
+                  />
+                  {factFieldConfig.price.hint && showAllFactFields && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {factFieldConfig.price.hint}
+                    </p>
+                  )}
+                </div>
+              )}
+              {shouldShowFactField("location") && (
+                <div>
+                  <label htmlFor="productLocation" className="text-sm font-medium">
+                    {factFieldConfig.location.label}
+                    {!factFieldConfig.location.show && showAllFactFields && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        Optional for this site
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    id="productLocation"
+                    className={inputClass}
+                    placeholder={factFieldConfig.location.placeholder}
+                    {...factsForm.register("location")}
+                  />
+                  {factFieldConfig.location.hint && showAllFactFields && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {factFieldConfig.location.hint}
+                    </p>
+                  )}
+                </div>
+              )}
+              {shouldShowFactField("hours") && (
+                <div>
+                  <label htmlFor="productHours" className="text-sm font-medium">
+                    {factFieldConfig.hours.label}
+                    {!factFieldConfig.hours.show && showAllFactFields && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        Optional for this site
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    id="productHours"
+                    className={inputClass}
+                    placeholder={factFieldConfig.hours.placeholder}
+                    {...factsForm.register("hours")}
+                  />
+                  {factFieldConfig.hours.hint && showAllFactFields && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {factFieldConfig.hours.hint}
+                    </p>
+                  )}
+                </div>
+              )}
+              {shouldShowFactField("ingredients") && (
+                <div>
+                  <label htmlFor="productIngredients" className="text-sm font-medium">
+                    {factFieldConfig.ingredients.label}
+                    {!factFieldConfig.ingredients.show && showAllFactFields && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        Optional for this site
+                      </span>
+                    )}
+                  </label>
+                  <textarea
+                    id="productIngredients"
+                    className={`${inputClass} min-h-20 font-mono text-xs`}
+                    value={ingredientsText}
+                    onChange={(e) => setIngredientsText(e.target.value)}
+                  />
+                  {factFieldConfig.ingredients.hint && showAllFactFields && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {factFieldConfig.ingredients.hint}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

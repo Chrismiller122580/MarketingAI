@@ -1,5 +1,5 @@
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
-import type { SiteData, SitePage } from "@/lib/types";
+import type { BusinessModelType, SiteData, SitePage } from "@/lib/types";
 
 export type FactPinpoint = {
   fact: string;
@@ -224,6 +224,258 @@ export function buildFactPinpoints(
   }
 
   return pinpoints;
+}
+
+export type ProductFactFieldMeta = {
+  show: boolean;
+  label: string;
+  placeholder?: string;
+  hint?: string;
+};
+
+export type ProductFactFieldsConfig = {
+  siteType: BusinessModelType;
+  siteLabel: string;
+  summary: string;
+  name: ProductFactFieldMeta;
+  features: ProductFactFieldMeta;
+  price: ProductFactFieldMeta;
+  location: ProductFactFieldMeta;
+  hours: ProductFactFieldMeta;
+  ingredients: ProductFactFieldMeta;
+};
+
+function siteCorpus(site: SiteData): string {
+  return site.pages
+    .slice(0, 10)
+    .map((p) => `${p.path} ${p.title} ${p.description} ${p.excerpt} ${p.headings.join(" ")}`)
+    .concat(site.brand.topics, site.brand.tagline)
+    .join(" ")
+    .toLowerCase();
+}
+
+function siteTypeLabel(type: BusinessModelType): string {
+  const labels: Record<BusinessModelType, string> = {
+    saas: "software",
+    ecommerce: "online store",
+    services: "services business",
+    agency: "agency",
+    media: "media / content",
+    local: "local business",
+    nonprofit: "nonprofit",
+    other: "site",
+  };
+  return labels[type];
+}
+
+export function defaultPriceForHiddenField(type: BusinessModelType): string {
+  switch (type) {
+    case "saas":
+    case "agency":
+    case "services":
+      return "Contact for pricing";
+    case "nonprofit":
+      return "Donations / free access";
+    case "media":
+      return "Free / subscription";
+    default:
+      return "See website for pricing";
+  }
+}
+
+export function inferProductFactFields(site?: SiteData | null): ProductFactFieldsConfig {
+  if (!site) {
+    return {
+      siteType: "other",
+      siteLabel: "your site",
+      summary: "Crawl a site to tailor which fields appear for that business.",
+      name: {
+        show: true,
+        label: "Product name",
+        placeholder: "Your product or business name",
+      },
+      features: {
+        show: true,
+        label: "Features (one per line)",
+        placeholder: "One highlight per line",
+      },
+      price: {
+        show: true,
+        label: "Price",
+        placeholder: "$49.99",
+      },
+      location: {
+        show: true,
+        label: "Business location",
+        placeholder: "City, neighborhood, or address",
+      },
+      hours: {
+        show: true,
+        label: "Hours of operation",
+        placeholder: "Mon–Sat 9am–6pm",
+      },
+      ingredients: {
+        show: true,
+        label: "Ingredients (one per line)",
+      },
+    };
+  }
+
+  const type = site.brand.businessModel?.type ?? "other";
+  const siteLabel = site.brand.name;
+  const hay = siteCorpus(site);
+  const crawled = site ? extractCrawledProductFacts(site) : {};
+
+  const hasPricingPage =
+    site?.pages.some((page) => classifySitePage(page) === "pricing") ?? false;
+  const hasContactPage =
+    site?.pages.some((page) => classifySitePage(page) === "contact") ?? false;
+  const hasMenuPage =
+    site?.pages.some((page) => /menu|shop|products?/i.test(page.path)) ?? false;
+
+  const isFood = /restaurant|menu|cafe|bakery|food|kitchen|recipe|dining|bar\b|coffee|pizza|sushi|cuisine|chef/.test(
+    hay,
+  );
+  const isBeauty = /skincare|cosmetic|beauty|serum|makeup|fragrance|spa\b|salon/.test(hay);
+  const isSupplement = /supplement|protein|vitamin|nutrition|wellness product|powder/.test(
+    hay,
+  );
+  const isPhysicalLocal =
+    type === "local" ||
+    /visit us|near me|in-person|walk-?in|store hours|our location/.test(hay);
+
+  const showPrice =
+    type === "ecommerce" ||
+    type === "local" ||
+    hasPricingPage ||
+    Boolean(crawled.price) ||
+    (type === "services" && /\$|pricing|rates|starting at|per month/.test(hay));
+
+  const showLocation =
+    isPhysicalLocal ||
+    Boolean(crawled.location) ||
+    (hasContactPage && type === "services");
+
+  const showHours =
+    isPhysicalLocal ||
+    Boolean(crawled.hours) ||
+    /hours of operation|open (daily|mon|sun)|mon.?fri|tue.?sat|7 days/.test(hay);
+
+  const showIngredients =
+    isFood || isBeauty || isSupplement || hasMenuPage || /ingredient|allergen|contains:/.test(hay);
+
+  const nameLabel =
+    type === "local"
+      ? "Business name"
+      : type === "agency"
+        ? "Brand name"
+        : type === "saas"
+          ? "Product or service name"
+          : "Product name";
+
+  const featuresLabel =
+    type === "local"
+      ? "Services & highlights (one per line)"
+      : type === "agency"
+        ? "Core offerings (one per line)"
+        : type === "saas"
+          ? "Key features (one per line)"
+          : "Features (one per line)";
+
+  const priceLabel =
+    type === "local"
+      ? "Typical price or range"
+      : hasPricingPage || type === "saas"
+        ? "Starting price"
+        : "Price";
+
+  const locationLabel = type === "local" ? "Address or neighborhood" : "Business location";
+
+  const ingredientsLabel = isFood
+    ? "Menu items or ingredients (one per line)"
+    : isBeauty || isSupplement
+      ? "Key ingredients (one per line)"
+      : "Ingredients (one per line)";
+
+  const visibleBits = [
+    "name",
+    "features",
+    showPrice ? "price" : null,
+    showLocation ? "location" : null,
+    showHours ? "hours" : null,
+    showIngredients ? "ingredients" : null,
+  ].filter(Boolean);
+
+  const summary = `Tailored for ${siteLabel} (${siteTypeLabel(type)}). Showing ${visibleBits.join(", ")}.`;
+
+  return {
+    siteType: type,
+    siteLabel,
+    summary,
+    name: {
+      show: true,
+      label: nameLabel,
+      placeholder: site?.brand.name ?? "Your product or business name",
+    },
+    features: {
+      show: true,
+      label: featuresLabel,
+      placeholder: "One highlight per line",
+      hint: "Only list claims you can verify from the crawled site.",
+    },
+    price: {
+      show: showPrice,
+      label: priceLabel,
+      placeholder: showPrice ? "$49 / month" : undefined,
+      hint: showPrice
+        ? undefined
+        : "Hidden for this site type — pricing is usually custom or not public.",
+    },
+    location: {
+      show: showLocation,
+      label: locationLabel,
+      placeholder: "City, neighborhood, or address",
+      hint: showLocation
+        ? undefined
+        : "Hidden unless the business has a physical presence.",
+    },
+    hours: {
+      show: showHours,
+      label: "Hours of operation",
+      placeholder: "Mon–Sat 9am–6pm",
+      hint: showHours
+        ? undefined
+        : "Hidden unless the site signals walk-in or local hours.",
+    },
+    ingredients: {
+      show: showIngredients,
+      label: ingredientsLabel,
+      hint: showIngredients
+        ? undefined
+        : "Hidden unless the site sells food, beauty, or supplement products.",
+    },
+  };
+}
+
+export function normalizeProductFactsForSite(
+  facts: ProductFactsForm,
+  config: ProductFactFieldsConfig,
+  options?: { showAllFields?: boolean },
+): ProductFactsForm {
+  const showAll = options?.showAllFields ?? false;
+  const normalized: ProductFactsForm = { ...facts };
+
+  if (!showAll && !config.price.show && !normalized.price.trim()) {
+    normalized.price = defaultPriceForHiddenField(config.siteType);
+  }
+
+  if (!showAll) {
+    if (!config.location.show) normalized.location = undefined;
+    if (!config.hours.show) normalized.hours = undefined;
+    if (!config.ingredients.show) normalized.ingredients = [];
+  }
+
+  return normalized;
 }
 
 export function mergeFactsWithSite(
