@@ -30,35 +30,206 @@ function extractPrices(text: string): string[] {
   return uniqueStrings(text.match(PRICE_PATTERN) ?? [], 3);
 }
 
-function extractFeaturesFromPage(page: SitePage): string[] {
-  const candidates = [
-    ...page.headings,
-    ...page.excerpt
-      .split(/[•\-\n|]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 12 && s.length < 120),
-  ];
-  return uniqueStrings(candidates, 8);
+export type SitePageRole =
+  | "home"
+  | "pricing"
+  | "about"
+  | "contact"
+  | "products"
+  | "services"
+  | "offerings"
+  | "other";
+
+export type OfferingFocus =
+  | "retail_products"
+  | "menu_items"
+  | "software"
+  | "professional_services"
+  | "protection_plans"
+  | "general";
+
+const NOISE_HEADING =
+  /^(home|about(\s+us)?|contact(\s+us)?|services?|products?|pricing|blog|news|faq|support|login|sign\s*up|get\s+started|learn\s+more|read\s+more|menu|cart|search|privacy|terms)$/i;
+
+const NAV_LIKE =
+  /^(why\s+us|how\s+it\s+works|our\s+story|meet\s+the\s+team|careers|locations?)$/i;
+
+function pageHaystack(page: SitePage): string {
+  return `${page.path} ${page.title} ${page.description}`.toLowerCase();
 }
 
-export type SitePageRole = "home" | "pricing" | "about" | "contact" | "product" | "other";
+function pathMatches(page: SitePage, pattern: RegExp): boolean {
+  return pattern.test(page.path.toLowerCase());
+}
+
+function siteCorpus(site: SiteData): string {
+  return site.pages
+    .slice(0, 10)
+    .map((p) => `${p.path} ${p.title} ${p.description} ${p.excerpt} ${p.headings.join(" ")}`)
+    .concat(site.brand.topics, site.brand.tagline)
+    .join(" ")
+    .toLowerCase();
+}
 
 export function classifySitePage(page: SitePage): SitePageRole {
-  const hay = `${page.path} ${page.title} ${page.description}`.toLowerCase();
-  if (/\/(pricing|plans|packages|rates)/.test(page.path) || /pricing|plans/.test(hay)) {
-    return "pricing";
+  const path = page.path.toLowerCase();
+  const hay = pageHaystack(page);
+
+  if (pathMatches(page, /\/(pricing|plans|packages|rates)(\/|$)/)) return "pricing";
+  if (/\/(pricing|plans)/.test(hay) && /pricing|plans/.test(hay)) return "pricing";
+
+  if (pathMatches(page, /\/(contact|locations?|visit)(\/|$)/)) return "contact";
+  if (/contact us|visit us|store hours/.test(hay)) return "contact";
+
+  if (pathMatches(page, /\/(about|team|story|who-we-are)(\/|$)/)) return "about";
+  if (/about us|our story|who we are/.test(hay)) return "about";
+
+  if (
+    pathMatches(page, /\/(products?|shop|catalog|collections?|store)(\/|$)/) ||
+    /\bproducts?\s+page\b/.test(hay) ||
+    (page.title.toLowerCase() === "products" || page.title.toLowerCase() === "shop")
+  ) {
+    return "products";
   }
-  if (/\/(contact|locations?|visit)/.test(page.path) || /contact|visit us|hours/.test(hay)) {
-    return "contact";
+
+  if (
+    pathMatches(page, /\/(services?|solutions?|what-we-do)(\/|$)/) ||
+    (/\bservices?\b/.test(hay) &&
+      !/\bproduct/.test(path) &&
+      (page.title.toLowerCase().includes("service") ||
+        page.title.toLowerCase().includes("solution")))
+  ) {
+    return "services";
   }
-  if (/\/(about|team|story|who-we-are)/.test(page.path) || /about us|our story/.test(hay)) {
-    return "about";
+
+  if (
+    pathMatches(
+      page,
+      /\/(coverage|protection|warranty|contract|plans?|benefits|programs?|vehicle|vsc|extended)(\/|$)/i,
+    ) ||
+    /service contract|extended coverage|protection plan|vehicle service|roadside|deductible/.test(
+      hay,
+    )
+  ) {
+    return "offerings";
   }
-  if (/\/(product|shop|menu|services?)/.test(page.path) || /product|menu|services/.test(hay)) {
-    return "product";
-  }
+
   if (page.path === "/" || page.path === "") return "home";
   return "other";
+}
+
+export function detectOfferingFocus(site: SiteData): OfferingFocus {
+  const type = site.brand.businessModel?.type ?? "other";
+  const hay = siteCorpus(site);
+
+  if (
+    /extended (vehicle )?service contract|vehicle service contract|\bvsc\b|protection plan|warranty coverage|roadside assistance|deductible|powertrain/.test(
+      hay,
+    )
+  ) {
+    return "protection_plans";
+  }
+
+  if (/restaurant|menu item|chef|dining|cuisine|bakery|cafe/.test(hay)) {
+    return "menu_items";
+  }
+
+  if (
+    type === "saas" ||
+    /saas|api|platform|dashboard|integration|software/.test(hay)
+  ) {
+    return "software";
+  }
+
+  if (
+    type === "ecommerce" ||
+    /add to cart|shop now|buy now|sku|catalog/.test(hay) ||
+    site.pages.some((page) => classifySitePage(page) === "products")
+  ) {
+    return "retail_products";
+  }
+
+  if (
+    type === "services" ||
+    type === "agency" ||
+    type === "local" ||
+    /consulting|professional services|our services/.test(hay) ||
+    site.pages.some((page) => classifySitePage(page) === "services")
+  ) {
+    return "professional_services";
+  }
+
+  return "general";
+}
+
+function scorePageForFacts(page: SitePage, focus: OfferingFocus): number {
+  const role = classifySitePage(page);
+  let score = 0;
+
+  if (role === "contact" || role === "about") return -100;
+  if (/\/(blog|news|careers|legal|privacy|terms|login|signup)/.test(page.path)) {
+    return -80;
+  }
+
+  const path = page.path.toLowerCase();
+  const hay = pageHaystack(page);
+
+  const focusBoosts: Record<OfferingFocus, Array<[RegExp, number]>> = {
+    retail_products: [
+      [/\/products?(\/|$)/, 40],
+      [/\/shop(\/|$)/, 35],
+      [/\/catalog(\/|$)/, 30],
+      [/\bproducts?\b/, 8],
+    ],
+    menu_items: [
+      [/\/menu(\/|$)/, 40],
+      [/\/food(\/|$)/, 25],
+    ],
+    software: [
+      [/\/features?(\/|$)/, 30],
+      [/\/platform(\/|$)/, 28],
+      [/\/pricing(\/|$)/, 20],
+      [/\/product(\/|$)/, 10],
+    ],
+    professional_services: [
+      [/\/services?(\/|$)/, 40],
+      [/\/solutions?(\/|$)/, 35],
+      [/\bservices?\b/, 10],
+    ],
+    protection_plans: [
+      [/\/coverage(\/|$)/, 40],
+      [/\/protection(\/|$)/, 38],
+      [/\/warranty(\/|$)/, 36],
+      [/\/plans?(\/|$)/, 34],
+      [/\/vehicle(\/|$)|\/vsc(\/|$)|\/contract(\/|$)/, 32],
+      [/service[- ]contract|extended coverage|protection plan/, 20],
+      [/\/products?(\/|$)/, -25],
+      [/\bproducts?\b/, -8],
+    ],
+    general: [
+      [/\/products?(\/|$)/, 15],
+      [/\/services?(\/|$)/, 15],
+      [/\/pricing(\/|$)/, 12],
+    ],
+  };
+
+  for (const [pattern, points] of focusBoosts[focus]) {
+    if (pattern.test(path) || pattern.test(hay)) score += points;
+  }
+
+  if (role === "offerings") score += 30;
+  if (role === "products" && focus === "retail_products") score += 25;
+  if (role === "products" && focus === "protection_plans") score -= 20;
+  if (role === "services" && focus === "professional_services") score += 25;
+  if (role === "services" && focus === "protection_plans") score += 10;
+  if (role === "pricing") score += 18;
+  if (role === "home") score += 6;
+
+  const excerptLen = page.excerpt.trim().length;
+  if (excerptLen > 120) score += 8;
+  if (page.headings.length >= 3) score += 5;
+
+  return score;
 }
 
 export function pickBestPageForFacts(
@@ -72,47 +243,206 @@ export function pickBestPageForFacts(
     if (match) return match;
   }
 
+  const focus = detectOfferingFocus(site);
+  const ranked = [...site.pages]
+    .map((page) => ({ page, score: scorePageForFacts(page, focus) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (ranked[0]) return ranked[0].page;
+
   const byRole = (role: SitePageRole) =>
     site.pages.find((p) => classifySitePage(p) === role);
 
-  return (
-    byRole("product") ??
-    byRole("pricing") ??
-    byRole("home") ??
-    site.pages.find((p) => p.path === "/") ??
-    site.pages[0]
-  );
+  const fallbackOrder: SitePageRole[] =
+    focus === "retail_products"
+      ? ["products", "pricing", "offerings", "home"]
+      : focus === "protection_plans"
+        ? ["offerings", "services", "pricing", "home"]
+        : focus === "professional_services"
+          ? ["services", "offerings", "pricing", "home"]
+          : focus === "software"
+            ? ["pricing", "offerings", "products", "home"]
+            : ["offerings", "products", "services", "pricing", "home"];
+
+  for (const role of fallbackOrder) {
+    const match = byRole(role);
+    if (match) return match;
+  }
+
+  return site.pages.find((p) => p.path === "/") ?? site.pages[0];
+}
+
+function cleanPageTitle(title: string, brandName: string): string {
+  const trimmed = title
+    .replace(/\s*[|\-–—]\s*.+$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!trimmed) return brandName;
+  if (trimmed.toLowerCase() === brandName.toLowerCase()) return brandName;
+  if (trimmed.length > 90) return brandName;
+  return trimmed;
+}
+
+function isNoiseFeature(text: string, focus: OfferingFocus): boolean {
+  const normalized = text.trim();
+  if (normalized.length < 12 || normalized.length > 140) return true;
+  if (NOISE_HEADING.test(normalized) || NAV_LIKE.test(normalized)) return true;
+  if (/^https?:\/\//i.test(normalized)) return true;
+  if (/^\d{4}\b/.test(normalized)) return true;
+  if (/copyright|all rights reserved|follow us/i.test(normalized)) return true;
+
+  const lower = normalized.toLowerCase();
+  if (focus === "protection_plans" && /\bproducts?\b/.test(lower) && lower.length < 40) {
+    return true;
+  }
+  if (
+    focus !== "retail_products" &&
+    /\b(products? page|shop now|add to cart|buy now)\b/.test(lower)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function scoreFeatureCandidate(text: string, focus: OfferingFocus): number {
+  const lower = text.toLowerCase();
+  let score = 10;
+
+  if (/[•✓]|(?:\d+\s*(?:month|year|mile))/i.test(text)) score += 8;
+  if (/\$|%|included|coverage|repair|roadside|deductible|warranty|plan/i.test(lower)) {
+    score += focus === "protection_plans" ? 14 : 6;
+  }
+  if (/feature|benefit|includes|protect|service/i.test(lower)) score += 5;
+  if (lower.split(/\s+/).length >= 4) score += 4;
+  if (NOISE_HEADING.test(text) || NAV_LIKE.test(text)) score -= 30;
+
+  return score;
+}
+
+function extractFeaturesFromPage(page: SitePage, focus: OfferingFocus): string[] {
+  const candidates: Array<{ text: string; score: number }> = [];
+
+  for (const heading of page.headings) {
+    const text = heading.trim();
+    if (isNoiseFeature(text, focus)) continue;
+    candidates.push({ text, score: scoreFeatureCandidate(text, focus) + 6 });
+  }
+
+  for (const chunk of page.excerpt.split(/[•\-\n|]/)) {
+    const text = chunk.trim();
+    if (isNoiseFeature(text, focus)) continue;
+    candidates.push({ text, score: scoreFeatureCandidate(text, focus) });
+  }
+
+  const ranked = candidates
+    .filter((item) => item.score > 8)
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.text);
+
+  return uniqueStrings(ranked, 8);
+}
+
+function extractOfferingName(
+  page: SitePage,
+  site: SiteData,
+  focus: OfferingFocus,
+): string {
+  const brand = site.brand.name.trim();
+  const role = classifySitePage(page);
+
+  if (
+    focus === "protection_plans" ||
+    focus === "professional_services" ||
+    role === "home"
+  ) {
+    const offeringHeading = page.headings.find((heading) => {
+      const text = heading.trim();
+      if (text.length < 8 || text.length > 80) return false;
+      if (NOISE_HEADING.test(text) || NAV_LIKE.test(text)) return false;
+      if (/service contract|protection plan|extended coverage|vehicle service/i.test(text)) {
+        return true;
+      }
+      return focus === "professional_services" && /service|solution|program/i.test(text);
+    });
+
+    if (offeringHeading) return offeringHeading.trim();
+    if (role !== "home") return cleanPageTitle(page.title, brand);
+    return brand;
+  }
+
+  if (focus === "retail_products" && role === "products") {
+    return cleanPageTitle(page.title, brand);
+  }
+
+  const primaryHeading = page.headings.find((heading) => {
+    const text = heading.trim();
+    return (
+      text.length >= 4 &&
+      text.length <= 80 &&
+      !NOISE_HEADING.test(text) &&
+      !NAV_LIKE.test(text)
+    );
+  });
+
+  if (primaryHeading) return primaryHeading.trim();
+  return cleanPageTitle(page.title, brand) || brand;
 }
 
 export function extractCrawledProductFacts(
   site: SiteData,
   page?: SitePage,
-): Partial<ProductFactsForm> {
+): Partial<ProductFactsForm> & { sourcePath?: string; offeringFocus?: OfferingFocus } {
+  const focus = detectOfferingFocus(site);
   const target = page ?? pickBestPageForFacts(site);
-  if (!target) return {};
+  if (!target) return { offeringFocus: focus };
 
-  const corpus = site.pages
+  const role = classifySitePage(target);
+  const pageCorpus = `${target.title} ${target.description} ${target.excerpt} ${target.headings.join(" ")}`;
+  const siteCorpusText = site.pages
     .slice(0, 8)
     .map((p) => `${p.title} ${p.description} ${p.excerpt} ${p.headings.join(" ")}`)
     .join("\n");
 
-  const prices = extractPrices(corpus);
-  const features = extractFeaturesFromPage(target);
-
-  const locationMatch = corpus.match(
-    /(?:located in|based in|serving|visit us at)\s+([A-Z][^.!\n]{4,60})/i,
+  const prices = extractPrices(
+    role === "pricing" || role === "offerings" || role === "products"
+      ? pageCorpus
+      : siteCorpusText,
+  );
+  const features = extractFeaturesFromPage(target, focus);
+  const fallbackFeatures = uniqueStrings(
+    [
+      ...(site.brand.businessModel?.differentiators ?? []),
+      ...(site.brand.synthesis?.messagingPillars ?? []),
+      site.brand.tagline,
+    ].filter((item): item is string => Boolean(item?.trim())),
+    4,
   );
 
-  const hoursMatch = corpus.match(
+  const locationCorpus =
+    site.pages.find((p) => classifySitePage(p) === "contact")?.excerpt ??
+    siteCorpusText;
+  const locationMatch = locationCorpus.match(
+    /(?:located in|based in|serving|visit us at)\s+([A-Z][^.!\n]{4,60})/i,
+  );
+  const hoursMatch = locationCorpus.match(
     /(?:hours?|open)\s*[:\-]?\s*([^\n.]{6,60})/i,
   );
 
   return {
-    name: target.title || site.brand.name,
+    name: extractOfferingName(target, site, focus),
     price: prices[0] ?? "",
-    features: features.length > 0 ? features : [site.brand.tagline || site.brand.name],
+    features:
+      features.length > 0
+        ? features
+        : fallbackFeatures.length > 0
+          ? fallbackFeatures
+          : [site.brand.tagline || site.brand.name],
     location: locationMatch?.[1]?.trim(),
     hours: hoursMatch?.[1]?.trim(),
+    sourcePath: target.path,
+    offeringFocus: focus,
   };
 }
 
@@ -244,15 +574,6 @@ export type ProductFactFieldsConfig = {
   hours: ProductFactFieldMeta;
   ingredients: ProductFactFieldMeta;
 };
-
-function siteCorpus(site: SiteData): string {
-  return site.pages
-    .slice(0, 10)
-    .map((p) => `${p.path} ${p.title} ${p.description} ${p.excerpt} ${p.headings.join(" ")}`)
-    .concat(site.brand.topics, site.brand.tagline)
-    .join(" ")
-    .toLowerCase();
-}
 
 function siteTypeLabel(type: BusinessModelType): string {
   const labels: Record<BusinessModelType, string> = {
@@ -387,23 +708,34 @@ export function inferProductFactFields(site?: SiteData | null): ProductFactField
   const showIngredients =
     isFood || isBeauty || isSupplement || hasMenuPage || /ingredient|allergen|contains:/.test(hay);
 
+  const focus = detectOfferingFocus(site);
+  const factsPage = pickBestPageForFacts(site);
+
   const nameLabel =
-    type === "local"
-      ? "Business name"
-      : type === "agency"
-        ? "Brand name"
-        : type === "saas"
-          ? "Product or service name"
-          : "Product name";
+    focus === "protection_plans"
+      ? "Plan or coverage name"
+      : focus === "professional_services" || type === "local"
+        ? "Business or service name"
+        : type === "agency"
+          ? "Brand name"
+          : focus === "retail_products"
+            ? "Product name"
+            : type === "saas"
+              ? "Product or service name"
+              : "Offering name";
 
   const featuresLabel =
-    type === "local"
-      ? "Services & highlights (one per line)"
-      : type === "agency"
-        ? "Core offerings (one per line)"
-        : type === "saas"
-          ? "Key features (one per line)"
-          : "Features (one per line)";
+    focus === "protection_plans"
+      ? "Coverage & benefits (one per line)"
+      : focus === "professional_services" || type === "local"
+        ? "Services & highlights (one per line)"
+        : type === "agency"
+          ? "Core offerings (one per line)"
+          : focus === "retail_products"
+            ? "Product features (one per line)"
+            : type === "saas"
+              ? "Key features (one per line)"
+              : "Features (one per line)";
 
   const priceLabel =
     type === "local"
@@ -429,7 +761,13 @@ export function inferProductFactFields(site?: SiteData | null): ProductFactField
     showIngredients ? "ingredients" : null,
   ].filter(Boolean);
 
-  const summary = `Tailored for ${siteLabel} (${siteTypeLabel(type)}). Showing ${visibleBits.join(", ")}.`;
+  const sourceHint = crawled.sourcePath
+    ? ` Pulled from ${crawled.sourcePath}.`
+    : factsPage?.path
+      ? ` Pulled from ${factsPage.path}.`
+      : "";
+
+  const summary = `Tailored for ${siteLabel} (${siteTypeLabel(type)}). Showing ${visibleBits.join(", ")}.${sourceHint}`;
 
   return {
     siteType: type,

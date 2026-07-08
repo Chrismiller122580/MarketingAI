@@ -15,6 +15,7 @@ import {
 } from "./avatar-option-presets";
 import {
   classifySitePage,
+  detectOfferingFocus,
   extractCrawledProductFacts,
   inferProductFactFields,
   normalizeProductFactsForSite,
@@ -510,6 +511,7 @@ export async function suggestAvatarFromSite(
   const location = extractLocation(site);
   const tone = site.brand.tone || "Professional";
   const topics = site.brand.topics;
+  const offeringFocus = detectOfferingFocus(site);
   const factsPage = pickBestPageForFacts(site);
   const crawled = extractCrawledProductFacts(site, factsPage);
 
@@ -591,8 +593,8 @@ export async function suggestAvatarFromSite(
     domain: site.domain,
     fitScore: Math.min(100, fitScore),
     rationale: hasSynthesis
-      ? `Matched ${site.brand.name}'s brand voice, audience persona, and crawled pages.`
-      : `Built from ${site.brand.name} crawl data and ${type} industry templates.`,
+      ? `Matched ${site.brand.name}'s brand voice and ${offeringFocus.replaceAll("_", " ")} pages${factsPage ? ` (facts from ${factsPage.path})` : ""}.`
+      : `Built from ${site.brand.name} crawl data (${offeringFocus.replaceAll("_", " ")} focus${factsPage ? `, facts from ${factsPage.path}` : ""}).`,
     sourcePage: factsPage
       ? { path: factsPage.path, title: factsPage.title }
       : undefined,
