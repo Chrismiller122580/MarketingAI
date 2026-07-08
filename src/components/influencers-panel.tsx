@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { User } from "lucide-react";
+import { Trash2, User } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton } from "./loading-indicator";
 
@@ -31,8 +32,10 @@ function InfluencerSkeleton() {
 export function InfluencersPanel() {
   const [influencers, setInfluencers] = useState<InfluencerRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadInfluencers = useCallback(() => {
+    setLoading(true);
     fetch("/api/creator-studio/influencers")
       .then((r) => r.json())
       .then((data: { influencers?: InfluencerRow[] }) => {
@@ -41,6 +44,36 @@ export function InfluencersPanel() {
       .catch(() => setInfluencers([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadInfluencers();
+  }, [loadInfluencers]);
+
+  async function handleDelete(inf: InfluencerRow) {
+    if (
+      !window.confirm(
+        `Delete ${inf.displayName} (@${inf.handle})? This removes the avatar, renders, and saved facts. Posts linked to this avatar will be kept.`,
+      )
+    ) {
+      return;
+    }
+
+    setDeletingId(inf.id);
+    try {
+      const res = await fetch(`/api/creator-studio/influencers/${inf.id}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json()) as { error?: string; displayName?: string };
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+
+      setInfluencers((rows) => rows.filter((row) => row.id !== inf.id));
+      toast.success(`${data.displayName ?? inf.displayName} deleted`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete avatar");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
@@ -122,9 +155,28 @@ export function InfluencersPanel() {
                   {new Date(inf.updatedAt).toLocaleDateString()}
                 </p>
               </div>
-              <Button asChild variant="outline" size="sm" className="shrink-0">
-                <Link href={`/creator-studio?influencer=${inf.id}`}>Edit</Link>
-              </Button>
+              <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/creator-studio?influencer=${inf.id}`}>Edit</Link>
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={deletingId === inf.id}
+                  aria-label={`Delete ${inf.displayName}`}
+                  onClick={() => void handleDelete(inf)}
+                >
+                  {deletingId === inf.id ? (
+                    <InlineLoading label="Deleting…" />
+                  ) : (
+                    <>
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Delete
+                    </>
+                  )}
+                </Button>
+              </div>
             </li>
           ))}
         </ul>

@@ -5,7 +5,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Camera,
   Database,
@@ -14,6 +14,7 @@ import {
   Mic,
   Pointer,
   Sparkles,
+  Trash2,
   Volume2,
   Wand2,
 } from "lucide-react";
@@ -171,6 +172,7 @@ async function postLearn(
 
 export function ViraForgeCreatorStudio() {
   const { data: session } = useSession();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("influencer");
   const domainParam = searchParams.get("domain");
@@ -221,6 +223,7 @@ export function ViraForgeCreatorStudio() {
   const [suggesting, setSuggesting] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
   const [showAllFactFields, setShowAllFactFields] = useState(false);
+  const [deletingAvatar, setDeletingAvatar] = useState(false);
 
   const factFieldConfig = useMemo(
     () => inferProductFactFields(site),
@@ -806,6 +809,35 @@ export function ViraForgeCreatorStudio() {
     }
   };
 
+  const handleDeleteAvatar = async () => {
+    if (!influencerId) return;
+
+    const persona = personaForm.getValues();
+    if (
+      !window.confirm(
+        `Delete ${persona.displayName} (@${persona.handle})? This removes the avatar, all renders, and saved facts. Linked posts are kept.`,
+      )
+    ) {
+      return;
+    }
+
+    setDeletingAvatar(true);
+    try {
+      const res = await fetch(`/api/creator-studio/influencers/${influencerId}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json()) as { error?: string; displayName?: string };
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+
+      toast.success(`${data.displayName ?? persona.displayName} deleted`);
+      router.push("/dashboard");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete avatar");
+    } finally {
+      setDeletingAvatar(false);
+    }
+  };
+
   const handleGenerate = personaForm.handleSubmit(async (persona) => {
     setStatus("loading");
     setError(null);
@@ -956,21 +988,41 @@ export function ViraForgeCreatorStudio() {
             )}
           </div>
         </div>
-        <Button
-          type="button"
-          onClick={handleGenerate}
-          disabled={generating || hydrating}
-          aria-busy={generating}
-          className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-base font-semibold hover:from-violet-500 hover:to-fuchsia-500"
-        >
-          {generating ? (
-            <InlineLoading label={`Generating ${values.displayName}…`} />
-          ) : hydrating ? (
-            <InlineLoading label="Loading persona…" />
-          ) : (
-            "Generate Avatar Package"
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          <Button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating || hydrating || deletingAvatar}
+            aria-busy={generating}
+            className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-base font-semibold hover:from-violet-500 hover:to-fuchsia-500"
+          >
+            {generating ? (
+              <InlineLoading label={`Generating ${values.displayName}…`} />
+            ) : hydrating ? (
+              <InlineLoading label="Loading persona…" />
+            ) : (
+              "Generate Avatar Package"
+            )}
+          </Button>
+          {influencerId && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={generating || deletingAvatar}
+              onClick={() => void handleDeleteAvatar()}
+            >
+              {deletingAvatar ? (
+                <InlineLoading label="Deleting avatar…" />
+              ) : (
+                <>
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  Delete avatar
+                </>
+              )}
+            </Button>
           )}
-        </Button>
+        </div>
       </div>
 
       {(site || domainParam || savedSites.length > 0) && (
