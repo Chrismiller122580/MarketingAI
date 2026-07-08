@@ -9,7 +9,9 @@ export type PageRoleFilter = SitePageRole | "all";
 
 export const PAGE_ROLE_LABELS: Record<SitePageRole, string> = {
   home: "Home",
-  product: "Product",
+  products: "Products",
+  services: "Services",
+  offerings: "Offerings",
   pricing: "Pricing",
   about: "About",
   contact: "Contact",
@@ -19,7 +21,9 @@ export const PAGE_ROLE_LABELS: Record<SitePageRole, string> = {
 export const PAGE_ROLE_FILTERS: { value: PageRoleFilter; label: string }[] = [
   { value: "all", label: "All pages" },
   { value: "home", label: "Home" },
-  { value: "product", label: "Product" },
+  { value: "products", label: "Products" },
+  { value: "services", label: "Services" },
+  { value: "offerings", label: "Offerings" },
   { value: "pricing", label: "Pricing" },
   { value: "about", label: "About" },
   { value: "contact", label: "Contact" },
