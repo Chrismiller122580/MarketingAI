@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { synthesizeSpeech, uploadVoiceover } from "@/lib/ai-voice";
+import {
+  synthesizeSpeechWithMeta,
+  uploadVoiceover,
+} from "@/lib/ai-voice";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -11,6 +14,10 @@ import {
 } from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import {
+  analyzeTalkScript,
+  hashTalkScript,
+} from "@/lib/viraforge/talk-settings";
 
 const voiceSchema = z.object({
   influencerId: z.string().min(1),
@@ -88,10 +95,24 @@ export async function POST(request: Request) {
       }
     }
 
+    const analysis = analyzeTalkScript(script);
+    if (!analysis.canRender) {
+      return NextResponse.json(
+        {
+          error: analysis.messages[0] ?? "Script is too long for talk preview",
+          analysis,
+        },
+        { status: 422 },
+      );
+    }
+
     const assets = (influencer.assets ?? {}) as { voiceId?: string };
     const voiceId = assets.voiceId;
-    const audioBuffer = await synthesizeSpeech(script.trim(), { voiceId });
-    if (!audioBuffer) {
+    const speech = await synthesizeSpeechWithMeta(script.trim(), {
+      voiceId,
+      purpose: "talk",
+    });
+    if (!speech) {
       return NextResponse.json(
         {
           error:
@@ -101,7 +122,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const audioUrl = await uploadVoiceover(audioBuffer);
+    const audioUrl = await uploadVoiceover(speech.buffer);
     if (!audioUrl) {
       return NextResponse.json(
         {
@@ -133,9 +154,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       audioUrl: render?.url ?? audioUrl,
-      voiceId: voiceId,
-      script: script.trim(),
+      voiceId: speech.voiceId,
+      script: analysis.script,
+      scriptHash: hashTalkScript(analysis.script),
+      durationSec: speech.durationSec,
+      wordCount: analysis.wordCount,
+      estimatedDurationSec: analysis.estimatedDurationSec,
       renderId,
+      approved: true,
     });
   } catch (error) {
     const message =

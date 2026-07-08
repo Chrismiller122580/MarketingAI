@@ -14,6 +14,7 @@ import {
   motionScriptScene,
   normalizeMotionTypeSelection,
 } from "./motion-actions";
+import { analyzeTalkScript } from "./talk-settings";
 
 export type ContentStudioMotionClipResult = {
   motionType: InfluencerMotionType;
@@ -120,7 +121,15 @@ export async function startContentStudioMotionClip(input: {
       talkIndex,
     });
     if ("error" in scriptResult) return scriptResult;
-    script = scriptResult.script;
+    const analysis = analyzeTalkScript(scriptResult.script);
+    if (!analysis.canRender) {
+      return {
+        error:
+          analysis.messages[0] ??
+          "Talk script is too long for lip-sync in Content Studio",
+      };
+    }
+    script = analysis.script;
   } else {
     const scene = motionScriptScene(input.motionType, talkIndex);
     if (scene && hasElevenLabs()) {
@@ -159,9 +168,10 @@ export async function startContentStudioMotionClip(input: {
     !companionVoiceUrl
   ) {
     try {
-      const speech = await synthesizeSpeech(script, {
-        voiceId: resolveMotionVoiceId(input.influencer.assets.voiceId),
-      });
+        const speech = await synthesizeSpeech(script, {
+          voiceId: resolveMotionVoiceId(input.influencer.assets.voiceId),
+          purpose: "talk",
+        });
       const voiceBytes = Buffer.from(
         speech.audioDataUrl.replace(/^data:[^;]+;base64,/, ""),
         "base64",

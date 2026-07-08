@@ -16,7 +16,6 @@ import {
   startInfluencerMotion,
   type PreparedTalkAudio,
 } from "@/lib/viraforge/influencer-motion";
-import { synthesizeSpeech } from "@/lib/viraforge/elevenlabs";
 import { recordCreatorEvent } from "@/lib/viraforge/learning";
 import { resolveMotionVoiceId } from "@/lib/viraforge/motion-voice";
 import { prepareMotionPortrait } from "@/lib/viraforge/influencer-renders";
@@ -25,12 +24,61 @@ import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import { prisma } from "@/lib/db";
 import { hasReplicate } from "@/lib/replicate-client";
+import {
+  analyzeTalkScript,
+  hashTalkScript,
+} from "@/lib/viraforge/talk-settings";
 
 const motionSchema = z.object({
   influencerId: z.string().min(1),
   motionType: z.enum(["talk", "walk", "spin", "jump", "wave", "point"]),
   script: z.string().max(500).optional(),
+  approvedVoiceRenderId: z.string().min(1).optional(),
+  approvedScriptHash: z.string().max(32).optional(),
 });
+
+async function loadApprovedTalkAudio(
+  userId: string,
+  influencerId: string,
+  renderId: string,
+  expectedScriptHash: string,
+): Promise<PreparedTalkAudio | { error: string }> {
+  const render = await prisma.influencerRender.findFirst({
+    where: {
+      id: renderId,
+      userId,
+      influencerId,
+      type: "voice",
+      status: "ready",
+    },
+  });
+
+  if (!render?.url || !render.script) {
+    return { error: "Approved voice preview not found. Preview voice again." };
+  }
+
+  const scriptHash = hashTalkScript(render.script);
+  if (scriptHash !== expectedScriptHash) {
+    return {
+      error: "Script changed since voice preview. Preview voice again.",
+    };
+  }
+
+  try {
+    const audioUrl = resolveDisplayMediaUrl(render.url);
+    const response = await fetch(audioUrl);
+    if (!response.ok) {
+      return { error: "Could not load approved voice preview audio." };
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return {
+      audioDataUrl: `data:audio/mpeg;base64,${buffer.toString("base64")}`,
+      voiceId: render.voiceId ?? "",
+    };
+  } catch {
+    return { error: "Could not load approved voice preview audio." };
+  }
+}
 
 export async function POST(request: Request) {
   const authResult = await requireAuthUserId();
@@ -67,7 +115,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { influencerId, motionType, script } = parsed.data;
+    const {
+      influencerId,
+      motionType,
+      script,
+      approvedVoiceRenderId,
+      approvedScriptHash,
+    } = parsed.data;
 
     if (motionType === "talk" && !hasElevenLabs()) {
       return NextResponse.json(
@@ -117,6 +171,36 @@ export async function POST(request: Request) {
       );
     }
 
+    if (motionType === "talk") {
+      const analysis = analyzeTalkScript(talkScript);
+      if (!analysis.canRender) {
+        return NextResponse.json(
+          {
+            error: analysis.messages[0] ?? "Script is too long for talk lip-sync",
+            analysis,
+          },
+          { status: 422 },
+        );
+      }
+
+      if (!approvedVoiceRenderId || !approvedScriptHash) {
+        return NextResponse.json(
+          {
+            error:
+              "Preview and approve voice before rendering Talk. Run preflight first.",
+          },
+          { status: 422 },
+        );
+      }
+
+      if (approvedScriptHash !== analysis.scriptHash) {
+        return NextResponse.json(
+          { error: "Script changed since preview. Preview voice again." },
+          { status: 422 },
+        );
+      }
+    }
+
     const motionVoiceId = resolveMotionVoiceId(assets.voiceId);
 
     if (motionType === "talk" && influencer.productFacts) {
@@ -152,14 +236,25 @@ export async function POST(request: Request) {
         assets.portraitUrl,
       );
       if (motionType === "talk") {
-        const [preparedPortrait, speech] = await Promise.all([
+        const [preparedPortrait, approvedAudio] = await Promise.all([
           portraitPromise,
-          synthesizeSpeech(talkScript, { voiceId: motionVoiceId }),
+          loadApprovedTalkAudio(
+            authResult,
+            influencerId,
+            approvedVoiceRenderId!,
+            approvedScriptHash!,
+          ),
         ]);
         portrait = preparedPortrait;
+        if ("error" in approvedAudio) {
+          return NextResponse.json(
+            { error: approvedAudio.error },
+            { status: 422 },
+          );
+        }
         preparedTalk = {
-          audioDataUrl: speech.audioDataUrl,
-          voiceId: speech.voiceId,
+          audioDataUrl: approvedAudio.audioDataUrl,
+          voiceId: approvedAudio.voiceId || motionVoiceId || "",
         };
       } else {
         portrait = await portraitPromise;

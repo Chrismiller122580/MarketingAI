@@ -208,7 +208,27 @@ export function ViraForgeCreatorStudio() {
     motionTypes: Record<InfluencerMotionType, boolean>;
   } | null>(null);
   const [scriptGenerating, setScriptGenerating] = useState(false);
+  const [shortenLoading, setShortenLoading] = useState(false);
   const [voicePreviewLoading, setVoicePreviewLoading] = useState(false);
+  const [preflightLoading, setPreflightLoading] = useState(false);
+  const [talkPreflight, setTalkPreflight] = useState<{
+    canRender: boolean;
+    scriptHash: string;
+    wordCount: number;
+    estimatedDurationSec: number;
+    checks: Array<{
+      id: string;
+      label: string;
+      status: "pass" | "warn" | "fail";
+      detail?: string;
+    }>;
+  } | null>(null);
+  const [approvedTalkPreview, setApprovedTalkPreview] = useState<{
+    scriptHash: string;
+    renderId: string;
+    audioUrl: string;
+    durationSec: number;
+  } | null>(null);
   const [suggestion, setSuggestion] = useState<AvatarFieldOptions | null>(null);
   const [selectedIds, setSelectedIds] = useState<
     Partial<Record<AvatarFieldKey, string>>
@@ -419,6 +439,127 @@ export function ViraForgeCreatorStudio() {
     void pollMotionJob(jobId, motionType);
   }, [pendingMotionPoll, pollMotionJob]);
 
+  const runTalkPreflight = useCallback(
+    async (scriptText: string, approvedHash?: string) => {
+      if (!influencerId || !scriptText.trim()) {
+        setTalkPreflight(null);
+        return;
+      }
+
+      setPreflightLoading(true);
+      try {
+        const res = await fetch("/api/creator-studio/motion/preflight", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            influencerId,
+            script: scriptText,
+            approvedScriptHash: approvedHash,
+          }),
+        });
+        const data = (await res.json()) as {
+          error?: string;
+          canRender?: boolean;
+          scriptHash?: string;
+          wordCount?: number;
+          estimatedDurationSec?: number;
+          checks?: Array<{
+            id: string;
+            label: string;
+            status: "pass" | "warn" | "fail";
+            detail?: string;
+          }>;
+        };
+        if (!res.ok) throw new Error(data.error ?? "Preflight failed");
+        setTalkPreflight({
+          canRender: !!data.canRender,
+          scriptHash: data.scriptHash ?? "",
+          wordCount: data.wordCount ?? 0,
+          estimatedDurationSec: data.estimatedDurationSec ?? 0,
+          checks: data.checks ?? [],
+        });
+      } catch {
+        setTalkPreflight(null);
+      } finally {
+        setPreflightLoading(false);
+      }
+    },
+    [influencerId],
+  );
+
+  useEffect(() => {
+    if (!influencerId || activeTab !== "motion") return;
+
+    const approvedHash =
+      approvedTalkPreview &&
+      talkPreflight &&
+      approvedTalkPreview.scriptHash === talkPreflight.scriptHash
+        ? approvedTalkPreview.scriptHash
+        : undefined;
+
+    const timer = setTimeout(() => {
+      void runTalkPreflight(motionScript, approvedHash);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [
+    motionScript,
+    influencerId,
+    activeTab,
+    approvedTalkPreview,
+    talkPreflight?.scriptHash,
+    runTalkPreflight,
+  ]);
+
+  useEffect(() => {
+    if (
+      approvedTalkPreview &&
+      talkPreflight &&
+      approvedTalkPreview.scriptHash !== talkPreflight.scriptHash
+    ) {
+      setApprovedTalkPreview(null);
+    }
+  }, [approvedTalkPreview, talkPreflight]);
+
+  const handleShortenForLipsync = async () => {
+    if (!influencerId) {
+      toast.error("Save the influencer first");
+      return;
+    }
+    const text = motionScript.trim();
+    if (!text) {
+      toast.error("Add a script to shorten");
+      return;
+    }
+
+    setShortenLoading(true);
+    setApprovedTalkPreview(null);
+    try {
+      const res = await fetch("/api/creator-studio/motion/shorten", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ influencerId, script: text }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        script?: string;
+        validation?: { valid: boolean; violations: string[] };
+      };
+      if (!res.ok) throw new Error(data.error ?? "Shorten failed");
+      if (data.script) {
+        setMotionScript(data.script);
+        toast.success("Script shortened for lip-sync");
+      }
+      if (data.validation && !data.validation.valid) {
+        setQuoteValidation(data.validation.violations);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not shorten script");
+    } finally {
+      setShortenLoading(false);
+    }
+  };
+
   const handleMotion = async (
     motionType: InfluencerMotionType,
     scriptOverride?: string,
@@ -437,6 +578,20 @@ export function ViraForgeCreatorStudio() {
     const talkScript =
       motionType === "talk" ? (scriptOverride ?? motionScript) : undefined;
 
+    if (motionType === "talk") {
+      if (!approvedTalkPreview?.renderId || !approvedTalkPreview.scriptHash) {
+        toast.error("Preview voice and approve it before rendering Talk");
+        return;
+      }
+      if (
+        talkPreflight &&
+        approvedTalkPreview.scriptHash !== talkPreflight.scriptHash
+      ) {
+        toast.error("Script changed — preview voice again");
+        return;
+      }
+    }
+
     setMotionLoading(motionType);
     setQuoteValidation(null);
 
@@ -448,6 +603,12 @@ export function ViraForgeCreatorStudio() {
           influencerId,
           motionType,
           script: talkScript,
+          ...(motionType === "talk" && approvedTalkPreview
+            ? {
+                approvedVoiceRenderId: approvedTalkPreview.renderId,
+                approvedScriptHash: approvedTalkPreview.scriptHash,
+              }
+            : {}),
         }),
       });
 
@@ -528,6 +689,7 @@ export function ViraForgeCreatorStudio() {
 
     setVoicePreviewLoading(true);
     setQuoteValidation(null);
+    setApprovedTalkPreview(null);
     try {
       const res = await fetch("/api/creator-studio/motion/voice", {
         method: "POST",
@@ -538,6 +700,9 @@ export function ViraForgeCreatorStudio() {
         error?: string;
         audioDataUrl?: string;
         audioUrl?: string;
+        scriptHash?: string;
+        renderId?: string;
+        durationSec?: number;
         quoteValidation?: { violations: string[] };
       };
       if (!res.ok) {
@@ -547,10 +712,19 @@ export function ViraForgeCreatorStudio() {
         throw new Error(data.error ?? "Voice preview failed");
       }
       const audio = data.audioUrl ?? data.audioDataUrl;
-      if (audio) {
+      if (audio && data.scriptHash && data.renderId) {
+        setApprovedTalkPreview({
+          scriptHash: data.scriptHash,
+          renderId: data.renderId,
+          audioUrl: audio,
+          durationSec: data.durationSec ?? 0,
+        });
         playVoiceAudio(audio);
         bumpRenderLibrary();
-        toast.success("Voice preview ready — playing audio");
+        void runTalkPreflight(text, data.scriptHash);
+        toast.success(
+          `Voice approved (~${data.durationSec ?? "?"}s) — you can render Talk`,
+        );
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Voice preview failed");
@@ -578,11 +752,12 @@ export function ViraForgeCreatorStudio() {
 
   const handleAvatarSpeak = (script: string, talkNow?: boolean) => {
     setMotionScript(script.slice(0, 500));
+    setApprovedTalkPreview(null);
     setActiveTab("motion");
     if (talkNow) {
-      void handleMotion("talk", script.slice(0, 500));
+      toast.info("Preview voice in Motion tab before rendering Talk");
     } else {
-      toast.success("Script loaded — preview voice or render Talk clip");
+      toast.success("Script loaded — run preflight and preview voice");
     }
   };
 
@@ -1774,9 +1949,59 @@ export function ViraForgeCreatorStudio() {
                   id="motionScript"
                   className={`${inputClass} min-h-24`}
                   value={motionScript}
-                  onChange={(e) => setMotionScript(e.target.value)}
-                  placeholder="Script for Talk clips — must match verified product facts"
+                  onChange={(e) => {
+                    setMotionScript(e.target.value);
+                    setApprovedTalkPreview(null);
+                  }}
+                  placeholder="Script for Talk clips — 18–28 words, must match verified product facts"
                 />
+                {talkPreflight && (
+                  <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 text-xs">
+                    <p className="mb-2 font-medium text-foreground">
+                      Talk preflight — {talkPreflight.wordCount} words · ~
+                      {talkPreflight.estimatedDurationSec}s
+                      {preflightLoading ? " (checking…)" : ""}
+                    </p>
+                    <ul className="space-y-1">
+                      {talkPreflight.checks.map((check) => (
+                        <li
+                          key={check.id}
+                          className={
+                            check.status === "pass"
+                              ? "text-emerald-700 dark:text-emerald-300"
+                              : check.status === "warn"
+                                ? "text-amber-700 dark:text-amber-300"
+                                : "text-rose-700 dark:text-rose-300"
+                          }
+                        >
+                          {check.status === "pass"
+                            ? "✓"
+                            : check.status === "warn"
+                              ? "!"
+                              : "✗"}{" "}
+                          {check.label}
+                          {check.detail ? ` — ${check.detail}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                    {!talkPreflight.canRender && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        disabled={shortenLoading || !influencerId}
+                        onClick={() => void handleShortenForLipsync()}
+                      >
+                        {shortenLoading ? (
+                          <InlineLoading label="Shortening…" />
+                        ) : (
+                          "Shorten for lip-sync"
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2">
                   {SCRIPT_PRESETS.map((preset) => (
                     <button
@@ -1794,18 +2019,40 @@ export function ViraForgeCreatorStudio() {
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {MOTION_ACTIONS.map((action) => {
+                  const isTalk = action.type === "talk";
+                  const talkReady =
+                    isTalk &&
+                    !!talkPreflight?.canRender &&
+                    !!approvedTalkPreview;
                   const enabled =
                     !!previewImage &&
                     !!capabilities?.motionTypes[action.type] &&
-                    !motionBusy;
+                    !motionBusy &&
+                    (!isTalk || talkReady);
                   const busy = motionLoading === action.type;
+
+                  let disabledReason: string | undefined;
+                  if (isTalk && !capabilities?.motionTypes.talk) {
+                    disabledReason =
+                      "Needs REPLICATE_API_TOKEN + ELEVENLABS_API_KEY";
+                  } else if (!previewImage) {
+                    disabledReason = "Generate a portrait first";
+                  } else if (isTalk && !approvedTalkPreview) {
+                    disabledReason = "Preview voice first";
+                  } else if (isTalk && talkPreflight && !talkPreflight.canRender) {
+                    disabledReason = "Fix script length in preflight";
+                  }
 
                   return (
                     <button
                       key={action.type}
                       type="button"
                       disabled={!enabled && !busy}
-                      onClick={() => void handleMotion(action.type)}
+                      title={disabledReason}
+                      onClick={() => {
+                        if (isTalk) void handleMotion("talk");
+                        else void handleMotion(action.type);
+                      }}
                       className={`rounded-xl border px-3 py-4 text-left transition-colors ${
                         busy
                           ? "border-violet-500 bg-violet-500/10"
@@ -1822,12 +2069,19 @@ export function ViraForgeCreatorStudio() {
                         )}
                       </p>
                       <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                        {action.description}
+                        {disabledReason ?? action.description}
                       </p>
                     </button>
                   );
                 })}
               </div>
+
+              {approvedTalkPreview && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200">
+                  Voice preview approved (~{approvedTalkPreview.durationSec}s).
+                  Final Talk clip will use this exact audio for lip-sync.
+                </div>
+              )}
 
               {voiceAudio && (
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
@@ -2074,7 +2328,9 @@ export function ViraForgeCreatorStudio() {
                     disabled={
                       !capabilities?.motionTypes.talk ||
                       motionBusy ||
-                      !influencerId
+                      !influencerId ||
+                      !approvedTalkPreview ||
+                      !talkPreflight?.canRender
                     }
                     onClick={() => void handleMotion("talk")}
                   >

@@ -1,5 +1,7 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import type { VoiceSettings } from "@elevenlabs/elevenlabs-js/api/types/VoiceSettings";
 import { uploadToBlob } from "@/lib/blob-storage";
+import { TALK_VOICE_SETTINGS } from "@/lib/viraforge/talk-settings";
 
 /** Rachel — widely available default; override with ELEVENLABS_VOICE_ID */
 const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
@@ -60,12 +62,30 @@ async function streamToBuffer(
   return Buffer.from(merged);
 }
 
+export type SpeechSynthesisOptions = {
+  voiceId?: string;
+  modelId?: string;
+  voiceSettings?: VoiceSettings;
+  purpose?: "talk" | "default";
+};
+
+/** Estimate MP3 duration for ElevenLabs mp3_44100_128 output. */
+export function estimateMp3DurationSec(buffer: Buffer): number {
+  const bitrateKbps = 128;
+  const duration = (buffer.length * 8) / (bitrateKbps * 1000);
+  return Math.round(duration * 10) / 10;
+}
+
 export async function synthesizeSpeech(
   text: string,
-  options?: { voiceId?: string; modelId?: string },
+  options?: SpeechSynthesisOptions,
 ): Promise<Buffer | null> {
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   if (!apiKey || !text.trim()) return null;
+
+  const voiceSettings =
+    options?.voiceSettings ??
+    (options?.purpose === "talk" ? TALK_VOICE_SETTINGS : undefined);
 
   try {
     const client = new ElevenLabsClient({ apiKey });
@@ -75,6 +95,7 @@ export async function synthesizeSpeech(
         text: text.trim(),
         modelId: options?.modelId ?? DEFAULT_MODEL_ID,
         outputFormat: DEFAULT_OUTPUT_FORMAT,
+        ...(voiceSettings ? { voiceSettings } : {}),
       },
     );
 
@@ -82,6 +103,20 @@ export async function synthesizeSpeech(
   } catch {
     return null;
   }
+}
+
+export async function synthesizeSpeechWithMeta(
+  text: string,
+  options?: SpeechSynthesisOptions,
+): Promise<{ buffer: Buffer; durationSec: number; voiceId: string } | null> {
+  const buffer = await synthesizeSpeech(text, options);
+  if (!buffer) return null;
+
+  return {
+    buffer,
+    durationSec: estimateMp3DurationSec(buffer),
+    voiceId: options?.voiceId ?? getDefaultVoiceId(),
+  };
 }
 
 export async function uploadVoiceover(
@@ -99,15 +134,19 @@ export async function uploadVoiceover(
 
 export async function synthesizeSpeechDataUrl(
   text: string,
-  options?: { voiceId?: string; modelId?: string },
-): Promise<{ audioDataUrl: string; voiceId: string } | null> {
-  const buffer = await synthesizeSpeech(text, options);
-  if (!buffer) return null;
+  options?: SpeechSynthesisOptions,
+): Promise<{
+  audioDataUrl: string;
+  voiceId: string;
+  durationSec: number;
+} | null> {
+  const result = await synthesizeSpeechWithMeta(text, options);
+  if (!result) return null;
 
-  const voiceId = options?.voiceId ?? getDefaultVoiceId();
   return {
-    audioDataUrl: `data:audio/mpeg;base64,${buffer.toString("base64")}`,
-    voiceId,
+    audioDataUrl: `data:audio/mpeg;base64,${result.buffer.toString("base64")}`,
+    voiceId: result.voiceId,
+    durationSec: result.durationSec,
   };
 }
 

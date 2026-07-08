@@ -781,8 +781,16 @@ export function ContentGenerator() {
                         <>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
                             Pick up to {MAX_CONTENT_STUDIO_MOTION_CLIPS} motions — AI
-                            writes matched scripts, voice, and lip-sync where needed.
+                            writes matched scripts (18–28 words for Talk), voice, and
+                            lip-sync where needed.
                           </p>
+                          {selectedMotionTypes.includes("talk") && (
+                            <p className="text-xs text-violet-700 dark:text-violet-300">
+                              Talk clips use slower voice + shorter scripts for
+                              realistic lip-sync. Preview voice in Creator Studio for
+                              manual approval.
+                            </p>
+                          )}
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                             {MOTION_ACTIONS.map((action) => {
                               const selected = selectedMotionTypes.includes(

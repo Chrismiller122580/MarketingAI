@@ -7,6 +7,7 @@ import { createModelPrediction } from "@/lib/replicate-client";
 import { synthesizeSpeech } from "./elevenlabs";
 import type { InfluencerMotionType } from "./influencer-assets";
 import { buildMotionPrompt } from "./motion-prompts";
+import { SADTALKER_INPUT_DEFAULTS } from "./talk-settings";
 import type { PreparedMotionPortrait } from "./influencer-renders";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 
@@ -102,7 +103,7 @@ export async function startInfluencerMotion(
       const result = await createModelPrediction(model, {
         source_image: imageUrl,
         driven_audio: audioUrl,
-        enhancer: "gfpgan",
+        ...SADTALKER_INPUT_DEFAULTS,
       });
 
       if (!("error" in result)) {
