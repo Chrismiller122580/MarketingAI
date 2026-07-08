@@ -63,8 +63,14 @@ export function PwaManager() {
       }
     }
 
-    // Capture the install prompt (can only be done once per page load)
+    // Capture the install prompt for our Install button / banner (not standalone)
     const handler = (e: Event) => {
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        ((window.navigator as unknown) as { standalone?: boolean }).standalone ===
+          true;
+      if (isStandalone) return;
+
       e.preventDefault();
       deferredPrompt = e as BeforeInstallPromptEvent;
       dispatchInstallAvailable();

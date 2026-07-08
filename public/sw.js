@@ -1,7 +1,7 @@
 // crawlspark.ai — Minimal service worker for PWA installability + basic offline shell
 // Only intercepts same-origin http(s) GET requests (never extension URLs).
 
-const CACHE_NAME = "crawlspark-v3";
+const CACHE_NAME = "crawlspark-v4";
 const APP_SHELL = [
   "/",
   "/dashboard",
@@ -23,12 +23,54 @@ function isCacheableRequest(request) {
   }
 }
 
+/** Next.js App Router fetches must not be cached or wrapped by the SW. */
+function isPassthroughRequest(request) {
+  const url = new URL(request.url);
+  if (url.pathname.startsWith("/_next/")) return true;
+  if (url.pathname.startsWith("/api/")) return true;
+  if (url.pathname.includes("/auth")) return true;
+  if (url.searchParams.has("_rsc")) return true;
+  if (request.headers.get("RSC") === "1") return true;
+  if (request.headers.get("Next-Router-Prefetch")) return true;
+  if (request.headers.get("Next-Router-State-Tree")) return true;
+  if (request.headers.get("Next-Action")) return true;
+  return false;
+}
+
+function offlineResponse(contentType = "text/plain; charset=utf-8") {
+  return new Response("Offline", {
+    status: 503,
+    headers: { "Content-Type": contentType },
+  });
+}
+
 async function putInCache(cache, request, response) {
   if (!response || !response.ok) return;
   try {
     await cache.put(request, response.clone());
   } catch {
     // Ignore quota, opaque, or unsupported scheme errors
+  }
+}
+
+async function networkFirst(request, options = {}) {
+  const { cacheName, offlineHtml = false } = options;
+  try {
+    const response = await fetch(request);
+    if (cacheName && response.ok) {
+      const cache = await caches.open(cacheName);
+      await putInCache(cache, request, response);
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    if (offlineHtml) {
+      const shell = await caches.match("/");
+      if (shell) return shell;
+      return offlineResponse("text/html; charset=utf-8");
+    }
+    return offlineResponse();
   }
 }
 
@@ -61,77 +103,28 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
 
-  // Let the browser handle extensions, cross-origin, POST, etc.
-  if (!isCacheableRequest(request)) return;
+  if (!isCacheableRequest(request) || isPassthroughRequest(request)) {
+    return;
+  }
 
   const url = new URL(request.url);
 
-  if (
-    url.pathname.startsWith("/api/") ||
-    url.pathname.includes("/auth")
-  ) {
-    event.respondWith(
-      fetch(request).catch(async () => {
-        const cached = await caches.match("/");
-        return (
-          cached ||
-          new Response("Offline", {
-            status: 503,
-            headers: { "Content-Type": "text/plain" },
-          })
-        );
-      }),
-    );
-    return;
-  }
-
   if (request.mode === "navigate" || request.destination === "document") {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          caches.open(CACHE_NAME).then((cache) => putInCache(cache, request, response));
-          return response;
-        })
-        .catch(async () => {
-          const cached =
-            (await caches.match(request)) || (await caches.match("/"));
-          return (
-            cached ||
-            new Response("Offline", {
-              status: 503,
-              headers: { "Content-Type": "text/html; charset=utf-8" },
-            })
-          );
-        }),
+      networkFirst(request, { cacheName: CACHE_NAME, offlineHtml: true }),
     );
     return;
   }
 
-  if (
-    url.pathname.startsWith("/_next/static") ||
-    /\.(png|jpg|jpeg|svg|ico|webp|css|js|woff2?)$/.test(url.pathname)
-  ) {
+  if (/\.(png|jpg|jpeg|svg|ico|webp|css|js|woff2?)$/.test(url.pathname)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
+      caches.match(request).then(async (cached) => {
         if (cached) return cached;
-        return fetch(request).then((response) => {
-          caches.open(CACHE_NAME).then((cache) => putInCache(cache, request, response));
-          return response;
-        });
+        return networkFirst(request, { cacheName: CACHE_NAME });
       }),
     );
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          caches.open(CACHE_NAME).then((cache) => putInCache(cache, request, response));
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    }),
-  );
+  event.respondWith(networkFirst(request, { cacheName: CACHE_NAME }));
 });
