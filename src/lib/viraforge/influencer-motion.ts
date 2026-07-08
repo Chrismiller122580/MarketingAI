@@ -1,4 +1,5 @@
-import { ensurePublicMediaUrl } from "@/lib/media-url";
+import { uploadVoiceover } from "@/lib/ai-voice";
+import { ensureReplicateInputUrl } from "@/lib/media-url";
 import { createModelPrediction } from "@/lib/replicate-client";
 import { synthesizeSpeech } from "./elevenlabs";
 import type { InfluencerMotionType } from "./influencer-assets";
@@ -23,18 +24,47 @@ export async function startInfluencerMotion(
   script?: string,
   voiceId?: string,
 ): Promise<MotionStartResult> {
-  const imageUrl = await ensurePublicMediaUrl(portraitUrl, "portrait");
+  let imageUrl: string;
+  try {
+    imageUrl = await ensureReplicateInputUrl(portraitUrl, "portrait");
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Portrait upload failed";
+    return { error: `Could not prepare portrait for motion: ${message}` };
+  }
 
   if (motionType === "talk") {
     if (!script?.trim()) {
       return { error: "Script is required for talking clips" };
     }
 
-    const { audioDataUrl, voiceId: usedVoiceId } = await synthesizeSpeech(
-      script.trim(),
-      { voiceId },
+    let audioDataUrl: string;
+    let usedVoiceId: string;
+    try {
+      const speech = await synthesizeSpeech(script.trim(), { voiceId });
+      audioDataUrl = speech.audioDataUrl;
+      usedVoiceId = speech.voiceId;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Voice synthesis failed";
+      return { error: message };
+    }
+
+    let audioUrl: string;
+    try {
+      audioUrl = await ensureReplicateInputUrl(audioDataUrl, "voice");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Voice upload failed";
+      return { error: `Could not prepare voiceover for motion: ${message}` };
+    }
+
+    const voiceBytes = Buffer.from(
+      audioDataUrl.replace(/^data:[^;]+;base64,/, ""),
+      "base64",
     );
-    const audioUrl = await ensurePublicMediaUrl(audioDataUrl, "voice");
+    const voiceAudioUrl =
+      (await uploadVoiceover(voiceBytes)) ?? audioDataUrl;
 
     const result = await createModelPrediction(SADTALKER_MODEL, {
       source_image: imageUrl,
@@ -46,7 +76,7 @@ export async function startInfluencerMotion(
 
     return {
       predictionId: result.predictionId,
-      voiceAudioUrl: audioDataUrl,
+      voiceAudioUrl,
       voiceId: usedVoiceId,
     };
   }

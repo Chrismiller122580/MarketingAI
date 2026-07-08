@@ -1,4 +1,7 @@
+import { get } from "@vercel/blob";
+import { getAppOrigin } from "./app-url";
 import {
+  extractBlobPathname,
   isBlobServeUrl,
   isBlobUrl,
   resolvePublicMediaUrl,
@@ -12,9 +15,36 @@ export function isNonPublicMediaUrl(url: string): boolean {
   return /api\.replicate\.com\/v1\/files\//i.test(url);
 }
 
+function blobPathnameFromUrl(url: string): string | null {
+  if (isBlobServeUrl(url)) {
+    try {
+      const parsed = new URL(url, getAppOrigin());
+      return parsed.searchParams.get("pathname");
+    } catch {
+      return null;
+    }
+  }
+  return extractBlobPathname(url);
+}
+
+async function readPrivateBlobBytes(
+  pathname: string,
+): Promise<{ bytes: Buffer; contentType: string } | null> {
+  const result = await get(pathname, { access: "private" });
+  if (result?.statusCode !== 200 || !result.stream) return null;
+
+  const bytes = Buffer.from(await new Response(result.stream).arrayBuffer());
+  return { bytes, contentType: result.blob.contentType };
+}
+
 async function fetchMediaForPersistence(
   url: string,
 ): Promise<{ bytes: Buffer; contentType: string }> {
+  const blobPathname = blobPathnameFromUrl(url);
+  if (blobPathname) {
+    const fromBlob = await readPrivateBlobBytes(blobPathname);
+    if (fromBlob) return fromBlob;
+  }
   const headers: Record<string, string> = {};
   if (isNonPublicMediaUrl(url)) {
     const token = getReplicateToken();
@@ -110,4 +140,39 @@ export async function ensurePublicMediaUrl(
   }
 
   return uploadBytesToReplicate(bytes, mime, filename);
+}
+
+/** Uploads media to Replicate Files so models can fetch inputs reliably. */
+export async function ensureReplicateInputUrl(
+  urlOrData: string,
+  label: string,
+): Promise<string> {
+  if (isNonPublicMediaUrl(urlOrData)) {
+    return urlOrData;
+  }
+
+  let bytes: Buffer;
+  let contentType: string;
+
+  if (urlOrData.startsWith("data:")) {
+    const parsed = parseDataUrl(urlOrData);
+    bytes = parsed.bytes;
+    contentType = parsed.mime;
+  } else if (
+    urlOrData.startsWith("http://") ||
+    urlOrData.startsWith("https://") ||
+    urlOrData.startsWith("/")
+  ) {
+    const fetched = await fetchMediaForPersistence(
+      resolvePublicMediaUrl(urlOrData),
+    );
+    bytes = fetched.bytes;
+    contentType = fetched.contentType;
+  } else {
+    throw new Error(`Unsupported ${label} format for Replicate`);
+  }
+
+  const ext = extensionForMime(contentType);
+  const filename = `viraforge-${label}-${Date.now()}.${ext}`;
+  return uploadBytesToReplicate(bytes, contentType, filename);
 }

@@ -30,7 +30,6 @@ export async function createModelPrediction(
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-          Prefer: "wait",
         },
         body: JSON.stringify({ input }),
       },
