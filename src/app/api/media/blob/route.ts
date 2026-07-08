@@ -8,10 +8,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing pathname" }, { status: 400 });
   }
 
-  const result = await get(pathname, {
-    access: "private",
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const getOptions = {
     ifNoneMatch: request.headers.get("if-none-match") ?? undefined,
-  });
+    ...(token ? { token } : {}),
+  };
+
+  let result = await get(pathname, { access: "private", ...getOptions });
+  if (!result || (result.statusCode !== 200 && result.statusCode !== 304)) {
+    result = await get(pathname, { access: "public", ...getOptions });
+  }
 
   if (!result) {
     return new NextResponse("Not found", { status: 404 });

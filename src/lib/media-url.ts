@@ -7,6 +7,7 @@ import {
   type DetectedImageFormat,
 } from "./image-bytes";
 import {
+  getBlobToken,
   isBlobServeUrl,
   isBlobUrl,
   resolvePublicMediaUrl,
@@ -36,8 +37,12 @@ function blobPathnameFromUrl(url: string): string | null {
 async function readBlobBytes(
   pathname: string,
 ): Promise<{ bytes: Buffer; contentType: string } | null> {
+  const token = getBlobToken();
   for (const access of ["private", "public"] as const) {
-    const result = await get(pathname, { access });
+    const result = await get(pathname, {
+      access,
+      ...(token ? { token } : {}),
+    });
     if (result?.statusCode !== 200 || !result.stream) continue;
 
     const bytes = Buffer.from(await new Response(result.stream).arrayBuffer());
@@ -74,7 +79,39 @@ async function fetchMediaForPersistence(
   const bytes = Buffer.from(await response.arrayBuffer());
   const contentType =
     response.headers.get("content-type") ?? "application/octet-stream";
+  if (contentType.includes("json")) {
+    throw new Error(`Media URL returned JSON (${response.status})`);
+  }
   return { bytes, contentType };
+}
+
+/** Loads and validates image bytes from blob, HTTPS, data, or Replicate URLs. */
+export async function loadValidatedImageBytes(
+  url: string,
+  label = "Portrait",
+): Promise<{ bytes: Buffer; format: DetectedImageFormat }> {
+  let bytes: Buffer;
+  let contentType: string;
+
+  if (url.startsWith("data:")) {
+    const parsed = parseDataUrl(url);
+    bytes = parsed.bytes;
+    contentType = parsed.mime;
+  } else {
+    const resolved = isNonPublicMediaUrl(url)
+      ? url
+      : resolvePublicMediaUrl(url);
+    const fetched = await fetchMediaForPersistence(resolved);
+    bytes = fetched.bytes;
+    contentType = fetched.contentType;
+  }
+
+  if (bytes.length === 0) {
+    throw new Error(`${label} is empty`);
+  }
+
+  const format = resolveImageUploadFormat(bytes, contentType, label);
+  return { bytes, format };
 }
 
 export async function uploadBytesToBlob(
@@ -218,35 +255,5 @@ export async function ensureReplicateInputUrl(
       };
 
   const filename = `viraforge-${label}-${Date.now()}.${format.ext}`;
-  const replicateUrl = await uploadBytesToReplicate(
-    bytes,
-    format.mime,
-    filename,
-  );
-
-  if (isPortrait) {
-    await verifyReplicateImageUpload(replicateUrl, label);
-  }
-
-  return replicateUrl;
-}
-
-async function verifyReplicateImageUpload(
-  url: string,
-  label: string,
-): Promise<void> {
-  const token = getReplicateToken();
-  if (!token) return;
-
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) {
-    throw new Error(
-      `${label} could not be verified after upload (${response.status})`,
-    );
-  }
-
-  const bytes = Buffer.from(await response.arrayBuffer());
-  assertValidImageBytes(bytes, label);
+  return uploadBytesToReplicate(bytes, format.mime, filename);
 }

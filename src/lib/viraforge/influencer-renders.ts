@@ -1,12 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 import { prisma } from "@/lib/db";
-import { isBlobUrl } from "@/lib/blob-storage";
-import { isBlobServeUrl } from "@/lib/display-media-url";
 import {
   ensurePublicMediaUrl,
   isNonPublicMediaUrl,
+  loadValidatedImageBytes,
   persistDisplayableMedia,
+  uploadBytesToBlob,
 } from "@/lib/media-url";
 import {
   mergeInfluencerAssets,
@@ -90,7 +90,46 @@ export async function repairPortraitUrlIfNeeded(
   }
 }
 
-/** Ensures the portrait is stored in Blob before Replicate/Kling fetches it. */
+async function listPortraitCandidateUrls(
+  userId: string,
+  influencerId: string,
+  portraitUrl: string,
+): Promise<string[]> {
+  const seen = new Set<string>();
+  const urls: string[] = [];
+
+  const add = (url?: string | null) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    urls.push(url);
+  };
+
+  add(portraitUrl);
+
+  const renders = await prisma.influencerRender.findMany({
+    where: {
+      userId,
+      influencerId,
+      type: "portrait",
+      status: "ready",
+      url: { not: null },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 6,
+    select: { url: true, isActive: true },
+  });
+
+  for (const render of renders.filter((row) => row.isActive)) {
+    add(render.url);
+  }
+  for (const render of renders) {
+    add(render.url);
+  }
+
+  return urls;
+}
+
+/** Validates portrait bytes and stores a fresh copy in Blob for motion models. */
 export async function ensureMotionPortraitUrl(
   userId: string,
   influencerId: string,
@@ -100,22 +139,39 @@ export async function ensureMotionPortraitUrl(
     (await repairPortraitUrlIfNeeded(userId, influencerId, portraitUrl)) ??
     portraitUrl;
 
-  if (isBlobServeUrl(repaired) || isBlobUrl(repaired)) {
-    return repaired;
-  }
-
-  const durableUrl = await persistDisplayableMedia(
+  const candidates = await listPortraitCandidateUrls(
+    userId,
+    influencerId,
     repaired,
-    `influencers/${userId}/${influencerId}/portrait-motion-${Date.now()}.png`,
   );
 
-  if (durableUrl !== repaired) {
-    await patchInfluencerAssets(userId, influencerId, {
-      portraitUrl: durableUrl,
-    });
+  let lastError: Error | undefined;
+
+  for (const candidate of candidates) {
+    try {
+      const { bytes, format } = await loadValidatedImageBytes(
+        candidate,
+        "Portrait",
+      );
+      const durableUrl = await uploadBytesToBlob(
+        bytes,
+        `influencers/${userId}/${influencerId}/portrait-motion-${Date.now()}.${format.ext}`,
+        format.mime,
+      );
+      await patchInfluencerAssets(userId, influencerId, {
+        portraitUrl: durableUrl,
+      });
+      return durableUrl;
+    } catch (error) {
+      lastError =
+        error instanceof Error ? error : new Error("Portrait load failed");
+    }
   }
 
-  return durableUrl;
+  throw (
+    lastError ??
+    new Error("Portrait image is missing or corrupt. Regenerate the portrait.")
+  );
 }
 
 export async function createInfluencerRender(input: {
