@@ -14,7 +14,7 @@ export async function GET(_request: Request, context: RouteContext) {
   if (isAuthError(authResult)) return authResult;
 
   const { jobId } = await context.params;
-  const job = getInfluencerMotionJob(jobId, authResult);
+  const job = await getInfluencerMotionJob(jobId, authResult);
   if (!job) {
     return NextResponse.json({ error: "Motion job not found" }, { status: 404 });
   }
@@ -25,6 +25,7 @@ export async function GET(_request: Request, context: RouteContext) {
       videoUrl: job.videoUrl,
       motionType: job.motionType,
       voiceAudioUrl: job.voiceAudioUrl,
+      renderId: job.renderId,
     });
   }
 
@@ -45,7 +46,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   if (prediction.status === "ready" && prediction.outputUrl) {
-    updateInfluencerMotionJob(jobId, {
+    await updateInfluencerMotionJob(job.renderId, {
       status: "ready",
       videoUrl: prediction.outputUrl,
     });
@@ -75,7 +76,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   if (prediction.status === "failed") {
     const error = prediction.error ?? "Motion generation failed";
-    updateInfluencerMotionJob(jobId, { status: "failed", error });
+    await updateInfluencerMotionJob(job.renderId, { status: "failed", error });
     if (job.renderId) {
       await finalizeInfluencerRender({
         userId: authResult,

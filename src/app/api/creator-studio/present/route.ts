@@ -213,7 +213,7 @@ export async function POST(request: Request) {
         });
       }
 
-      const job = createInfluencerMotionJob({
+      const job = await createInfluencerMotionJob({
         userId: authResult,
         influencerId,
         predictionId: started.predictionId,

@@ -1,7 +1,7 @@
 // crawlspark.ai — Minimal service worker for PWA installability + basic offline shell
 // Only intercepts same-origin http(s) GET requests (never extension URLs).
 
-const CACHE_NAME = "crawlspark-v2";
+const CACHE_NAME = "crawlspark-v3";
 const APP_SHELL = [
   "/",
   "/dashboard",
@@ -70,7 +70,18 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/api/") ||
     url.pathname.includes("/auth")
   ) {
-    event.respondWith(fetch(request).catch(() => caches.match("/")));
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const cached = await caches.match("/");
+        return (
+          cached ||
+          new Response("Offline", {
+            status: 503,
+            headers: { "Content-Type": "text/plain" },
+          })
+        );
+      }),
+    );
     return;
   }
 
@@ -81,9 +92,17 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => putInCache(cache, request, response));
           return response;
         })
-        .catch(() =>
-          caches.match(request).then((cached) => cached || caches.match("/")),
-        ),
+        .catch(async () => {
+          const cached =
+            (await caches.match(request)) || (await caches.match("/"));
+          return (
+            cached ||
+            new Response("Offline", {
+              status: 503,
+              headers: { "Content-Type": "text/html; charset=utf-8" },
+            })
+          );
+        }),
     );
     return;
   }

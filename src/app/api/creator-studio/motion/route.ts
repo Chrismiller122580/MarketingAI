@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       predictionId: started.predictionId,
     });
 
-    const job = createInfluencerMotionJob({
+    const job = await createInfluencerMotionJob({
       userId: authResult,
       influencerId,
       predictionId: started.predictionId,
