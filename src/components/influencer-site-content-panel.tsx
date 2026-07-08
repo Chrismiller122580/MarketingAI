@@ -11,6 +11,8 @@ import { ENTERPRISE_PLUS_LABEL, isEnterprisePlusPlan } from "@/lib/plans";
 import type { FactPinpoint } from "@/lib/viraforge/site-facts-extractor";
 import type { Platform } from "@/lib/types";
 import { InlineLoading, Spinner } from "./loading-indicator";
+import { CrawledPagePicker } from "./crawled-page-picker";
+import { recommendSourcePage } from "@/lib/crawled-page-utils";
 
 type GeneratedContent = {
   text: string;
@@ -61,7 +63,8 @@ export function InfluencerSiteContentPanel({
   useEffect(() => {
     if (site?.domain && !selectedDomain) {
       setSelectedDomain(site.domain);
-      setSelectedPage(site.pages[0]?.path ?? "/");
+      const recommended = recommendSourcePage(site);
+      setSelectedPage(recommended?.path ?? site.pages[0]?.path ?? "/");
     } else if (!selectedDomain && savedSites[0]?.domain) {
       setSelectedDomain(savedSites[0].domain);
     }
@@ -214,23 +217,20 @@ export function InfluencerSiteContentPanel({
           )}
         </div>
 
-        <div>
-          <label htmlFor="sitePage" className="text-sm font-medium">
-            Source page
-          </label>
-          <select
+        <div className="sm:col-span-2">
+          <CrawledPagePicker
             id="sitePage"
-            className="mt-2 w-full rounded-lg border border-border bg-muted p-3 text-sm"
+            label="Source page"
+            hint="Filter and pick the best crawled page for this post."
+            pages={pages}
             value={selectedPage}
-            onChange={(e) => setSelectedPage(e.target.value)}
+            onChange={setSelectedPage}
+            valueMode="path"
             disabled={!selectedDomain || pages.length === 0}
-          >
-            {pages.map((p) => (
-              <option key={p.path} value={p.path}>
-                {p.path} — {p.title}
-              </option>
-            ))}
-          </select>
+            recommendedPath={
+              activeSite ? recommendSourcePage(activeSite)?.path : undefined
+            }
+          />
         </div>
 
         <div>

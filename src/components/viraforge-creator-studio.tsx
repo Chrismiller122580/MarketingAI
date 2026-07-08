@@ -38,6 +38,8 @@ import {
   type ProductFactsForm,
 } from "@/lib/schemas/product-facts-schema";
 import { AvatarFieldPicker } from "@/components/avatar-field-picker";
+import { CrawledPagePicker } from "@/components/crawled-page-picker";
+import { recommendSourcePage } from "@/lib/crawled-page-utils";
 import { useSite } from "@/context/site-context";
 import {
   applyRecommendations,
@@ -224,6 +226,7 @@ export function ViraForgeCreatorStudio() {
   const [showBrief, setShowBrief] = useState(false);
   const [showAllFactFields, setShowAllFactFields] = useState(false);
   const [deletingAvatar, setDeletingAvatar] = useState(false);
+  const [selectedSourcePage, setSelectedSourcePage] = useState("/");
 
   const factFieldConfig = useMemo(
     () => inferProductFactFields(site),
@@ -361,6 +364,12 @@ export function ViraForgeCreatorStudio() {
       .then((data) => setCapabilities(data))
       .catch(() => setCapabilities(null));
   }, []);
+
+  useEffect(() => {
+    if (!site?.pages.length) return;
+    const recommended = recommendSourcePage(site);
+    setSelectedSourcePage(recommended?.path ?? site.pages[0]?.path ?? "/");
+  }, [site?.domain, site?.pages.length]);
 
   const bumpRenderLibrary = useCallback(() => {
     setRenderLibraryTick((n) => n + 1);
@@ -649,6 +658,7 @@ export function ViraForgeCreatorStudio() {
           body: JSON.stringify({
             domain: targetDomain,
             site: site ?? undefined,
+            pagePath: selectedSourcePage,
           }),
         });
         const data = (await res.json()) as AvatarFieldOptions & { error?: string };
@@ -666,7 +676,7 @@ export function ViraForgeCreatorStudio() {
         setSuggesting(false);
       }
     },
-    [site, applySuggestionToForms],
+    [site, applySuggestionToForms, selectedSourcePage],
   );
 
   const pickOption = useCallback(
@@ -1096,6 +1106,29 @@ export function ViraForgeCreatorStudio() {
             <pre className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
               {buildAvatarBrief(values, suggestion)}
             </pre>
+          )}
+          {site && site.pages.length > 0 && (
+            <div className="mt-4 border-t border-violet-500/15 pt-4">
+              <CrawledPagePicker
+                id="avatarSourcePage"
+                label="Source page for avatar & product facts"
+                hint="Pick which crawled page drives avatar voice, quotes, and locked product facts. Filter by page type or search by title and content."
+                pages={site.pages}
+                value={selectedSourcePage}
+                onChange={setSelectedSourcePage}
+                valueMode="path"
+                recommendedPath={recommendSourcePage(site)?.path}
+              />
+              {suggestion?.sourcePage && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Last suggestion used{" "}
+                  <span className="font-medium text-foreground">
+                    {suggestion.sourcePage.path}
+                  </span>{" "}
+                  — {suggestion.sourcePage.title}
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

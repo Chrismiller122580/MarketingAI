@@ -10,6 +10,8 @@ import { useSite } from "@/context/site-context";
 import { ENTERPRISE_PLUS_LABEL, isEnterprisePlusPlan } from "@/lib/plans";
 import type { Platform } from "@/lib/types";
 import { InlineLoading } from "./loading-indicator";
+import { CrawledPagePicker } from "./crawled-page-picker";
+import { recommendSourcePage } from "@/lib/crawled-page-utils";
 
 type InfluencerOption = {
   id: string;
@@ -82,10 +84,10 @@ export function AvatarPresentPanel() {
   }, [hasAccess]);
 
   useEffect(() => {
-    if (site?.pages[0]?.path) {
-      setSelectedPage(site.pages[0].path);
-    }
-  }, [site?.domain]);
+    if (!site?.pages.length) return;
+    const recommended = recommendSourcePage(site);
+    setSelectedPage(recommended?.path ?? site.pages[0].path);
+  }, [site?.domain, site?.pages.length]);
 
   async function handlePresent() {
     if (!site || !selectedInfluencer) return;
@@ -180,7 +182,7 @@ export function AvatarPresentPanel() {
       </div>
 
       <div className="space-y-4 p-6">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="presentInfluencer" className="text-sm font-medium">
               Influencer
@@ -195,24 +197,6 @@ export function AvatarPresentPanel() {
                 <option key={inf.id} value={inf.id}>
                   {inf.displayName} (@{inf.handle})
                   {!inf.hasPortrait ? " — needs portrait" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="presentPage" className="text-sm font-medium">
-              Page
-            </label>
-            <select
-              id="presentPage"
-              className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              value={selectedPage}
-              onChange={(e) => setSelectedPage(e.target.value)}
-            >
-              {site.pages.map((p) => (
-                <option key={p.path} value={p.path}>
-                  {p.path} — {p.title}
                 </option>
               ))}
             </select>
@@ -235,6 +219,17 @@ export function AvatarPresentPanel() {
             </select>
           </div>
         </div>
+
+        <CrawledPagePicker
+          id="presentPage"
+          label="Page"
+          hint="Choose which crawled page your avatar presents."
+          pages={site.pages}
+          value={selectedPage}
+          onChange={setSelectedPage}
+          valueMode="path"
+          recommendedPath={recommendSourcePage(site)?.path}
+        />
 
         <label className="flex items-center gap-2">
           <input

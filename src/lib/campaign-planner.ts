@@ -91,11 +91,22 @@ function parsePlan(
   }
 }
 
+function filterFocusPages(
+  site: SiteData,
+  focusPagePaths?: string[],
+): SitePage[] {
+  if (!focusPagePaths?.length) return site.pages;
+  const allowed = new Set(focusPagePaths);
+  const focused = site.pages.filter((p) => allowed.has(p.path));
+  return focused.length > 0 ? focused : site.pages;
+}
+
 function rankPagesByFreshness(
   site: SiteData,
   pageCounts: Map<string, number>,
+  focusPagePaths?: string[],
 ): SitePage[] {
-  return [...site.pages].sort((a, b) => {
+  return filterFocusPages(site, focusPagePaths).sort((a, b) => {
     const aCount = pageCounts.get(a.path) ?? 0;
     const bCount = pageCounts.get(b.path) ?? 0;
     if (aCount !== bCount) return aCount - bCount;
@@ -111,6 +122,7 @@ function buildHeuristicPlan(
   maxPosts: number,
   prompt: string,
   pageCounts: Map<string, number>,
+  focusPagePaths?: string[],
 ): CampaignPlan {
   const themes =
     site.brand.synthesis?.contentThemes ??
@@ -125,7 +137,7 @@ function buildHeuristicPlan(
     "call to action",
   ];
 
-  const pages = rankPagesByFreshness(site, pageCounts);
+  const pages = rankPagesByFreshness(site, pageCounts, focusPagePaths);
 
   const items: CampaignPlanItem[] = [];
   let day = 0;
@@ -166,10 +178,11 @@ export async function planCampaign(
     platforms = settings?.defaultPlatforms ?? ["instagram", "linkedin", "twitter"],
     maxPosts = 9,
     existingPosts = [],
+    focusPagePaths,
   } = request;
 
   const history = analyzePostHistory(existingPosts);
-  const freshPages = rankPagesByFreshness(site, history.pageCounts);
+  const freshPages = rankPagesByFreshness(site, history.pageCounts, focusPagePaths);
 
   const pageList = freshPages
     .slice(0, 12)
@@ -224,7 +237,14 @@ ${pageList}`;
     }
   }
 
-  return buildHeuristicPlan(site, platforms, maxPosts, prompt, history.pageCounts);
+  return buildHeuristicPlan(
+    site,
+    platforms,
+    maxPosts,
+    prompt,
+    history.pageCounts,
+    focusPagePaths,
+  );
 }
 
 export function planItemToPrompt(

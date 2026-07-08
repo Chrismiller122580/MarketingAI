@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     const domain = body.domain as string | undefined;
     const sitePayload = body.site as SiteData | undefined;
     const useAi = body.useAi !== false;
+    const pagePath = body.pagePath as string | undefined;
 
     let site = sitePayload;
     if (!site?.pages?.length && domain) {
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const suggestion = await suggestAvatarFromSite(site, { useAi });
+    const suggestion = await suggestAvatarFromSite(site, { useAi, pagePath });
 
     return NextResponse.json(suggestion);
   } catch (error) {

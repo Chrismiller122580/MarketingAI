@@ -330,6 +330,8 @@ export type BatchGenerateRequest = {
   contentAngle?: ContentAngle;
   existingPosts?: PostHistorySnapshot[];
   varyAngles?: boolean;
+  /** When set, campaign planning only rotates across these page paths. */
+  focusPagePaths?: string[];
 };
 
 export type PublishRequest = {

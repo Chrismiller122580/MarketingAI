@@ -35,6 +35,8 @@ import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
 import { ENTERPRISE_PLUS_LABEL, isEnterprisePlusPlan } from "@/lib/plans";
 import { ContentAnglePicker } from "./content-angle-picker";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
+import { CrawledPagePicker } from "./crawled-page-picker";
+import { recommendSourcePage } from "@/lib/crawled-page-utils";
 
 type AttachedInfluencer = {
   id: string;
@@ -616,30 +618,17 @@ export function ContentGenerator() {
                 </div>
               </div>
 
-              <div>
-                <label
-                  htmlFor="source-page"
-                  className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Source page
-                </label>
-                <select
-                  id="source-page"
-                  value={selectedPage}
-                  onChange={(e) => setSelectedPage(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
-                >
-                  <option value="all">Best matching page (AI picks)</option>
-                  {site.pages.map((page) => (
-                    <option key={page.url} value={page.url}>
-                      {page.path} — {page.title}
-                      {page.images.length > 0
-                        ? ` (${page.images.length} images)`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <CrawledPagePicker
+                id="source-page"
+                label="Source page"
+                hint="Browse all crawled pages or let AI pick the best match for your prompt."
+                pages={site.pages}
+                value={selectedPage}
+                onChange={setSelectedPage}
+                valueMode="url"
+                allowAuto
+                recommendedPath={recommendSourcePage(site)?.path}
+              />
             </>
           )}
 

@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
       varyAngles: body.varyAngles,
+      focusPagePaths: body.focusPagePaths,
     };
 
     const plan = await planCampaign(planRequest);

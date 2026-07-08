@@ -15,6 +15,8 @@ import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
 import { ContentAnglePicker } from "./content-angle-picker";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
 import { LoadingOverlay } from "./loading-indicator";
+import { CrawledPagesFilter } from "./crawled-pages-filter";
+import { recommendSourcePage } from "@/lib/crawled-page-utils";
 
 const ALL_PLATFORMS: { value: Platform; label: string }[] = [
   { value: "instagram", label: "Instagram" },
@@ -62,6 +64,7 @@ export function CampaignPack() {
     useState<VisualTargeting>(DEFAULT_VISUAL_TARGETING);
   const [contentAngle, setContentAngle] = useState<ContentAngle>("auto");
   const [varyAngles, setVaryAngles] = useState(true);
+  const [focusPagePaths, setFocusPagePaths] = useState<string[]>([]);
 
   const primaryPlatform = settings.defaultPlatforms[0] ?? "instagram";
   const postHistory = libraryPosts.map((p) => ({
@@ -131,6 +134,8 @@ export function CampaignPack() {
           contentAngle,
           existingPosts: postHistory,
           varyAngles,
+          focusPagePaths:
+            focusPagePaths.length > 0 ? focusPagePaths : undefined,
         }),
       });
 
@@ -352,6 +357,13 @@ export function CampaignPack() {
                 Vary creative angles across all posts in the pack
               </span>
             </label>
+
+            <CrawledPagesFilter
+              pages={site.pages}
+              selectedPaths={focusPagePaths}
+              onChange={setFocusPagePaths}
+              recommendedPath={recommendSourcePage(site)?.path}
+            />
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">

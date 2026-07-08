@@ -505,14 +505,14 @@ Keep arrays to 2 items max. Be culturally respectful. No invented product claims
 
 export async function suggestAvatarFromSite(
   site: SiteData,
-  options?: { useAi?: boolean },
+  options?: { useAi?: boolean; pagePath?: string },
 ): Promise<AvatarFieldOptions> {
   const type = resolveBusinessType(site);
   const location = extractLocation(site);
   const tone = site.brand.tone || "Professional";
   const topics = site.brand.topics;
   const offeringFocus = detectOfferingFocus(site);
-  const factsPage = pickBestPageForFacts(site);
+  const factsPage = pickBestPageForFacts(site, options?.pagePath);
   const crawled = extractCrawledProductFacts(site, factsPage);
 
   const names = nameOptions(site);
