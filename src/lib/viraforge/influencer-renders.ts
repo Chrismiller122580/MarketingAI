@@ -1,7 +1,10 @@
-import { put } from "@vercel/blob";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { ensurePublicMediaUrl } from "@/lib/media-url";
+import {
+  ensurePublicMediaUrl,
+  isNonPublicMediaUrl,
+  persistDisplayableMedia,
+} from "@/lib/media-url";
 import {
   mergeInfluencerAssets,
   type InfluencerAssets,
@@ -47,67 +50,41 @@ export async function persistRenderMedia(
   type: InfluencerRenderType,
   motionType?: string,
 ): Promise<string> {
-  if (urlOrData.startsWith("https://") && urlOrData.includes("blob.vercel-storage.com")) {
-    return urlOrData;
+  const label = mediaLabel(type, motionType);
+  const ext =
+    type === "motion" ? "mp4" : type === "voice" ? "mp3" : "png";
+  const filename = `influencers/${userId}/${influencerId}/${renderId}-${label}.${ext}`;
+
+  if (type === "portrait" || isNonPublicMediaUrl(urlOrData)) {
+    return persistDisplayableMedia(urlOrData, filename);
   }
 
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (blobToken && urlOrData.startsWith("data:")) {
-    const match = urlOrData.match(/^data:([^;,]+)?(?:;base64)?,(.+)$/);
-    if (match) {
-      const mime = match[1] || "application/octet-stream";
-      const bytes = Buffer.from(match[2], "base64");
-      const ext = mime.includes("png")
-        ? "png"
-        : mime.includes("jpeg") || mime.includes("jpg")
-          ? "jpg"
-          : mime.includes("mp4")
-            ? "mp4"
-            : mime.includes("mpeg") || mime.includes("mp3")
-              ? "mp3"
-              : "bin";
-      const filename = `influencers/${userId}/${influencerId}/${renderId}-${mediaLabel(type, motionType)}.${ext}`;
-      const uploaded = await put(filename, bytes, {
-        access: "public",
-        token: blobToken,
-        contentType: mime,
-      });
-      return uploaded.url;
-    }
+  try {
+    return await persistDisplayableMedia(urlOrData, filename);
+  } catch {
+    return ensurePublicMediaUrl(urlOrData, label);
   }
+}
 
-  if (urlOrData.startsWith("http://") || urlOrData.startsWith("https://")) {
-    if (blobToken) {
-      try {
-        const res = await fetch(urlOrData);
-        if (res.ok) {
-          const buffer = Buffer.from(await res.arrayBuffer());
-          const ct = res.headers.get("content-type") ?? "application/octet-stream";
-          const ext = ct.includes("mp4")
-            ? "mp4"
-            : ct.includes("png")
-              ? "png"
-              : ct.includes("jpeg")
-                ? "jpg"
-                : ct.includes("mpeg") || ct.includes("mp3")
-                  ? "mp3"
-                  : "bin";
-          const filename = `influencers/${userId}/${influencerId}/${renderId}-${mediaLabel(type, motionType)}.${ext}`;
-          const uploaded = await put(filename, buffer, {
-            access: "public",
-            token: blobToken,
-            contentType: ct,
-          });
-          return uploaded.url;
-        }
-      } catch {
-        /* fall through */
-      }
-    }
-    return urlOrData;
+export async function repairPortraitUrlIfNeeded(
+  userId: string,
+  influencerId: string,
+  portraitUrl?: string,
+): Promise<string | undefined> {
+  if (!portraitUrl || !isNonPublicMediaUrl(portraitUrl)) return portraitUrl;
+
+  try {
+    const durableUrl = await persistDisplayableMedia(
+      portraitUrl,
+      `influencers/${userId}/${influencerId}/portrait-repair-${Date.now()}.png`,
+    );
+    await patchInfluencerAssets(userId, influencerId, {
+      portraitUrl: durableUrl,
+    });
+    return durableUrl;
+  } catch {
+    return portraitUrl;
   }
-
-  return ensurePublicMediaUrl(urlOrData, mediaLabel(type, motionType));
 }
 
 export async function createInfluencerRender(input: {

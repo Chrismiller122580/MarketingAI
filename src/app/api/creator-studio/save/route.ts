@@ -3,10 +3,12 @@ import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
+import type { InfluencerAssets } from "@/lib/viraforge/influencer-assets";
 import {
   recordCreatorEvent,
   upsertInfluencerWithFacts,
 } from "@/lib/viraforge/learning";
+import { repairPortraitUrlIfNeeded } from "@/lib/viraforge/influencer-renders";
 
 export async function POST(request: Request) {
   const authResult = await requireAuthUserId();
@@ -33,12 +35,22 @@ export async function POST(request: Request) {
       facts.data,
     );
 
+    const assets = body.assets as Partial<InfluencerAssets> | undefined;
+
     const { influencerId, productFactsId } = await upsertInfluencerWithFacts(
       authResult,
       persona.data,
       facts.data,
-      body.assets,
+      assets,
     );
+
+    if (assets?.portraitUrl) {
+      await repairPortraitUrlIfNeeded(
+        authResult,
+        influencerId,
+        assets.portraitUrl,
+      );
+    }
 
     await recordCreatorEvent(
       authResult,
