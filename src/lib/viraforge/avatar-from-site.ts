@@ -8,7 +8,9 @@ import {
   featureBundles,
   industryPersonality,
   industrySocialClass,
+  industryWardrobe,
   makeOption,
+  wardrobeQuickPicks,
   religionOptionsFromTone,
   slugHandle,
   type FieldOption,
@@ -37,6 +39,7 @@ export type AvatarFieldKey =
   | "ageRangeShown"
   | "religion"
   | "socialClass"
+  | "wardrobe"
   | "culturalNotes"
   | "personalityVoice"
   | "sampleQuote";
@@ -326,6 +329,68 @@ function personalityOptions(site: SiteData, type: BusinessModelType): FieldOptio
   return dedupeOptions([...fromSite, ...fromIndustry], 4);
 }
 
+function wardrobeOptions(site: SiteData, type: BusinessModelType): FieldOption[] {
+  const topics = site.brand.topics.join(" ").toLowerCase();
+  const tone = site.brand.tone.toLowerCase();
+  const fromSite: FieldOption[] = [];
+
+  if (/fitness|gym|sport|wellness|yoga|crossfit|protein|health/.test(topics)) {
+    fromSite.push(
+      makeOption(
+        "Performance athleisure",
+        "Performance athleisure — moisture-wicking crop top or tank, high-rise leggings, training shoes; gym-to-street ready.",
+        "site",
+        "high",
+      ),
+    );
+  }
+  if (/fashion|apparel|clothing|style|boutique/.test(topics)) {
+    fromSite.push(
+      makeOption(
+        "Trend-forward editorial",
+        "Trend-forward editorial — statement pieces, layered textures, runway-inspired street style for product showcases.",
+        "site",
+        "high",
+      ),
+    );
+  }
+  if (/beauty|skincare|cosmetic|makeup/.test(topics)) {
+    fromSite.push(
+      makeOption(
+        "Beauty creator glam-casual",
+        "Beauty creator glam-casual — soft glam makeup, satin blouse, delicate jewelry; tutorial-friendly outfit.",
+        "site",
+        "high",
+      ),
+    );
+  }
+  if (/food|restaurant|cafe|culinary/.test(topics)) {
+    fromSite.push(
+      makeOption(
+        "Chef-casual hospitality",
+        "Chef-casual hospitality — clean apron over smart casual, approachable food-creator styling.",
+        "site",
+        "medium",
+      ),
+    );
+  }
+  if (/professional|corporate|enterprise|b2b/.test(tone)) {
+    fromSite.push(
+      makeOption(
+        "Polished B2B spokesperson",
+        "Polished B2B spokesperson — structured blazer, neutral blouse or shirt, confident executive-casual styling.",
+        "site",
+        "medium",
+      ),
+    );
+  }
+
+  return dedupeOptions(
+    [...fromSite, ...industryWardrobe(type), ...wardrobeQuickPicks()],
+    6,
+  );
+}
+
 function sampleQuoteOptions(
   site: SiteData,
   facts: Partial<ProductFactsForm>,
@@ -410,6 +475,7 @@ export function applyRecommendations(
     ageRangeShown: optionValueById(fields, "ageRangeShown", recommended.ageRangeShown),
     religion: optionValueById(fields, "religion", recommended.religion),
     socialClass: optionValueById(fields, "socialClass", recommended.socialClass),
+    wardrobe: optionValueById(fields, "wardrobe", recommended.wardrobe),
     culturalNotes: optionValueById(fields, "culturalNotes", recommended.culturalNotes),
     personalityVoice: optionValueById(fields, "personalityVoice", recommended.personalityVoice),
     sampleQuote: optionValueById(fields, "sampleQuote", recommended.sampleQuote),
@@ -554,6 +620,7 @@ export async function suggestAvatarFromSite(
     ageRangeShown: ageRangeOptions(ages),
     religion: religionOptionsFromTone(tone),
     socialClass: industrySocialClass(type),
+    wardrobe: wardrobeOptions(site, type),
     culturalNotes: culturalNotesFromBrand(location, topics, tone),
     personalityVoice: personalityOptions(site, type),
     sampleQuote: sampleQuoteOptions(site, crawled),

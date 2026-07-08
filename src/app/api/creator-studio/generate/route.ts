@@ -5,7 +5,7 @@ import {
   getImageProviderAvailability,
 } from "@/lib/ai-image";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
-import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
+import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import {
   buildAvatarImagePrompt,
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const parsed = creatorAvatarSchema.safeParse(body.persona ?? body);
+    const parsed = parseCreatorAvatar(body.persona ?? body);
 
     if (!parsed.success) {
       return NextResponse.json(

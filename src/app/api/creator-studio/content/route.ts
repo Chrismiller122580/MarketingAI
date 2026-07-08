@@ -8,7 +8,7 @@ import {
   requireEnterprisePlusUserId,
 } from "@/lib/auth-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
+import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import { generateInfluencerSiteContent } from "@/lib/viraforge/influencer-content";
 import {
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const persona = creatorAvatarSchema.safeParse(influencer.persona);
+    const persona = parseCreatorAvatar(influencer.persona);
     if (!persona.success) {
       return NextResponse.json({ error: "Invalid persona data" }, { status: 500 });
     }

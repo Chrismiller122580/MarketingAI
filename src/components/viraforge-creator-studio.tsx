@@ -13,6 +13,7 @@ import {
   Hand,
   Mic,
   Pointer,
+  Shirt,
   Sparkles,
   Trash2,
   Volume2,
@@ -48,7 +49,10 @@ import {
   type AvatarFieldKey,
   type AvatarFieldOptions,
 } from "@/lib/viraforge/avatar-from-site";
-import type { FieldOption } from "@/lib/viraforge/avatar-option-presets";
+import {
+  wardrobeQuickPicks,
+  type FieldOption,
+} from "@/lib/viraforge/avatar-option-presets";
 import { buildAvatarPreviewSummary } from "@/lib/viraforge/avatar-prompts";
 import type {
   InfluencerAssets,
@@ -65,6 +69,7 @@ type CreatorTab =
   | "physical"
   | "demographics"
   | "cultural"
+  | "wardrobe"
   | "style"
   | "facts"
   | "motion"
@@ -75,6 +80,7 @@ const TABS: { id: CreatorTab; label: string }[] = [
   { id: "physical", label: "Physical" },
   { id: "demographics", label: "Location + Age" },
   { id: "cultural", label: "Culture + Class" },
+  { id: "wardrobe", label: "Wardrobe" },
   { id: "style", label: "Personality + Voice" },
   { id: "facts", label: "Product Facts" },
   { id: "motion", label: "Motion & Voice" },
@@ -289,7 +295,10 @@ export function ViraForgeCreatorStudio() {
       if (editId && data.influencers) {
         const match = data.influencers.find((i) => i.id === editId);
         if (match) {
-          personaForm.reset(match.persona);
+          personaForm.reset({
+            ...defaultCreatorAvatarValues,
+            ...match.persona,
+          });
           if (match.productFacts) {
             factsForm.reset(match.productFacts);
             setFeaturesText(match.productFacts.features.join("\n"));
@@ -765,7 +774,14 @@ export function ViraForgeCreatorStudio() {
         onSelect={(opt) => pickOption(field, opt)}
         onCustom={(v) => pickCustom(field, v)}
         allowCustom={allowCustom}
-        className={field === "personalityVoice" || field === "sampleQuote" ? "sm:col-span-2" : ""}
+        className={
+          field === "personalityVoice" ||
+          field === "sampleQuote" ||
+          field === "wardrobe" ||
+          field === "culturalNotes"
+            ? "sm:col-span-2"
+            : ""
+        }
       />
     );
   };
@@ -1398,6 +1414,74 @@ export function ViraForgeCreatorStudio() {
                   </div>
                 </>
               )}
+            </div>
+          )}
+
+          {activeTab === "wardrobe" && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Outfit styling is baked into portrait and motion generation. Pick a
+                look, customize details, then regenerate the portrait to apply it.
+              </p>
+
+              {suggestion
+                ? renderPicker("wardrobe", "Outfit style", suggestion.fields.wardrobe)
+                : null}
+
+              <div>
+                <p className="mb-2 text-sm font-medium">Quick outfit picks</p>
+                <div className="flex flex-wrap gap-2">
+                  {(suggestion?.fields.wardrobe ?? wardrobeQuickPicks()).map(
+                    (option) => (
+                      <Button
+                        key={option.id}
+                        type="button"
+                        variant={
+                          values.wardrobe === option.value ? "default" : "outline"
+                        }
+                        size="sm"
+                        onClick={() => pickOption("wardrobe", option)}
+                      >
+                        {option.label}
+                      </Button>
+                    ),
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="wardrobe" className="text-sm font-medium">
+                  Outfit description
+                </label>
+                <textarea
+                  id="wardrobe"
+                  className={`${inputClass} mt-1 min-h-28`}
+                  placeholder="Describe tops, bottoms, shoes, accessories, colors, and vibe…"
+                  {...personaForm.register("wardrobe", {
+                    onBlur: (e) => recordFieldEdit("wardrobe", e.target.value),
+                  })}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tip: mention fabrics, fit, and setting (gym, office, street, evening)
+                  for more consistent results.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+                disabled={generating || hydrating}
+                onClick={() => void handleGenerate()}
+              >
+                {generating ? (
+                  <InlineLoading label="Regenerating portrait…" />
+                ) : (
+                  <>
+                    <Shirt className="mr-2 h-4 w-4" aria-hidden />
+                    Regenerate portrait with this outfit
+                  </>
+                )}
+              </Button>
             </div>
           )}
 

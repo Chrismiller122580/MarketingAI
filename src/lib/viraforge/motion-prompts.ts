@@ -14,7 +14,7 @@ export function buildMotionPrompt(
 
   const base = [
     `Photorealistic ${subject}, age ${persona.age}, ${persona.location}.`,
-    `Wardrobe: modern activewear fitting ${persona.socialClass}.`,
+    `Wardrobe: ${persona.wardrobe}`,
     `Mood: ${persona.personalityVoice.slice(0, 120)}.`,
     "Maintain consistent face and body from the reference portrait.",
     "Natural lighting, cinematic, no text overlays, no watermarks.",

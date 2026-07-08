@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
-import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
+import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import { buildPersonalizationContext } from "@/lib/viraforge/learning";
 import {
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const persona = creatorAvatarSchema.safeParse(influencer.persona);
+    const persona = parseCreatorAvatar(influencer.persona);
     if (!persona.success) {
       return NextResponse.json({ error: "Invalid persona data" }, { status: 500 });
     }

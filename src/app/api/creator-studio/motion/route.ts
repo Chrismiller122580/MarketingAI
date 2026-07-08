@@ -16,7 +16,7 @@ import { startInfluencerMotion } from "@/lib/viraforge/influencer-motion";
 import { recordCreatorEvent } from "@/lib/viraforge/learning";
 import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
-import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
+import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import { prisma } from "@/lib/db";
 import { hasReplicate } from "@/lib/replicate-client";
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
     }
 
-    const persona = creatorAvatarSchema.safeParse(influencer.persona);
+    const persona = parseCreatorAvatar(influencer.persona);
     if (!persona.success) {
       return NextResponse.json({ error: "Invalid stored persona" }, { status: 500 });
     }

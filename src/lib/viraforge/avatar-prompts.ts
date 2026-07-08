@@ -52,7 +52,7 @@ export function buildAvatarImagePrompt(
     `Location and cultural context: ${persona.location}. ${persona.culturalNotes}.`,
     `Social context: ${persona.socialClass}. Religion: ${persona.religion}.`,
     persona.neighborhoods ? `Neighborhood vibe: ${persona.neighborhoods}.` : "",
-    `Wardrobe: culturally accurate, modern, upper-middle-class casual activewear suitable for ${persona.location}.`,
+    `Wardrobe: ${persona.wardrobe}`,
     `Expression and mood: ${persona.personalityVoice.slice(0, 200)}.`,
     options?.personalization ?? "",
     options?.site?.brandName

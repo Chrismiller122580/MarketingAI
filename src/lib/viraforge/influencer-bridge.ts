@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { creatorAvatarSchema } from "@/lib/schemas/creator-avatar-schema";
+import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import type {
   InfluencerGenerateContext,
@@ -23,7 +23,7 @@ export async function loadInfluencerGenerateContext(
 
   if (!influencer?.productFacts) return null;
 
-  const persona = creatorAvatarSchema.safeParse(influencer.persona);
+  const persona = parseCreatorAvatar(influencer.persona);
   if (!persona.success) return null;
 
   const locked = productFactsSchema.parse({

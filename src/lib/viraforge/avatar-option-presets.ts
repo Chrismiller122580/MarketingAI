@@ -157,6 +157,132 @@ export function industryPersonality(type: BusinessModelType): FieldOption[] {
   return PERSONALITY_BY_TYPE[type] ?? PERSONALITY_BY_TYPE.other;
 }
 
+const WARDROBE_BY_TYPE: Record<BusinessModelType, FieldOption[]> = {
+  saas: [
+    makeOption(
+      "Smart casual founder",
+      "Smart casual founder look — tailored blazer over a plain tee, dark slim jeans, minimal leather sneakers.",
+    ),
+    makeOption(
+      "Tech conference casual",
+      "Tech conference casual — branded quarter-zip, chinos, clean trainers, approachable B2B style.",
+    ),
+    makeOption(
+      "Business professional",
+      "Business professional — crisp button-down, tailored trousers, blazer optional, polished but modern.",
+    ),
+  ],
+  ecommerce: [
+    makeOption(
+      "Lifestyle creator casual",
+      "Lifestyle creator casual — elevated streetwear, neutral tones, layered jacket, on-trend accessories.",
+    ),
+    makeOption(
+      "Try-on haul ready",
+      "Try-on haul ready — versatile basics that showcase products, mirror-friendly styling, soft natural makeup.",
+    ),
+    makeOption(
+      "Luxury casual",
+      "Luxury casual — designer-inspired minimalist outfit, quality fabrics, understated jewelry.",
+    ),
+  ],
+  services: [
+    makeOption(
+      "Trusted local pro",
+      "Trusted local professional — clean polo or blouse, work-appropriate slacks, name-badge friendly look.",
+    ),
+    makeOption(
+      "On-site expert",
+      "On-site expert — practical smart-casual with utility jacket, confident and hands-on.",
+    ),
+    makeOption(
+      "Consultation ready",
+      "Consultation ready — blazer, neutral top, approachable expert styling.",
+    ),
+  ],
+  agency: [
+    makeOption(
+      "Creative studio chic",
+      "Creative studio chic — bold but polished layers, statement eyewear, agency-creative energy.",
+    ),
+    makeOption(
+      "Pitch-day polish",
+      "Pitch-day polish — monochrome tailored look, confident presenter styling.",
+    ),
+  ],
+  media: [
+    makeOption(
+      "On-camera host",
+      "On-camera host — camera-ready solid colors, flattering fit, minimal distracting patterns.",
+    ),
+    makeOption(
+      "Creator street style",
+      "Creator street style — trendy layers, expressive accessories, content-friendly outfit.",
+    ),
+  ],
+  local: [
+    makeOption(
+      "Neighborhood favorite",
+      "Neighborhood favorite — friendly local business casual, apron or branded tee when appropriate.",
+    ),
+    makeOption(
+      "Community event ready",
+      "Community event ready — approachable weekend casual, warm colors, relatable styling.",
+    ),
+  ],
+  nonprofit: [
+    makeOption(
+      "Mission advocate",
+      "Mission advocate — approachable everyday wear, volunteer-friendly, authentic and humble.",
+    ),
+    makeOption(
+      "Community leader",
+      "Community leader — smart casual, warm and credible on-camera presence.",
+    ),
+  ],
+  other: [
+    makeOption(
+      "Modern athleisure",
+      "Modern athleisure — fitted performance top, leggings or joggers, clean trainers; fitness-lifestyle ready.",
+    ),
+    makeOption(
+      "Everyday smart casual",
+      "Everyday smart casual — well-fitted jeans, neutral top, light jacket; versatile influencer look.",
+    ),
+    makeOption(
+      "Summer resort casual",
+      "Summer resort casual — linen shirt, relaxed trousers, sunglasses; bright natural setting friendly.",
+    ),
+  ],
+};
+
+export function industryWardrobe(type: BusinessModelType): FieldOption[] {
+  return WARDROBE_BY_TYPE[type] ?? WARDROBE_BY_TYPE.other;
+}
+
+export function wardrobeQuickPicks(): FieldOption[] {
+  return dedupeOptions(
+    [
+      makeOption("Athleisure", WARDROBE_BY_TYPE.other[0].value),
+      makeOption("Business casual", WARDROBE_BY_TYPE.saas[2].value),
+      makeOption("Streetwear", WARDROBE_BY_TYPE.ecommerce[0].value),
+      makeOption(
+        "Evening elevated",
+        "Evening elevated — sleek dress or tailored suit separates, subtle jewelry, upscale nightlife styling.",
+      ),
+      makeOption(
+        "Cozy loungewear",
+        "Cozy loungewear — soft knit set, relaxed fit, warm neutral palette for at-home content.",
+      ),
+      makeOption(
+        "Outdoor adventure",
+        "Outdoor adventure — technical jacket, hiking boots, earth tones; active outdoor brand fit.",
+      ),
+    ],
+    6,
+  );
+}
+
 export function religionOptionsFromTone(tone: string): FieldOption[] {
   const base = [
     makeOption("Secular • Inclusive and modern", "Secular • Inclusive and modern"),

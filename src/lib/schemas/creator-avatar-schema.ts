@@ -18,12 +18,22 @@ export const creatorAvatarSchema = z.object({
   ageRangeShown: z.string().min(1).max(80),
   religion: z.string().min(1).max(80),
   socialClass: z.string().min(1).max(80),
+  wardrobe: z.string().min(5).max(500),
   culturalNotes: z.string().min(1).max(500),
   personalityVoice: z.string().min(20).max(2000),
   sampleQuote: z.string().min(10).max(300),
 });
 
 export type CreatorAvatarForm = z.infer<typeof creatorAvatarSchema>;
+
+/** Merges defaults so older saved personas missing new fields still validate. */
+export function parseCreatorAvatar(persona: unknown) {
+  const merged =
+    typeof persona === "object" && persona !== null
+      ? { ...defaultCreatorAvatarValues, ...persona }
+      : defaultCreatorAvatarValues;
+  return creatorAvatarSchema.safeParse(merged);
+}
 
 export const defaultCreatorAvatarValues: CreatorAvatarForm = {
   displayName: "Maria López",
@@ -39,6 +49,8 @@ export const defaultCreatorAvatarValues: CreatorAvatarForm = {
   ageRangeShown: "25-32 • Fitness mom vibe",
   religion: "Catholic (practicing) • Devout but modern",
   socialClass: "Upper Middle • College educated",
+  wardrobe:
+    "Modern athleisure — fitted performance tee, high-waist leggings, clean white trainers; polished fitness-lifestyle look.",
   culturalNotes: "Colombian + American dual influence • Loves arepas & CrossFit",
   personalityVoice:
     "Personality: Warm, confident, slightly sassy, loves family + health. Voice: Soft Colombian accent, energetic, trustworthy.",
