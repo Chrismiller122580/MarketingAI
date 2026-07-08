@@ -2,6 +2,11 @@ import { get } from "@vercel/blob";
 import { getAppOrigin } from "./app-url";
 import { extractBlobPathname } from "./display-media-url";
 import {
+  assertValidImageBytes,
+  detectImageFormat,
+  type DetectedImageFormat,
+} from "./image-bytes";
+import {
   isBlobServeUrl,
   isBlobUrl,
   resolvePublicMediaUrl,
@@ -28,14 +33,18 @@ function blobPathnameFromUrl(url: string): string | null {
   return extractBlobPathname(url);
 }
 
-async function readPrivateBlobBytes(
+async function readBlobBytes(
   pathname: string,
 ): Promise<{ bytes: Buffer; contentType: string } | null> {
-  const result = await get(pathname, { access: "private" });
-  if (result?.statusCode !== 200 || !result.stream) return null;
+  for (const access of ["private", "public"] as const) {
+    const result = await get(pathname, { access });
+    if (result?.statusCode !== 200 || !result.stream) continue;
 
-  const bytes = Buffer.from(await new Response(result.stream).arrayBuffer());
-  return { bytes, contentType: result.blob.contentType };
+    const bytes = Buffer.from(await new Response(result.stream).arrayBuffer());
+    if (bytes.length === 0) continue;
+    return { bytes, contentType: result.blob.contentType };
+  }
+  return null;
 }
 
 async function fetchMediaForPersistence(
@@ -43,7 +52,7 @@ async function fetchMediaForPersistence(
 ): Promise<{ bytes: Buffer; contentType: string }> {
   const blobPathname = blobPathnameFromUrl(url);
   if (blobPathname) {
-    const fromBlob = await readPrivateBlobBytes(blobPathname);
+    const fromBlob = await readBlobBytes(blobPathname);
     if (fromBlob) return fromBlob;
   }
   const headers: Record<string, string> = {};
@@ -91,7 +100,11 @@ export async function persistDisplayableMedia(
   }
 
   if (urlOrData.startsWith("http://") || urlOrData.startsWith("https://")) {
-    const { bytes, contentType } = await fetchMediaForPersistence(urlOrData);
+    let { bytes, contentType } = await fetchMediaForPersistence(urlOrData);
+    if (/\.(png|jpe?g|webp|gif)$/i.test(filename)) {
+      const format = assertValidImageBytes(bytes, "Image");
+      contentType = format.mime;
+    }
     return uploadBytesToBlob(bytes, filename, contentType);
   }
 
@@ -99,12 +112,32 @@ export async function persistDisplayableMedia(
 }
 
 function extensionForMime(mime: string): string {
+  if (mime.includes("png")) return "png";
   if (mime.includes("jpeg") || mime.includes("jpg")) return "jpg";
   if (mime.includes("webp")) return "webp";
+  if (mime.includes("gif")) return "gif";
   if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
   if (mime.includes("wav")) return "wav";
   if (mime.includes("mp4")) return "mp4";
   return "bin";
+}
+
+function resolveImageUploadFormat(
+  bytes: Buffer,
+  contentType: string,
+  label: string,
+): DetectedImageFormat {
+  const detected = detectImageFormat(bytes);
+  if (detected) return detected;
+
+  if (contentType.startsWith("image/")) {
+    const ext = extensionForMime(contentType);
+    if (ext !== "bin") {
+      return { mime: contentType.split(";")[0].trim(), ext };
+    }
+  }
+
+  return assertValidImageBytes(bytes, label);
 }
 
 function parseDataUrl(dataUrl: string): { mime: string; bytes: Buffer } {
@@ -148,10 +181,6 @@ export async function ensureReplicateInputUrl(
   urlOrData: string,
   label: string,
 ): Promise<string> {
-  if (isNonPublicMediaUrl(urlOrData)) {
-    return urlOrData;
-  }
-
   let bytes: Buffer;
   let contentType: string;
 
@@ -162,10 +191,13 @@ export async function ensureReplicateInputUrl(
   } else if (
     urlOrData.startsWith("http://") ||
     urlOrData.startsWith("https://") ||
-    urlOrData.startsWith("/")
+    urlOrData.startsWith("/") ||
+    isNonPublicMediaUrl(urlOrData)
   ) {
     const fetched = await fetchMediaForPersistence(
-      resolvePublicMediaUrl(urlOrData),
+      isNonPublicMediaUrl(urlOrData)
+        ? urlOrData
+        : resolvePublicMediaUrl(urlOrData),
     );
     bytes = fetched.bytes;
     contentType = fetched.contentType;
@@ -173,7 +205,48 @@ export async function ensureReplicateInputUrl(
     throw new Error(`Unsupported ${label} format for Replicate`);
   }
 
-  const ext = extensionForMime(contentType);
-  const filename = `viraforge-${label}-${Date.now()}.${ext}`;
-  return uploadBytesToReplicate(bytes, contentType, filename);
+  if (bytes.length === 0) {
+    throw new Error(`${label} is empty`);
+  }
+
+  const isPortrait = label === "portrait";
+  const format = isPortrait
+    ? resolveImageUploadFormat(bytes, contentType, label)
+    : {
+        mime: contentType.split(";")[0].trim() || "application/octet-stream",
+        ext: extensionForMime(contentType),
+      };
+
+  const filename = `viraforge-${label}-${Date.now()}.${format.ext}`;
+  const replicateUrl = await uploadBytesToReplicate(
+    bytes,
+    format.mime,
+    filename,
+  );
+
+  if (isPortrait) {
+    await verifyReplicateImageUpload(replicateUrl, label);
+  }
+
+  return replicateUrl;
+}
+
+async function verifyReplicateImageUpload(
+  url: string,
+  label: string,
+): Promise<void> {
+  const token = getReplicateToken();
+  if (!token) return;
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `${label} could not be verified after upload (${response.status})`,
+    );
+  }
+
+  const bytes = Buffer.from(await response.arrayBuffer());
+  assertValidImageBytes(bytes, label);
 }

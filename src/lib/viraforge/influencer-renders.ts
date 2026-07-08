@@ -1,6 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 import { prisma } from "@/lib/db";
+import { isBlobUrl } from "@/lib/blob-storage";
+import { isBlobServeUrl } from "@/lib/display-media-url";
 import {
   ensurePublicMediaUrl,
   isNonPublicMediaUrl,
@@ -86,6 +88,34 @@ export async function repairPortraitUrlIfNeeded(
   } catch {
     return portraitUrl;
   }
+}
+
+/** Ensures the portrait is stored in Blob before Replicate/Kling fetches it. */
+export async function ensureMotionPortraitUrl(
+  userId: string,
+  influencerId: string,
+  portraitUrl: string,
+): Promise<string> {
+  const repaired =
+    (await repairPortraitUrlIfNeeded(userId, influencerId, portraitUrl)) ??
+    portraitUrl;
+
+  if (isBlobServeUrl(repaired) || isBlobUrl(repaired)) {
+    return repaired;
+  }
+
+  const durableUrl = await persistDisplayableMedia(
+    repaired,
+    `influencers/${userId}/${influencerId}/portrait-motion-${Date.now()}.png`,
+  );
+
+  if (durableUrl !== repaired) {
+    await patchInfluencerAssets(userId, influencerId, {
+      portraitUrl: durableUrl,
+    });
+  }
+
+  return durableUrl;
 }
 
 export async function createInfluencerRender(input: {

@@ -14,7 +14,10 @@ import {
 } from "@/lib/viraforge/influencer-assets";
 import { startInfluencerMotion } from "@/lib/viraforge/influencer-motion";
 import { recordCreatorEvent } from "@/lib/viraforge/learning";
-import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
+import {
+  createInfluencerRender,
+  ensureMotionPortraitUrl,
+} from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
@@ -126,9 +129,29 @@ export async function POST(request: Request) {
       }
     }
 
+    let portraitUrl: string;
+    try {
+      portraitUrl = await ensureMotionPortraitUrl(
+        authResult,
+        influencerId,
+        assets.portraitUrl,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Portrait could not be loaded for motion";
+      return NextResponse.json(
+        {
+          error: `Portrait is missing or invalid. Regenerate the portrait and try again. (${message})`,
+        },
+        { status: 422 },
+      );
+    }
+
     const started = await startInfluencerMotion(
       motionType as InfluencerMotionType,
-      assets.portraitUrl,
+      portraitUrl,
       persona.data,
       motionType === "talk" ? talkScript : undefined,
       motionType === "talk" ? assets.voiceId : undefined,

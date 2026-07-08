@@ -16,7 +16,7 @@ export function PwaUpdateBanner() {
   return (
     <div
       role="status"
-      className="fixed bottom-4 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm shadow-lg dark:border-amber-900 dark:bg-slate-900"
+      className="fixed bottom-4 left-1/2 z-[60] mb-[env(safe-area-inset-bottom)] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center justify-between gap-3 rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm shadow-lg dark:border-amber-900 dark:bg-slate-900"
     >
       <span className="text-slate-700 dark:text-slate-200">
         A new version is available.

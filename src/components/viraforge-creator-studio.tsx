@@ -967,7 +967,7 @@ export function ViraForgeCreatorStudio() {
     "mt-2 w-full rounded-lg border border-border bg-muted p-3 text-sm text-foreground";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-20">
+    <div className="mx-auto max-w-6xl space-y-6 pb-28 sm:pb-20">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2">
@@ -1090,10 +1090,10 @@ export function ViraForgeCreatorStudio() {
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
               {!site && savedSites.length > 0 && (
                 <select
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-xs"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs sm:w-auto"
                   defaultValue=""
                   onChange={(e) => {
                     if (e.target.value) void loadSavedSite(e.target.value);
@@ -1113,6 +1113,7 @@ export function ViraForgeCreatorStudio() {
                 type="button"
                 variant="secondary"
                 size="sm"
+                className="w-full sm:w-auto"
                 disabled={suggesting || (!site && !domainParam)}
                 onClick={() => void handleSuggest()}
               >
@@ -1130,6 +1131,7 @@ export function ViraForgeCreatorStudio() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => setShowBrief((v) => !v)}
                 >
                   Avatar brief
@@ -1173,7 +1175,7 @@ export function ViraForgeCreatorStudio() {
           <div
             role="tablist"
             aria-label="Avatar configuration"
-            className="flex flex-wrap gap-2 border-b border-border pb-4"
+            className="-mx-1 flex gap-2 overflow-x-auto border-b border-border px-1 pb-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
           >
             {TABS.map((tab) => (
               <button
@@ -1182,7 +1184,7 @@ export function ViraForgeCreatorStudio() {
                 role="tab"
                 aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                className={`shrink-0 snap-start rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-10 sm:min-h-0 sm:py-2 ${
                   activeTab === tab.id
                     ? "bg-violet-600 text-white"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -1937,6 +1939,15 @@ export function ViraForgeCreatorStudio() {
               )}
             </Button>
           )}
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleSave}
+            className="w-full py-3 sm:hidden"
+          >
+            Save influencer
+          </Button>
         </div>
 
         <div className="lg:sticky lg:top-6 lg:col-span-5 lg:self-start">
@@ -2149,7 +2160,7 @@ export function ViraForgeCreatorStudio() {
         </div>
       </form>
 
-      <div className="fixed bottom-4 right-4 z-10">
+      <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-10 hidden sm:block">
         <Button type="button" variant="secondary" size="sm" onClick={handleSave}>
           Save influencer
         </Button>

@@ -229,6 +229,7 @@ export function AvatarPresentPanel() {
           onChange={setSelectedPage}
           valueMode="path"
           recommendedPath={recommendSourcePage(site)?.path}
+          compact
         />
 
         <label className="flex items-center gap-2">

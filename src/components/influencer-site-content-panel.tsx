@@ -230,6 +230,7 @@ export function InfluencerSiteContentPanel({
             recommendedPath={
               activeSite ? recommendSourcePage(activeSite)?.path : undefined
             }
+            compact
           />
         </div>
 

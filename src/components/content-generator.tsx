@@ -618,17 +618,28 @@ export function ContentGenerator() {
                 </div>
               </div>
 
-              <CrawledPagePicker
-                id="source-page"
-                label="Source page"
-                hint="Browse all crawled pages or let AI pick the best match for your prompt."
-                pages={site.pages}
-                value={selectedPage}
-                onChange={setSelectedPage}
-                valueMode="url"
-                allowAuto
-                recommendedPath={recommendSourcePage(site)?.path}
-              />
+              {site.pages.length <= 1 ? (
+                <div>
+                  <p className="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Source page
+                  </p>
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+                    {site.pages[0]?.path ?? "/"} — {site.pages[0]?.title ?? "Home"}
+                  </p>
+                </div>
+              ) : (
+                <CrawledPagePicker
+                  id="source-page"
+                  label="Source page"
+                  hint="Browse all crawled pages or let AI pick the best match for your prompt."
+                  pages={site.pages}
+                  value={selectedPage}
+                  onChange={setSelectedPage}
+                  valueMode="url"
+                  allowAuto
+                  recommendedPath={recommendSourcePage(site)?.path}
+                />
+              )}
             </>
           )}
 

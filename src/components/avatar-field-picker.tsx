@@ -78,7 +78,7 @@ export function AvatarFieldPicker({
                 setShowCustom(false);
                 onSelect(opt);
               }}
-              className={`group relative max-w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+              className={`group relative max-w-full rounded-lg border px-3 py-2.5 text-left text-sm transition min-h-10 sm:min-h-0 sm:py-2 ${
                 selected
                   ? "border-violet-500 bg-violet-500/10 text-foreground ring-1 ring-violet-500/40"
                   : "border-border bg-muted/40 text-muted-foreground hover:border-violet-300 hover:bg-muted hover:text-foreground"
@@ -88,7 +88,7 @@ export function AvatarFieldPicker({
                 className={`absolute right-2 top-2 h-1.5 w-1.5 rounded-full ${CONFIDENCE_DOT[opt.confidence]}`}
                 title={`${opt.confidence} confidence`}
               />
-              <span className="block pr-4 font-medium leading-snug">{opt.label}</span>
+              <span className="block break-words pr-4 font-medium leading-snug">{opt.label}</span>
             </button>
           );
         })}
@@ -97,7 +97,7 @@ export function AvatarFieldPicker({
           <button
             type="button"
             onClick={() => setShowCustom((v) => !v)}
-            className={`rounded-lg border px-3 py-2 text-sm transition ${
+            className={`min-h-10 rounded-lg border px-3 py-2.5 text-sm transition sm:min-h-0 sm:py-2 ${
               showCustom || isCustomSelected
                 ? "border-violet-500 bg-violet-500/10 text-foreground"
                 : "border-dashed border-border text-muted-foreground hover:border-violet-300"
