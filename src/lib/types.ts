@@ -170,6 +170,15 @@ export type ImageOverlayLayer =
   | ImageOverlayImageLayer
   | ImageOverlayShapeLayer;
 
+export type InfluencerMotionClip = {
+  motionType: import("./viraforge/influencer-assets").InfluencerMotionType;
+  motionJobId?: string;
+  videoUrl?: string;
+  videoStatus?: "processing" | "ready" | "failed";
+  audioUrl?: string;
+  voiceoverScript?: string;
+};
+
 export type PostMedia = {
   url: string;
   source: "site" | "branded" | "ai" | "edited" | "influencer";
@@ -181,6 +190,9 @@ export type PostMedia = {
   videoUrl?: string;
   videoStatus?: "processing" | "ready" | "failed";
   videoJobId?: string;
+  motionJobId?: string;
+  motionType?: InfluencerMotionClip["motionType"];
+  supplementalClips?: InfluencerMotionClip[];
   audioUrl?: string;
   voiceoverScript?: string;
   durationSec?: number;
@@ -308,6 +320,13 @@ export type GenerateRequest = {
   useInfluencerPortrait?: boolean;
   useInfluencerMotion?: boolean;
   influencerVoice?: boolean;
+  /** portrait | saved clip | fresh AI motion from portrait */
+  influencerVisualMode?: "portrait" | "saved" | "fresh";
+  influencerMotionTypes?: import("./viraforge/influencer-assets").InfluencerMotionType[];
+  /** When true, skip reusing a saved motion clip and render fresh motion clips. */
+  generateFreshMotion?: boolean;
+  /** @deprecated Use generateFreshMotion */
+  generateFreshTalkMotion?: boolean;
 };
 
 export type VideoJobStatus = {

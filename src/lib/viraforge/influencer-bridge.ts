@@ -7,7 +7,7 @@ import type {
   SitePage,
 } from "@/lib/types";
 import { buildPersonalizationContext } from "./learning";
-import { mergeInfluencerAssets } from "./influencer-assets";
+import { mergeInfluencerAssets, resolveInfluencerAssets } from "./influencer-assets";
 import { buildFactPinpoints, mergeFactsWithSite } from "./site-facts-extractor";
 
 export async function loadInfluencerGenerateContext(
@@ -37,7 +37,9 @@ export async function loadInfluencerGenerateContext(
 
   const mergedFacts = mergeFactsWithSite(locked, site, page);
   const pinpoints = buildFactPinpoints(locked, site, page);
-  const assets = mergeInfluencerAssets(influencer.assets, {});
+  const assets = resolveInfluencerAssets(
+    mergeInfluencerAssets(influencer.assets, {}),
+  );
   const personalization = await buildPersonalizationContext(
     userId,
     influencerId,

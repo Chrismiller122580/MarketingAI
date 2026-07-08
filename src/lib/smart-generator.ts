@@ -425,8 +425,13 @@ function resolveInfluencerMedia(
 
   const portraitUrl = influencer.assets.portraitUrl;
   const motionUrl = influencer.assets.videoUrl;
-  const useMotion =
-    request.useInfluencerMotion !== false &&
+  const generateFresh =
+    request.generateFreshMotion ?? request.generateFreshTalkMotion;
+  const useSavedMotion =
+    !generateFresh &&
+    (request.influencerVisualMode === "saved" ||
+      (request.influencerVisualMode !== "portrait" &&
+        request.useInfluencerMotion !== false)) &&
     motionUrl &&
     influencer.assets.motionStatus === "ready";
 
@@ -435,7 +440,20 @@ function resolveInfluencerMedia(
     ? { aspectRatio: "9:16" as const }
     : {};
 
-  if (useMotion && motionUrl) {
+  if (generateFresh && portraitUrl) {
+    return {
+      url: portraitUrl,
+      source: "influencer",
+      alt,
+      originalUrl: portraitUrl,
+      videoStatus: "processing",
+      aspectRatio: "9:16",
+      ...vertical,
+    };
+  }
+
+  if (useSavedMotion && motionUrl) {
+    const isTalk = influencer.assets.motionType === "talk";
     return {
       url: motionUrl,
       source: "influencer",
@@ -443,6 +461,13 @@ function resolveInfluencerMedia(
       originalUrl: motionUrl,
       videoUrl: motionUrl,
       videoStatus: "ready",
+      motionType: influencer.assets.motionType,
+      ...(isTalk && influencer.assets.voiceAudioUrl
+        ? {
+            audioUrl: influencer.assets.voiceAudioUrl,
+            voiceoverScript: influencer.assets.lastScript,
+          }
+        : {}),
       ...vertical,
     };
   }

@@ -58,6 +58,7 @@ import type {
   InfluencerAssets,
   InfluencerMotionType,
 } from "@/lib/viraforge/influencer-assets";
+import { MOTION_ACTIONS } from "@/lib/viraforge/motion-actions";
 import {
   extractCrawledProductFacts,
   factsTabLabel,
@@ -88,42 +89,7 @@ const TABS: { id: CreatorTab; label: string }[] = [
   { id: "site-content", label: "Site Content" },
 ];
 
-const MOTION_ACTIONS: {
-  type: InfluencerMotionType;
-  label: string;
-  description: string;
-}[] = [
-  {
-    type: "talk",
-    label: "Talk",
-    description: "ElevenLabs voice + lip-sync talking clip",
-  },
-  {
-    type: "walk",
-    label: "Walk",
-    description: "Natural forward walk from portrait",
-  },
-  {
-    type: "spin",
-    label: "Spin",
-    description: "Smooth 360° turn",
-  },
-  {
-    type: "jump",
-    label: "Jump",
-    description: "Energetic jump motion",
-  },
-  {
-    type: "wave",
-    label: "Wave",
-    description: "Friendly hello to followers",
-  },
-  {
-    type: "point",
-    label: "Point",
-    description: "Gesture toward camera / CTA",
-  },
-];
+
 
 const SCRIPT_PRESETS: {
   scene: InfluencerScriptScene;

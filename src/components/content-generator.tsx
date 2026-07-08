@@ -37,6 +37,11 @@ import { ContentAnglePicker } from "./content-angle-picker";
 import { VisualTargetingPicker } from "./visual-targeting-picker";
 import { CrawledPagePicker } from "./crawled-page-picker";
 import { recommendSourcePage } from "@/lib/crawled-page-utils";
+import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
+import {
+  MAX_CONTENT_STUDIO_MOTION_CLIPS,
+  MOTION_ACTIONS,
+} from "@/lib/viraforge/motion-actions";
 
 type AttachedInfluencer = {
   id: string;
@@ -44,6 +49,7 @@ type AttachedInfluencer = {
   handle: string;
   portraitUrl?: string;
   motionVideoUrl?: string;
+  motionType?: string;
   hasMotionClip: boolean;
 };
 
@@ -118,7 +124,15 @@ export function ContentGenerator() {
   const [attachedInfluencer, setAttachedInfluencer] =
     useState<AttachedInfluencer | null>(null);
   const [useInfluencerPortrait, setUseInfluencerPortrait] = useState(true);
-  const [useInfluencerMotion, setUseInfluencerMotion] = useState(true);
+  const [influencerVisualMode, setInfluencerVisualMode] = useState<
+    "portrait" | "saved" | "fresh"
+  >("fresh");
+  const [selectedMotionTypes, setSelectedMotionTypes] = useState<
+    InfluencerMotionType[]
+  >(["talk"]);
+  const [motionCapabilities, setMotionCapabilities] = useState<
+    Record<InfluencerMotionType, boolean> | null
+  >(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const postHistory = posts.map((p) => ({
@@ -138,6 +152,17 @@ export function ContentGenerator() {
     (isReel && !aiCaps?.aiVideoAvailable) ||
     (isStory && storyMedia === "image" && !aiCaps?.aiImageAvailable) ||
     (isStoryVideo && !aiCaps?.aiVideoAvailable);
+
+  useEffect(() => {
+    fetch("/api/creator-studio/capabilities")
+      .then((res) => (res.ok ? res.json() : null))
+      .then(
+        (data: { motionTypes?: Record<InfluencerMotionType, boolean> } | null) => {
+          if (data?.motionTypes) setMotionCapabilities(data.motionTypes);
+        },
+      )
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/social/status")
@@ -200,6 +225,7 @@ export function ContentGenerator() {
             portraitUrl?: string;
             videoUrl?: string;
             motionStatus?: string;
+            motionType?: string;
           };
         }>;
       } | null) => {
@@ -215,17 +241,21 @@ export function ContentGenerator() {
           handle: persona.handle ?? "creator",
           portraitUrl: match.assets?.portraitUrl,
           motionVideoUrl: match.assets?.videoUrl,
+          motionType: match.assets?.motionType,
           hasMotionClip,
         });
         setUseInfluencerPortrait(true);
-        setUseInfluencerMotion(hasMotionClip);
+        setInfluencerVisualMode(
+          hasMotionClip && !hasEnterprisePlus ? "saved" : "fresh",
+        );
+        setSelectedMotionTypes(["talk"]);
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
     };
-  }, [searchParams]);
+  }, [searchParams, hasEnterprisePlus]);
 
   useEffect(() => {
     const domainParam = searchParams.get("domain");
@@ -248,7 +278,8 @@ export function ContentGenerator() {
   function detachInfluencer() {
     setAttachedInfluencer(null);
     setUseInfluencerPortrait(true);
-    setUseInfluencerMotion(true);
+    setInfluencerVisualMode("fresh");
+    setSelectedMotionTypes(["talk"]);
     router.replace("/content");
   }
 
@@ -272,6 +303,148 @@ export function ContentGenerator() {
       ),
     );
   }, [site, platform]);
+
+  function collectMotionJobIds(image: GeneratedPost["image"]): string[] {
+    const ids: string[] = [];
+    if (image.motionJobId && image.videoStatus === "processing") {
+      ids.push(image.motionJobId);
+    }
+    for (const clip of image.supplementalClips ?? []) {
+      if (clip.motionJobId && clip.videoStatus === "processing") {
+        ids.push(clip.motionJobId);
+      }
+    }
+    return ids;
+  }
+
+  function applyMotionJobUpdate(
+    image: GeneratedPost["image"],
+    jobId: string,
+    data: {
+      status: string;
+      videoUrl?: string;
+      voiceAudioUrl?: string;
+      error?: string;
+    },
+  ): GeneratedPost["image"] {
+    if (image.motionJobId === jobId) {
+      if (data.status === "ready" && data.videoUrl) {
+        return {
+          ...image,
+          url: data.videoUrl,
+          videoUrl: data.videoUrl,
+          originalUrl: data.videoUrl,
+          videoStatus: "ready",
+          ...(data.voiceAudioUrl ? { audioUrl: data.voiceAudioUrl } : {}),
+        };
+      }
+      if (data.status === "failed") {
+        return { ...image, videoStatus: "failed" };
+      }
+      return image;
+    }
+
+    const supplemental = image.supplementalClips;
+    if (!supplemental?.length) return image;
+
+    return {
+      ...image,
+      supplementalClips: supplemental.map((clip) => {
+        if (clip.motionJobId !== jobId) return clip;
+        if (data.status === "ready" && data.videoUrl) {
+          return {
+            ...clip,
+            videoUrl: data.videoUrl,
+            videoStatus: "ready" as const,
+            ...(data.voiceAudioUrl ? { audioUrl: data.voiceAudioUrl } : {}),
+          };
+        }
+        if (data.status === "failed") {
+          return { ...clip, videoStatus: "failed" as const };
+        }
+        return clip;
+      }),
+    };
+  }
+
+  async function pollMotionClips(currentPost: GeneratedPost, saved: SavedPost) {
+    setVideoLoading(true);
+    let attempts = 0;
+    const maxAttempts = 225;
+    let latestPost = currentPost;
+
+    const poll = async () => {
+      attempts += 1;
+      const pending = collectMotionJobIds(latestPost.image);
+      if (pending.length === 0) {
+        setVideoLoading(false);
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+
+      if (attempts > maxAttempts) {
+        setVideoLoading(false);
+        setError("Motion clip rendering timed out. Try regenerating the post.");
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+
+      try {
+        const results = await Promise.all(
+          pending.map(async (jobId) => {
+            const res = await fetch(`/api/creator-studio/motion/status/${jobId}`);
+            const data = await res.json();
+            return { jobId, data };
+          }),
+        );
+
+        let nextImage = latestPost.image;
+        let failedMessage: string | undefined;
+
+        for (const { jobId, data } of results) {
+          if (data.status === "failed") {
+            failedMessage = data.error ?? "Motion clip rendering failed";
+          }
+          nextImage = applyMotionJobUpdate(nextImage, jobId, data);
+        }
+
+        if (nextImage !== latestPost.image) {
+          latestPost = { ...latestPost, image: nextImage };
+          setPost(latestPost);
+          try {
+            const updated = await updatePostMedia(saved.id, nextImage);
+            setSavedPost(updated);
+          } catch {
+            /* preview still shows clips */
+          }
+        }
+
+        if (failedMessage) setError(failedMessage);
+
+        if (collectMotionJobIds(nextImage).length === 0) {
+          setVideoLoading(false);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      } catch {
+        /* keep polling until timeout */
+      }
+    };
+
+    await poll();
+    pollRef.current = setInterval(poll, 4000);
+  }
+
+  function toggleMotionType(type: InfluencerMotionType) {
+    setSelectedMotionTypes((prev) => {
+      if (prev.includes(type)) {
+        return prev.length === 1 ? prev : prev.filter((t) => t !== type);
+      }
+      if (prev.length >= MAX_CONTENT_STUDIO_MOTION_CLIPS) {
+        return [...prev.slice(1), type];
+      }
+      return [...prev, type];
+    });
+  }
 
   async function pollVideoStatus(
     jobId: string,
@@ -342,6 +515,12 @@ export function ContentGenerator() {
     setLoading(true);
     setVideoLoading(false);
     setError(null);
+    const willRenderFreshMotion =
+      !!attachedInfluencer &&
+      useInfluencerPortrait &&
+      influencerVisualMode === "fresh" &&
+      selectedMotionTypes.length > 0;
+
     setLoadingStage(
       isVideoContent
         ? isReel
@@ -349,7 +528,9 @@ export function ContentGenerator() {
           : "Crafting video script and visuals…"
         : isStory
           ? "Designing Story visual and swipe-up copy…"
-          : "Analyzing business model and matching pages…",
+          : willRenderFreshMotion
+            ? `Writing copy and coordinating ${selectedMotionTypes.join(" + ")} clips…`
+            : "Analyzing business model and matching pages…",
     );
 
     try {
@@ -380,9 +561,10 @@ export function ContentGenerator() {
           useInfluencerPortrait: attachedInfluencer
             ? useInfluencerPortrait
             : undefined,
-          useInfluencerMotion: attachedInfluencer?.hasMotionClip
-            ? useInfluencerMotion
+          influencerVisualMode: attachedInfluencer
+            ? influencerVisualMode
             : undefined,
+          influencerMotionTypes: attachedInfluencer ? selectedMotionTypes : undefined,
         }),
       });
 
@@ -401,7 +583,9 @@ export function ContentGenerator() {
         const saved = await savePost(generated);
         setSavedPost(saved);
 
-        if (
+        if (collectMotionJobIds(generated.image).length > 0) {
+          pollMotionClips(generated, saved);
+        } else if (
           willGenerateVideo &&
           generated.image.videoJobId &&
           generated.image.videoStatus === "processing"
@@ -548,7 +732,7 @@ export function ContentGenerator() {
                 </button>
               </div>
               {!isVideoContent && !isStory && (
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-3">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -560,19 +744,103 @@ export function ContentGenerator() {
                       Use influencer visual (uncheck for site or AI image)
                     </span>
                   </label>
-                  {attachedInfluencer.hasMotionClip && useInfluencerPortrait && (
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={useInfluencerMotion}
-                        onChange={(e) => setUseInfluencerMotion(e.target.checked)}
-                        className="rounded border-slate-300 text-violet-600"
-                      />
-                      <span className="text-sm text-slate-700 dark:text-slate-300">
-                        Use motion clip (talk / wave / walk) instead of still
-                        portrait
-                      </span>
-                    </label>
+
+                  {useInfluencerPortrait && attachedInfluencer.portraitUrl && (
+                    <div className="space-y-2 rounded-lg border border-violet-200/80 bg-white/60 p-3 dark:border-violet-800/50 dark:bg-slate-900/40">
+                      <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                        Influencer media
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {(
+                          [
+                            { id: "portrait" as const, label: "Still portrait" },
+                            { id: "fresh" as const, label: "Generate fresh clips" },
+                            ...(attachedInfluencer.hasMotionClip
+                              ? [{ id: "saved" as const, label: "Use saved clip" }]
+                              : []),
+                          ]
+                        ).map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() =>
+                              setInfluencerVisualMode(option.id)
+                            }
+                            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                              influencerVisualMode === option.id
+                                ? "bg-violet-600 text-white"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {influencerVisualMode === "fresh" && (
+                        <>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Pick up to {MAX_CONTENT_STUDIO_MOTION_CLIPS} motions — AI
+                            writes matched scripts, voice, and lip-sync where needed.
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {MOTION_ACTIONS.map((action) => {
+                              const selected = selectedMotionTypes.includes(
+                                action.type,
+                              );
+                              const enabled =
+                                motionCapabilities?.[action.type] ?? true;
+                              return (
+                                <button
+                                  key={action.type}
+                                  type="button"
+                                  disabled={!enabled}
+                                  onClick={() => toggleMotionType(action.type)}
+                                  className={`rounded-lg border px-2.5 py-2 text-left transition ${
+                                    selected
+                                      ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30"
+                                      : enabled
+                                        ? "border-slate-200 bg-white hover:border-violet-300 dark:border-slate-700 dark:bg-slate-900"
+                                        : "cursor-not-allowed border-slate-200/60 opacity-50 dark:border-slate-800"
+                                  }`}
+                                >
+                                  <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                                    {action.label}
+                                    {selected ? " ✓" : ""}
+                                  </p>
+                                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500 dark:text-slate-400">
+                                    {action.description}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {selectedMotionTypes.filter((t) => t === "talk").length >
+                            1 && (
+                            <p className="text-xs text-violet-700 dark:text-violet-300">
+                              Two Talk clips use pitch + CTA scripts from your
+                              caption.
+                            </p>
+                          )}
+                        </>
+                      )}
+
+                      {influencerVisualMode === "saved" &&
+                        attachedInfluencer.motionType &&
+                        attachedInfluencer.motionType !== "talk" && (
+                          <p className="text-xs text-amber-700 dark:text-amber-300">
+                            Saved clip is {attachedInfluencer.motionType} — no
+                            synced voiceover. Switch to fresh clips for Talk, Wave,
+                            or Point with AI voice.
+                          </p>
+                        )}
+                    </div>
+                  )}
+
+                  {useInfluencerPortrait && !attachedInfluencer.portraitUrl && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Save a portrait in Creator Studio to enable motion clips.
+                    </p>
                   )}
                 </div>
               )}

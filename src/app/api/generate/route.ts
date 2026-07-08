@@ -21,6 +21,12 @@ import { isEnterprisePlusPlan } from "@/lib/plans";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hasVoiceProvider } from "@/lib/ai-voice";
 import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
+import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
+import { normalizeMotionTypeSelection } from "@/lib/viraforge/motion-actions";
+import {
+  canGenerateFreshMotion,
+  startContentStudioMotionClips,
+} from "@/lib/viraforge/content-studio-motion";
 
 export async function POST(request: Request) {
   const userId = await requirePaidUserId();
@@ -128,6 +134,19 @@ export async function POST(request: Request) {
           isActivePaidPlan(planInfo.plan, planInfo.subscriptionEndsAt));
     }
 
+    const useInfluencerPortrait = body.useInfluencerPortrait ?? true;
+    const visualMode =
+      body.influencerVisualMode ??
+      (body.useInfluencerMotion === false ? "portrait" : influencerVoice ? "fresh" : "saved");
+    const motionTypes = normalizeMotionTypeSelection(
+      body.influencerMotionTypes as InfluencerMotionType[] | undefined,
+    );
+    const generateFreshMotion =
+      !!influencerContext &&
+      useInfluencerPortrait &&
+      visualMode === "fresh" &&
+      canGenerateFreshMotion(motionTypes);
+
     const generateRequest: GenerateRequest = {
       site,
       contentType,
@@ -145,14 +164,74 @@ export async function POST(request: Request) {
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
       influencer: influencerContext ?? undefined,
-      useInfluencerPortrait: body.useInfluencerPortrait ?? true,
-      useInfluencerMotion: body.useInfluencerMotion ?? true,
+      useInfluencerPortrait,
+      useInfluencerMotion: visualMode === "saved",
       influencerVoice,
+      influencerVisualMode: visualMode,
+      influencerMotionTypes: motionTypes,
+      generateFreshMotion,
     };
 
     const post = await generateSmartPost(generateRequest);
     if (influencerId) {
       post.influencerId = influencerId;
+    }
+
+    if (generateFreshMotion && influencerContext) {
+      const motionResult = await startContentStudioMotionClips({
+        userId: userId as string,
+        influencer: influencerContext,
+        motionTypes,
+        draftText: post.text,
+        siteDomain: site.domain,
+      });
+
+      const clips = motionResult.clips ?? [];
+      if (clips.length > 0) {
+        const [primary, ...supplemental] = clips;
+        post.image = {
+          ...post.image,
+          motionType: primary.motionType,
+          motionJobId: primary.motionJobId,
+          videoStatus: "processing",
+          aspectRatio: "9:16",
+          ...(primary.voiceAudioUrl
+            ? {
+                audioUrl: primary.voiceAudioUrl,
+                voiceoverScript: primary.script,
+              }
+            : {}),
+          ...(supplemental.length > 0
+            ? {
+                supplementalClips: supplemental.map((clip) => ({
+                  motionType: clip.motionType,
+                  motionJobId: clip.motionJobId,
+                  videoStatus: "processing" as const,
+                  ...(clip.voiceAudioUrl
+                    ? {
+                        audioUrl: clip.voiceAudioUrl,
+                        voiceoverScript: clip.script,
+                      }
+                    : {}),
+                })),
+              }
+            : {}),
+        };
+
+        const labels = clips.map((c) => c.motionType).join(" + ");
+        post.insights = [
+          ...post.insights,
+          clips.length > 1
+            ? `Rendering ${clips.length} influencer clips (${labels}) — companion voice tracks appear as each clip finishes.`
+            : primary.motionType === "talk"
+              ? "Rendering influencer talk clip with lip-sync — voiceover is ready below."
+              : `Rendering ${primary.motionType} motion clip — AI script and voice paired where available.`,
+        ];
+      }
+
+      if ("error" in motionResult) {
+        post.insights = [...post.insights, motionResult.error];
+      }
     }
 
     if (triggersVideoGeneration(contentType, storyMedia)) {
