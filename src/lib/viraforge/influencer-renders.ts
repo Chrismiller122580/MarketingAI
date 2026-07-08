@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 import { prisma } from "@/lib/db";
 import {
   ensurePublicMediaUrl,
@@ -303,8 +304,8 @@ function toRenderRecord(row: {
     id: row.id,
     type: row.type as InfluencerRenderType,
     status: row.status as InfluencerRenderStatus,
-    url: row.url,
-    voiceUrl: row.voiceUrl,
+    url: row.url ? resolveDisplayMediaUrl(row.url) : null,
+    voiceUrl: row.voiceUrl ? resolveDisplayMediaUrl(row.voiceUrl) : null,
     motionType: row.motionType,
     script: row.script,
     voiceId: row.voiceId,

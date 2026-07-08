@@ -1,15 +1,16 @@
 import { get } from "@vercel/blob";
 import { getAppOrigin } from "./app-url";
+import { extractBlobPathname } from "./display-media-url";
 import {
-  extractBlobPathname,
   isBlobServeUrl,
   isBlobUrl,
   resolvePublicMediaUrl,
   uploadToBlob,
 } from "./blob-storage";
+export { resolveDisplayMediaUrl } from "./display-media-url";
 import { getReplicateToken, uploadBytesToReplicate } from "./replicate-client";
 
-export { resolveDisplayMediaUrl, resolvePublicMediaUrl } from "./blob-storage";
+export { resolvePublicMediaUrl } from "./blob-storage";
 
 export function isNonPublicMediaUrl(url: string): boolean {
   return /api\.replicate\.com\/v1\/files\//i.test(url);

@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type": result.blob.contentType,
       "X-Content-Type-Options": "nosniff",
+      "Accept-Ranges": "bytes",
       ETag: result.blob.etag,
       "Cache-Control": "private, no-cache",
     },

@@ -1,6 +1,19 @@
 import { put } from "@vercel/blob";
 import { getAppOrigin } from "./app-url";
+import {
+  blobServePath,
+  extractBlobPathname,
+  isBlobServeUrl,
+  isPrivateBlobUrl,
+  resolveDisplayMediaUrl,
+} from "./display-media-url";
 import type { PostMedia } from "./types";
+
+export {
+  blobServePath,
+  isBlobServeUrl,
+  resolveDisplayMediaUrl,
+} from "./display-media-url";
 
 export type BlobAccess = "public" | "private";
 
@@ -15,46 +28,6 @@ export function getBlobToken(): string | undefined {
 
 export function isBlobUrl(url: string): boolean {
   return /blob\.vercel-storage\.com/i.test(url);
-}
-
-export function isBlobServeUrl(url: string): boolean {
-  return (
-    url.startsWith("/api/media/blob?") || /\/api\/media\/blob\?/.test(url)
-  );
-}
-
-export function isPrivateBlobUrl(url: string): boolean {
-  return /\.private\.blob\.vercel-storage\.com/i.test(url);
-}
-
-export function extractBlobPathname(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    if (!isBlobUrl(parsed.href)) return null;
-    const pathname = parsed.pathname.replace(/^\/+/, "");
-    return pathname || null;
-  } catch {
-    return null;
-  }
-}
-
-/** Relative app URL that streams a private blob through our API route. */
-export function blobServePath(pathname: string): string {
-  return `/api/media/blob?pathname=${encodeURIComponent(pathname)}`;
-}
-
-/** Browser-safe URL for img/video/audio elements. */
-export function resolveDisplayMediaUrl(url: string): string {
-  if (!url) return url;
-
-  if (url.startsWith("/api/media/blob?")) return url;
-
-  const pathname = extractBlobPathname(url);
-  if (pathname && isPrivateBlobUrl(url)) {
-    return blobServePath(pathname);
-  }
-
-  return url;
 }
 
 /** Absolute HTTPS URL for social APIs and external fetchers (Replicate, Meta, etc.). */
@@ -85,9 +58,12 @@ export async function uploadToBlob(
     ...(contentType ? { contentType } : {}),
   });
 
-  return access === "private"
-    ? resolvePublicMediaUrl(uploaded.url)
-    : uploaded.url;
+  if (access === "private") {
+    const pathname = extractBlobPathname(uploaded.url);
+    return pathname ? blobServePath(pathname) : uploaded.url;
+  }
+
+  return uploaded.url;
 }
 
 export function resolvePostMedia(media: PostMedia): PostMedia {

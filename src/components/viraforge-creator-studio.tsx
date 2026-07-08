@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
@@ -39,6 +39,7 @@ import {
 } from "@/lib/schemas/product-facts-schema";
 import { AvatarFieldPicker } from "@/components/avatar-field-picker";
 import { CrawledPagePicker } from "@/components/crawled-page-picker";
+import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 import { recommendSourcePage } from "@/lib/crawled-page-utils";
 import { useSite } from "@/context/site-context";
 import {
@@ -200,6 +201,24 @@ export function ViraForgeCreatorStudio() {
   );
   const [motionVideo, setMotionVideo] = useState<string | null>(null);
   const [voiceAudio, setVoiceAudio] = useState<string | null>(null);
+  const voiceAudioRef = useRef<HTMLAudioElement>(null);
+  const previewVoiceAudioRef = useRef<HTMLAudioElement>(null);
+
+  const setVoiceAudioUrl = useCallback((url: string) => {
+    setVoiceAudio(resolveDisplayMediaUrl(url));
+  }, []);
+
+  const playVoiceAudio = useCallback((url: string) => {
+    const normalized = resolveDisplayMediaUrl(url);
+    setVoiceAudio(normalized);
+    requestAnimationFrame(() => {
+      for (const el of [voiceAudioRef.current, previewVoiceAudioRef.current]) {
+        if (!el) continue;
+        el.load();
+        void el.play().catch(() => undefined);
+      }
+    });
+  }, []);
   const [motionLoading, setMotionLoading] = useState<InfluencerMotionType | null>(
     null,
   );
@@ -284,7 +303,7 @@ export function ViraForgeCreatorStudio() {
             setPreviewMode("motion");
           }
           if (match.assets?.voiceAudioUrl) {
-            setVoiceAudio(match.assets.voiceAudioUrl);
+            setVoiceAudioUrl(match.assets.voiceAudioUrl);
           }
           if (match.assets?.lastScript) {
             setMotionScript(match.assets.lastScript);
@@ -391,7 +410,7 @@ export function ViraForgeCreatorStudio() {
         if (data.status === "ready" && data.videoUrl) {
           setMotionVideo(data.videoUrl);
           setPreviewMode("motion");
-          if (data.voiceAudioUrl) setVoiceAudio(data.voiceAudioUrl);
+          if (data.voiceAudioUrl) setVoiceAudioUrl(data.voiceAudioUrl);
           setMotionLoading(null);
           bumpRenderLibrary();
           toast.success(
@@ -469,7 +488,7 @@ export function ViraForgeCreatorStudio() {
         throw new Error(payload.error ?? "Motion request failed");
       }
 
-      if (payload.voiceAudioUrl) setVoiceAudio(payload.voiceAudioUrl);
+      if (payload.voiceAudioUrl) setVoiceAudioUrl(payload.voiceAudioUrl);
       if (payload.jobId) void pollMotionJob(payload.jobId, motionType);
       else setMotionLoading(null);
     } catch (err) {
@@ -552,9 +571,9 @@ export function ViraForgeCreatorStudio() {
       }
       const audio = data.audioUrl ?? data.audioDataUrl;
       if (audio) {
-        setVoiceAudio(audio);
+        playVoiceAudio(audio);
         bumpRenderLibrary();
-        toast.success("Voice preview saved — avatar is speaking");
+        toast.success("Voice preview ready — playing audio");
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Voice preview failed");
@@ -573,7 +592,7 @@ export function ViraForgeCreatorStudio() {
         setMotionVideo(assets.videoUrl);
         setPreviewMode("motion");
       }
-      if (assets.voiceAudioUrl) setVoiceAudio(assets.voiceAudioUrl);
+      if (assets.voiceAudioUrl) setVoiceAudioUrl(assets.voiceAudioUrl);
       if (render.script) setMotionScript(render.script);
       else if (assets.lastScript) setMotionScript(assets.lastScript);
     },
@@ -1761,7 +1780,14 @@ export function ViraForgeCreatorStudio() {
                   <p className="mb-2 text-xs font-medium text-foreground">
                     Latest voice track
                   </p>
-                  <audio controls src={voiceAudio} className="w-full" />
+                  <audio
+                    key={voiceAudio}
+                    ref={voiceAudioRef}
+                    controls
+                    preload="auto"
+                    src={voiceAudio}
+                    className="w-full"
+                  />
                 </div>
               )}
 
@@ -2009,8 +2035,10 @@ export function ViraForgeCreatorStudio() {
 
               {voiceAudio && (
                 <audio
+                  key={`preview-${voiceAudio}`}
+                  ref={previewVoiceAudioRef}
                   src={voiceAudio}
-                  autoPlay
+                  preload="auto"
                   className="mt-3 w-full"
                   controls
                 />

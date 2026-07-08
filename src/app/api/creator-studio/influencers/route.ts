@@ -3,7 +3,10 @@ import { prisma } from "@/lib/db";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { getCreatorDefaults } from "@/lib/viraforge/learning";
 import { repairPortraitUrlIfNeeded } from "@/lib/viraforge/influencer-renders";
-import type { InfluencerAssets } from "@/lib/viraforge/influencer-assets";
+import {
+  resolveInfluencerAssets,
+  type InfluencerAssets,
+} from "@/lib/viraforge/influencer-assets";
 
 export async function GET() {
   const authResult = await requireAuthUserId();
@@ -42,7 +45,10 @@ export async function GET() {
   };
 
   return NextResponse.json({
-    influencers,
+    influencers: influencers.map((row) => ({
+      ...row,
+      assets: resolveInfluencerAssets((row.assets ?? {}) as InfluencerAssets),
+    })),
     defaults,
     lastInfluencerId: prefs.lastInfluencerId,
   });

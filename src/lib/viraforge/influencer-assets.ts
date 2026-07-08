@@ -1,3 +1,5 @@
+import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
+
 export type InfluencerMotionType =
   | "talk"
   | "walk"
@@ -23,4 +25,21 @@ export function mergeInfluencerAssets(
   patch: Partial<InfluencerAssets>,
 ): InfluencerAssets {
   return { ...((prior ?? {}) as InfluencerAssets), ...patch };
+}
+
+export function resolveInfluencerAssets(
+  assets: InfluencerAssets,
+): InfluencerAssets {
+  return {
+    ...assets,
+    portraitUrl: assets.portraitUrl
+      ? resolveDisplayMediaUrl(assets.portraitUrl)
+      : undefined,
+    voiceAudioUrl: assets.voiceAudioUrl
+      ? resolveDisplayMediaUrl(assets.voiceAudioUrl)
+      : undefined,
+    videoUrl: assets.videoUrl
+      ? resolveDisplayMediaUrl(assets.videoUrl)
+      : undefined,
+  };
 }

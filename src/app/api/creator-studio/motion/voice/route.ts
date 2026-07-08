@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { synthesizeSpeech, uploadVoiceover } from "@/lib/ai-voice";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { hasElevenLabs, synthesizeSpeech } from "@/lib/viraforge/elevenlabs";
+import { hasElevenLabs } from "@/lib/viraforge/elevenlabs";
 import {
   createInfluencerRender,
   finalizeInfluencerRender,
@@ -88,9 +89,28 @@ export async function POST(request: Request) {
     }
 
     const assets = (influencer.assets ?? {}) as { voiceId?: string };
-    const { audioDataUrl, voiceId } = await synthesizeSpeech(script.trim(), {
-      voiceId: assets.voiceId,
-    });
+    const voiceId = assets.voiceId;
+    const audioBuffer = await synthesizeSpeech(script.trim(), { voiceId });
+    if (!audioBuffer) {
+      return NextResponse.json(
+        {
+          error:
+            "ElevenLabs synthesis failed. Check ELEVENLABS_API_KEY and voice ID.",
+        },
+        { status: 502 },
+      );
+    }
+
+    const audioUrl = await uploadVoiceover(audioBuffer);
+    if (!audioUrl) {
+      return NextResponse.json(
+        {
+          error:
+            "Voice generated but could not be stored. Set BLOB_READ_WRITE_TOKEN in Vercel.",
+        },
+        { status: 503 },
+      );
+    }
 
     const { id: renderId } = await createInfluencerRender({
       userId: authResult,
@@ -98,7 +118,7 @@ export async function POST(request: Request) {
       type: "voice",
       status: "processing",
       script: script.trim(),
-      voiceId,
+      voiceId: voiceId,
       provider: "elevenlabs",
     });
 
@@ -107,16 +127,13 @@ export async function POST(request: Request) {
       influencerId,
       renderId,
       status: "ready",
-      url: audioDataUrl,
+      url: audioUrl,
       activate: false,
     });
 
-    const audioUrl = render?.url ?? audioDataUrl;
-
     return NextResponse.json({
-      audioDataUrl: audioUrl,
-      audioUrl,
-      voiceId,
+      audioUrl: render?.url ?? audioUrl,
+      voiceId: voiceId,
       script: script.trim(),
       renderId,
     });

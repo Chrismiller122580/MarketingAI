@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import {
   getInfluencerMotionJob,
@@ -22,9 +23,11 @@ export async function GET(_request: Request, context: RouteContext) {
   if (job.status === "ready" && job.videoUrl) {
     return NextResponse.json({
       status: "ready",
-      videoUrl: job.videoUrl,
+      videoUrl: resolveDisplayMediaUrl(job.videoUrl),
       motionType: job.motionType,
-      voiceAudioUrl: job.voiceAudioUrl,
+      voiceAudioUrl: job.voiceAudioUrl
+        ? resolveDisplayMediaUrl(job.voiceAudioUrl)
+        : undefined,
       renderId: job.renderId,
     });
   }
@@ -67,9 +70,11 @@ export async function GET(_request: Request, context: RouteContext) {
 
     return NextResponse.json({
       status: "ready",
-      videoUrl,
+      videoUrl: resolveDisplayMediaUrl(videoUrl),
       motionType: job.motionType,
-      voiceAudioUrl: job.voiceAudioUrl,
+      voiceAudioUrl: job.voiceAudioUrl
+        ? resolveDisplayMediaUrl(job.voiceAudioUrl)
+        : undefined,
       renderId: job.renderId,
     });
   }
@@ -97,6 +102,8 @@ export async function GET(_request: Request, context: RouteContext) {
   return NextResponse.json({
     status: "processing",
     motionType: job.motionType,
-    voiceAudioUrl: job.voiceAudioUrl,
+    voiceAudioUrl: job.voiceAudioUrl
+      ? resolveDisplayMediaUrl(job.voiceAudioUrl)
+      : undefined,
   });
 }

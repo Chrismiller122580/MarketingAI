@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import {
   createInfluencerMotionJob,
@@ -190,7 +191,9 @@ export async function POST(request: Request) {
       jobId: job.jobId,
       motionType,
       status: "processing",
-      voiceAudioUrl: started.voiceAudioUrl,
+      voiceAudioUrl: started.voiceAudioUrl
+        ? resolveDisplayMediaUrl(started.voiceAudioUrl)
+        : undefined,
       providers: {
         replicate: true,
         elevenlabs: motionType === "talk" ? hasElevenLabs() : undefined,

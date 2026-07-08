@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
+import { resolveInfluencerAssets } from "@/lib/viraforge/influencer-assets";
 import {
   activateInfluencerRender,
   listInfluencerRenders,
@@ -64,5 +65,5 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Failed to apply render" }, { status: 500 });
   }
 
-  return NextResponse.json({ assets });
+  return NextResponse.json({ assets: resolveInfluencerAssets(assets) });
 }
