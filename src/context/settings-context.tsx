@@ -8,6 +8,8 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useSession } from "next-auth/react";
+import { fetchJson, isUnauthorizedStatus } from "@/lib/client-fetch";
 import type { Platform, UserSettings } from "@/lib/types";
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -30,20 +32,27 @@ type SettingsContextValue = {
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const { status } = useSession();
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/db/settings")
-      .then((r) => r.json())
-      .then((data) => {
+    if (status === "loading") return;
+    if (status !== "authenticated") {
+      setLoading(false);
+      return;
+    }
+
+    void fetchJson<{ settings?: UserSettings }>("/api/db/settings")
+      .then(({ data, status: httpStatus }) => {
+        if (isUnauthorizedStatus(httpStatus)) return;
         if (data.settings) {
           setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [status]);
 
   const persist = useCallback(async (next: UserSettings) => {
     await fetch("/api/db/settings", {

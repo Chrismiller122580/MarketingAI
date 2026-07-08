@@ -8,7 +8,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { fetchJson, isUnauthorizedStatus } from "@/lib/client-fetch";
 import type { CrawlStatus, SiteData, UserSettings } from "@/lib/types";
 
 type SavedSiteSummary = {
@@ -67,6 +68,7 @@ async function patchActiveSite(domain: string | null): Promise<void> {
 }
 
 export function SiteProvider({ children }: { children: React.ReactNode }) {
+  const { status: sessionStatus } = useSession();
   const [domainInput, setDomainInput] = useState("");
   const [site, setSite] = useState<SiteData | null>(null);
   const [status, setStatus] = useState<CrawlStatus>("idle");
@@ -79,8 +81,10 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
   const loadSavedSitesList = useCallback(async (): Promise<SavedSiteSummary[]> => {
     try {
-      const res = await fetch("/api/db/site?list=true");
-      const data = await res.json();
+      const { data, status: httpStatus } = await fetchJson<{
+        sites?: SavedSiteSummary[];
+      }>("/api/db/site?list=true");
+      if (isUnauthorizedStatus(httpStatus)) return [];
       const sites = (data.sites ?? []) as SavedSiteSummary[];
       setSavedSites(sites);
       return sites;
@@ -128,14 +132,22 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    if (sessionStatus === "loading") return;
+    if (sessionStatus !== "authenticated") {
+      setLoading(false);
+      return;
+    }
+
     async function bootstrap() {
       try {
         const [settingsRes, sites] = await Promise.all([
-          fetch("/api/db/settings").then((r) => r.json()),
+          fetchJson<{ settings?: UserSettings }>("/api/db/settings"),
           loadSavedSitesList(),
         ]);
 
-        const settings = settingsRes.settings as UserSettings | undefined;
+        if (isUnauthorizedStatus(settingsRes.status)) return;
+
+        const settings = settingsRes.data.settings;
         let activeDomain = settings?.activeSiteDomain ?? null;
 
         if (!settings?.activeSiteChosen && sites.length > 0) {
@@ -144,13 +156,13 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (activeDomain) {
-          const siteRes = await fetch(
+          const siteRes = await fetchJson<{ site?: SiteData }>(
             `/api/db/site?domain=${encodeURIComponent(activeDomain)}`,
           );
-          const siteData = await siteRes.json();
-          if (siteData.site && isValidSiteData(siteData.site)) {
-            setSite(siteData.site);
-            setDomainInput(stripDomain(siteData.site.domain));
+          if (isUnauthorizedStatus(siteRes.status)) return;
+          if (siteRes.data.site && isValidSiteData(siteRes.data.site)) {
+            setSite(siteRes.data.site);
+            setDomainInput(stripDomain(siteRes.data.site.domain));
             setStatus("success");
           }
         }
@@ -162,7 +174,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     }
 
     void bootstrap();
-  }, [loadSavedSitesList]);
+  }, [loadSavedSitesList, sessionStatus]);
 
   useEffect(() => {
     const t = setTimeout(() => {

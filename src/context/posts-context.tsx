@@ -8,6 +8,8 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useSession } from "next-auth/react";
+import { fetchJson, isUnauthorizedStatus } from "@/lib/client-fetch";
 import { useSite } from "./site-context";
 import type {
   CampaignPack,
@@ -35,6 +37,7 @@ type PostsContextValue = {
 const PostsContext = createContext<PostsContextValue | null>(null);
 
 export function PostsProvider({ children }: { children: React.ReactNode }) {
+  const { status } = useSession();
   const { site } = useSite();
   const [posts, setPosts] = useState<SavedPost[]>([]);
   const [packs, setPacks] = useState<CampaignPack[]>([]);
@@ -43,13 +46,17 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       const [postsRes, packsRes] = await Promise.all([
-        fetch("/api/db/posts"),
-        fetch("/api/db/packs"),
+        fetchJson<{ posts?: SavedPost[] }>("/api/db/posts"),
+        fetchJson<{ packs?: CampaignPack[] }>("/api/db/packs"),
       ]);
-      const postsData = await postsRes.json();
-      const packsData = await packsRes.json();
-      if (postsData.posts) setPosts(postsData.posts);
-      if (packsData.packs) setPacks(packsData.packs);
+      if (
+        isUnauthorizedStatus(postsRes.status) ||
+        isUnauthorizedStatus(packsRes.status)
+      ) {
+        return;
+      }
+      if (postsRes.data.posts) setPosts(postsRes.data.posts);
+      if (packsRes.data.packs) setPacks(packsRes.data.packs);
     } catch {
       /* keep existing state */
     } finally {
@@ -58,11 +65,16 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (status === "loading") return;
+    if (status !== "authenticated") {
+      setLoading(false);
+      return;
+    }
     const t = setTimeout(() => {
       void refresh();
     }, 0);
     return () => clearTimeout(t);
-  }, [refresh]);
+  }, [refresh, status]);
 
   const savePost = useCallback(
     async (post: GeneratedPost): Promise<SavedPost> => {

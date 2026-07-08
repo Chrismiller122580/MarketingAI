@@ -10,7 +10,8 @@ export function AppLoader({ children }: { children: React.ReactNode }) {
   const { loading: postsLoading } = usePosts();
 
   const isLoading =
-    status === "loading" || siteLoading || postsLoading;
+    status === "loading" ||
+    (status === "authenticated" && (siteLoading || postsLoading));
 
   if (isLoading) {
     return (

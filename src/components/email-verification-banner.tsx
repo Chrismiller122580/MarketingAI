@@ -40,7 +40,14 @@ export function EmailVerificationBanner() {
         method: "POST",
       });
       const data = (await res.json()) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(data.error ?? "Failed to send");
+      if (!res.ok) {
+        throw new Error(
+          data.error ??
+            (res.status === 503
+              ? "Email service is not configured yet. You can keep using the app."
+              : "Failed to send"),
+        );
+      }
       setMsg("Verification email sent — check your inbox.");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Failed to send");

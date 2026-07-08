@@ -10,7 +10,7 @@ import { buildMotionPrompt } from "./motion-prompts";
 import type { PreparedMotionPortrait } from "./influencer-renders";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 
-const SADTALKER_MODEL = "cjwb/sadtalker";
+const SADTALKER_MODELS = ["cjwbw/sadtalker", "lucataco/sadtalker"] as const;
 const KLING_MODEL = "kwaivgi/kling-v2.1";
 
 export type MotionStartResult =
@@ -97,19 +97,28 @@ export async function startInfluencerMotion(
       return { error: `Could not prepare voiceover for motion: ${message}` };
     }
 
-    const result = await createModelPrediction(SADTALKER_MODEL, {
-      source_image: imageUrl,
-      driven_audio: audioUrl,
-      enhancer: "gfpgan",
-    });
+    let lastError = "SadTalker lip-sync model unavailable";
+    for (const model of SADTALKER_MODELS) {
+      const result = await createModelPrediction(model, {
+        source_image: imageUrl,
+        driven_audio: audioUrl,
+        enhancer: "gfpgan",
+      });
 
-    if ("error" in result) return result;
+      if (!("error" in result)) {
+        return {
+          predictionId: result.predictionId,
+          voiceAudioUrl,
+          voiceId: usedVoiceId,
+        };
+      }
 
-    return {
-      predictionId: result.predictionId,
-      voiceAudioUrl,
-      voiceId: usedVoiceId,
-    };
+      lastError = result.error;
+      const retryable = /not found|404|unavailable/i.test(result.error);
+      if (!retryable) return result;
+    }
+
+    return { error: lastError };
   }
 
   const prompt = buildMotionPrompt(persona, motionType);

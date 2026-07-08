@@ -195,15 +195,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const job = await createInfluencerMotionJob({
-      userId: authResult,
-      influencerId,
-      predictionId: started.predictionId,
-      motionType: motionType as InfluencerMotionType,
-      voiceAudioUrl: started.voiceAudioUrl,
-      voiceId: started.voiceId,
-      script: motionType === "talk" ? talkScript : undefined,
-    });
+    let job;
+    try {
+      job = await createInfluencerMotionJob({
+        userId: authResult,
+        influencerId,
+        predictionId: started.predictionId,
+        motionType: motionType as InfluencerMotionType,
+        voiceAudioUrl: started.voiceAudioUrl,
+        voiceId: started.voiceId,
+        script: motionType === "talk" ? talkScript : undefined,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save motion job";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
 
     const nextAssets = mergeInfluencerAssets(assets, {
       motionType: motionType as InfluencerMotionType,

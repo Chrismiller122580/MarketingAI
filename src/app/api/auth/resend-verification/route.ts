@@ -37,7 +37,11 @@ export async function POST(request: Request) {
 
     if (!sent.ok) {
       return NextResponse.json(
-        { error: sent.error ?? "Failed to send verification email" },
+        {
+          error:
+            sent.error ??
+            "Failed to send verification email. Configure RESEND_API_KEY and EMAIL_FROM in Vercel.",
+        },
         { status: 503 },
       );
     }
