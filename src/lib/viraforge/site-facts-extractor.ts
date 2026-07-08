@@ -268,6 +268,29 @@ function siteTypeLabel(type: BusinessModelType): string {
   return labels[type];
 }
 
+const GENERIC_FACT_PRICES = new Set([
+  "Contact for pricing",
+  "Donations / free access",
+  "Free / subscription",
+  "See website for pricing",
+]);
+
+export function isGenericFactPrice(price: string): boolean {
+  return GENERIC_FACT_PRICES.has(price.trim());
+}
+
+export function factsTabLabel(
+  siteType: BusinessModelType,
+  hasSite = true,
+): string {
+  if (!hasSite) return "Product Facts";
+  if (siteType === "local") return "Business Facts";
+  if (siteType === "agency" || siteType === "media" || siteType === "nonprofit") {
+    return "Brand Facts";
+  }
+  return "Product Facts";
+}
+
 export function defaultPriceForHiddenField(type: BusinessModelType): string {
   switch (type) {
     case "saas":

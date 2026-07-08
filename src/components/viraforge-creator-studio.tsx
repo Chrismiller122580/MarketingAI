@@ -51,6 +51,8 @@ import type {
   InfluencerMotionType,
 } from "@/lib/viraforge/influencer-assets";
 import {
+  extractCrawledProductFacts,
+  factsTabLabel,
   inferProductFactFields,
   normalizeProductFactsForSite,
 } from "@/lib/viraforge/site-facts-extractor";
@@ -224,6 +226,10 @@ export function ViraForgeCreatorStudio() {
     () => inferProductFactFields(site),
     [site],
   );
+  const factsTabTitle = useMemo(
+    () => factsTabLabel(factFieldConfig.siteType, Boolean(site)),
+    [factFieldConfig.siteType, site],
+  );
 
   const personaForm = useForm<CreatorAvatarForm>({
     resolver: zodResolver(creatorAvatarSchema),
@@ -315,6 +321,36 @@ export function ViraForgeCreatorStudio() {
   useEffect(() => {
     setShowAllFactFields(false);
   }, [site?.domain]);
+
+  useEffect(() => {
+    if (!site?.domain || editId) return;
+
+    const current = factsForm.getValues();
+    const stillDefault =
+      current.name === defaultProductFactsValues.name &&
+      current.price === defaultProductFactsValues.price;
+    if (!stillDefault) return;
+
+    const crawled = extractCrawledProductFacts(site);
+    const config = inferProductFactFields(site);
+    const prefilled = normalizeProductFactsForSite(
+      {
+        name: crawled.name ?? site.brand.name,
+        price: crawled.price || defaultProductFactsValues.price,
+        features: crawled.features?.length
+          ? crawled.features
+          : [site.brand.tagline || site.brand.name],
+        location: config.location.show ? crawled.location : undefined,
+        hours: config.hours.show ? crawled.hours : undefined,
+        ingredients: [],
+      },
+      config,
+    );
+
+    factsForm.reset(prefilled);
+    setFeaturesText(prefilled.features.join("\n"));
+    setIngredientsText((prefilled.ingredients ?? []).join("\n"));
+  }, [site?.domain, editId, factsForm]);
 
   useEffect(() => {
     fetch("/api/creator-studio/capabilities")
@@ -561,7 +597,7 @@ export function ViraForgeCreatorStudio() {
       });
 
       if (next.productFacts) {
-        const fieldConfig = inferProductFactFields(site);
+        const fieldConfig = next.factFields ?? inferProductFactFields(site);
         const current = factsForm.getValues();
         const pf: ProductFactsForm = {
           ...defaultProductFactsValues,
@@ -779,7 +815,7 @@ export function ViraForgeCreatorStudio() {
     const factsParsed = productFactsSchema.safeParse(productFacts);
     if (!factsParsed.success) {
       setStatus("error");
-      setError("Complete the Product Facts tab before generating");
+      setError(`Complete the ${factsTabTitle} tab before generating`);
       setActiveTab("facts");
       return;
     }
@@ -1032,7 +1068,7 @@ export function ViraForgeCreatorStudio() {
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                {tab.label}
+                {tab.id === "facts" ? factsTabTitle : tab.label}
               </button>
             ))}
           </div>
@@ -1908,7 +1944,7 @@ export function ViraForgeCreatorStudio() {
                         ? "Motion clip saved — use in Content Studio or keep interacting"
                         : status === "success"
                           ? "Portrait ready — wave, talk, or pitch from Motion tab"
-                          : "Complete Product Facts, then generate"}
+                          : `Complete ${factsTabTitle}, then generate`}
                 </p>
               </div>
             </div>

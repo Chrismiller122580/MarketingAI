@@ -1,4 +1,5 @@
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
+import { isGenericFactPrice } from "@/lib/viraforge/site-facts-extractor";
 
 export type ClaimValidationResult = {
   valid: boolean;
@@ -66,8 +67,12 @@ export function validateQuoteAgainstFacts(
 }
 
 export function formatFactsForPrompt(facts: ProductFactsForm): string {
+  const priceLine = isGenericFactPrice(facts.price)
+    ? `Product: ${facts.name}.`
+    : `Product: ${facts.name}. Price: ${facts.price}.`;
+
   return [
-    `Product: ${facts.name}. Price: ${facts.price}.`,
+    priceLine,
     `Verified features (ONLY these may be mentioned): ${facts.features.join("; ")}.`,
     facts.location ? `Location: ${facts.location}.` : "",
     facts.hours ? `Hours: ${facts.hours}.` : "",

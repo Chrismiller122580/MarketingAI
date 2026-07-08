@@ -16,7 +16,10 @@ import {
 import {
   classifySitePage,
   extractCrawledProductFacts,
+  inferProductFactFields,
+  normalizeProductFactsForSite,
   pickBestPageForFacts,
+  type ProductFactFieldsConfig,
 } from "./site-facts-extractor";
 
 export type AvatarFieldKey =
@@ -45,6 +48,7 @@ export type AvatarFieldOptions = {
   fields: Partial<Record<AvatarFieldKey, FieldOption[]>>;
   recommended: Partial<Record<AvatarFieldKey, string>>;
   productFacts?: Partial<ProductFactsForm>;
+  factFields?: ProductFactFieldsConfig;
   aiEnhanced: boolean;
 };
 
@@ -565,16 +569,23 @@ export async function suggestAvatarFromSite(
     (crawled.features?.length ? 10 : 0);
 
   const featureOpts = featureBundles(crawled.features ?? []);
-  const productFacts: Partial<ProductFactsForm> = {
-    name: crawled.name ?? site.brand.name,
-    price: crawled.price ?? "",
-    features:
-      featureOpts[0]?.[0]?.value.split("\n").filter(Boolean) ??
-      crawled.features ??
-      [site.brand.tagline || site.brand.name],
-    location: crawled.location ?? location,
-    hours: crawled.hours,
-  };
+  const factFields = inferProductFactFields(site);
+  const productFacts = normalizeProductFactsForSite(
+    {
+      name: crawled.name ?? site.brand.name,
+      price: crawled.price ?? "",
+      features:
+        featureOpts[0]?.[0]?.value.split("\n").filter(Boolean) ??
+        crawled.features ??
+        [site.brand.tagline || site.brand.name],
+      location: factFields.location.show
+        ? crawled.location ?? location
+        : undefined,
+      hours: factFields.hours.show ? crawled.hours : undefined,
+      ingredients: factFields.ingredients.show ? [] : [],
+    },
+    factFields,
+  );
 
   let result: AvatarFieldOptions = {
     domain: site.domain,
@@ -588,6 +599,7 @@ export async function suggestAvatarFromSite(
     fields,
     recommended,
     productFacts,
+    factFields,
     aiEnhanced: false,
   };
 
