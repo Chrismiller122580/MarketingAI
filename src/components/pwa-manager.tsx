@@ -38,18 +38,20 @@ export function PwaManager() {
       // Delay slightly to not block first paint
       const register = () => {
         navigator.serviceWorker
-          .register("/sw.js")
+          .register("/sw.js", { updateViaCache: "none" })
           .then((reg) => {
-            // Optional: log or handle updates
+            void reg.update();
             reg.addEventListener("updatefound", () => {
               const newWorker = reg.installing;
-              if (newWorker) {
-                newWorker.addEventListener("statechange", () => {
-                  if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                    window.dispatchEvent(new CustomEvent("pwa-update-available"));
-                  }
-                });
-              }
+              if (!newWorker) return;
+              newWorker.addEventListener("statechange", () => {
+                if (
+                  newWorker.state === "activated" &&
+                  navigator.serviceWorker.controller
+                ) {
+                  window.dispatchEvent(new CustomEvent("pwa-update-available"));
+                }
+              });
             });
           })
           .catch(() => {
