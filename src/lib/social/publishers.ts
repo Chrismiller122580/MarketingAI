@@ -1,4 +1,5 @@
 import { getTwitterToken, isTwitterBearerOnly } from "../integrations";
+import { resolvePublicMediaUrl } from "../blob-storage";
 import { getAppOrigin } from "../app-url";
 import { sendViaResend, textToHtml } from "../email";
 import { publishFacebookPost } from "./facebook";
@@ -198,8 +199,12 @@ async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
       pageAccessToken: token,
       message: ctx.post.text,
       link,
-      videoUrl: ctx.post.image.videoUrl,
-      imageUrl: ctx.post.image.originalUrl ?? ctx.post.image.url,
+      videoUrl: ctx.post.image.videoUrl
+        ? resolvePublicMediaUrl(ctx.post.image.videoUrl)
+        : undefined,
+      imageUrl: resolvePublicMediaUrl(
+        ctx.post.image.originalUrl ?? ctx.post.image.url,
+      ),
       siteOrigin: getAppOrigin(),
     });
 
@@ -273,8 +278,12 @@ async function publishInstagram(ctx: PublishContext): Promise<PublishResult> {
       igUserId: accountId,
       accessToken: token,
       caption: ctx.post.text,
-      videoUrl: ctx.post.image.videoUrl,
-      imageUrl: ctx.post.image.originalUrl ?? ctx.post.image.url,
+      videoUrl: ctx.post.image.videoUrl
+        ? resolvePublicMediaUrl(ctx.post.image.videoUrl)
+        : undefined,
+      imageUrl: resolvePublicMediaUrl(
+        ctx.post.image.originalUrl ?? ctx.post.image.url,
+      ),
       mediaFormat,
     });
 

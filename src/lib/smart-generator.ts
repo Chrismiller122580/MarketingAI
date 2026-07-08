@@ -24,7 +24,7 @@ import {
 } from "./content-formats";
 import { storyEditorLayers } from "./visual-editor-presets";
 import { pickBestImage, buildBrandedImageUrl } from "./image-matcher";
-import { put } from "@vercel/blob";
+import { uploadToBlob } from "@/lib/blob-storage";
 import {
   describeVisualTargeting,
   hasActiveVisualTargeting,
@@ -495,12 +495,7 @@ async function resolveImage(
             const base64Data = ai.url.split(",")[1] || "";
             const buffer = Buffer.from(base64Data, "base64");
             const filename = `ai-images/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
-            const uploaded = await put(filename, buffer, {
-              access: "public",
-              token: blobToken,
-              contentType: "image/png",
-            });
-            imageUrl = uploaded.url;
+            imageUrl = await uploadToBlob(filename, buffer, "image/png");
           } catch {
             // keep data: url as fallback
           }
@@ -526,12 +521,7 @@ async function resolveImage(
             try {
               const ext = ct.includes("png") ? "png" : "jpg";
               const filename = `ai-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-              const uploaded = await put(filename, buffer, {
-                access: "public",
-                token: blobToken,
-                contentType: ct,
-              });
-              imageUrl = uploaded.url;
+              imageUrl = await uploadToBlob(filename, buffer, ct);
             } catch {
               // fallback to inline
               const b64 = buffer.toString("base64");

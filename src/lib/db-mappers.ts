@@ -1,3 +1,4 @@
+import { resolvePostMedia } from "./blob-storage";
 import type {
   CampaignPack,
   GeneratedPost,
@@ -5,6 +6,7 @@ import type {
   SiteData,
   UserSettings,
 } from "./types";
+import type { PostMedia } from "./types";
 
 export function siteToData(row: {
   domain: string;
@@ -52,7 +54,7 @@ export function postToSaved(row: {
     cta: row.cta,
     platform: row.platform as SavedPost["platform"],
     contentType: row.contentType as SavedPost["contentType"],
-    image: row.image as SavedPost["image"],
+    image: resolvePostMedia(row.image as PostMedia),
     insights: row.insights,
     sourcePage: row.sourcePage ?? undefined,
     characterCount: row.characterCount,
@@ -76,10 +78,14 @@ export function packToData(row: {
   posts: unknown;
   createdAt: Date;
 }): CampaignPack {
+  const posts = row.posts as SavedPost[];
   return {
     id: row.id,
     name: row.name,
-    posts: row.posts as SavedPost[],
+    posts: posts.map((post) => ({
+      ...post,
+      image: resolvePostMedia(post.image),
+    })),
     createdAt: row.createdAt.toISOString(),
   };
 }

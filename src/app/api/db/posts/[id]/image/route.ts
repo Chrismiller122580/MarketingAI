@@ -1,5 +1,5 @@
-import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { uploadToBlob } from "@/lib/blob-storage";
 import { prisma } from "@/lib/db";
 import { postToSaved } from "@/lib/db-mappers";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
@@ -49,12 +49,7 @@ export async function POST(
 
     if (blobToken) {
       const filename = `posts/${userId}/${id}-${Date.now()}.png`;
-      const blob = await put(filename, imageFile, {
-        access: "public",
-        token: blobToken,
-        contentType: "image/png",
-      });
-      editedUrl = blob.url;
+      editedUrl = await uploadToBlob(filename, imageFile, "image/png");
     } else if (imageFile.size < 2_000_000) {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
       editedUrl = `data:image/png;base64,${buffer.toString("base64")}`;

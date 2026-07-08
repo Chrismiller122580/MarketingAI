@@ -1,5 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import { put } from "@vercel/blob";
+import { uploadToBlob } from "@/lib/blob-storage";
 
 /** Rachel — widely available default; override with ELEVENLABS_VOICE_ID */
 const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
@@ -87,17 +87,11 @@ export async function synthesizeSpeech(
 export async function uploadVoiceover(
   buffer: Buffer,
 ): Promise<string | null> {
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!blobToken) return null;
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
 
   try {
     const filename = `voiceovers/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
-    const uploaded = await put(filename, buffer, {
-      access: "public",
-      token: blobToken,
-      contentType: "audio/mpeg",
-    });
-    return uploaded.url;
+    return await uploadToBlob(filename, buffer, "audio/mpeg");
   } catch {
     return null;
   }

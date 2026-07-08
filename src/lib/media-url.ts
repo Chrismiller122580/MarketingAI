@@ -1,5 +1,12 @@
-import { put } from "@vercel/blob";
+import {
+  isBlobServeUrl,
+  isBlobUrl,
+  resolvePublicMediaUrl,
+  uploadToBlob,
+} from "./blob-storage";
 import { getReplicateToken, uploadBytesToReplicate } from "./replicate-client";
+
+export { resolveDisplayMediaUrl, resolvePublicMediaUrl } from "./blob-storage";
 
 export function isNonPublicMediaUrl(url: string): boolean {
   return /api\.replicate\.com\/v1\/files\//i.test(url);
@@ -35,19 +42,7 @@ export async function uploadBytesToBlob(
   filename: string,
   contentType: string,
 ): Promise<string> {
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!blobToken) {
-    throw new Error(
-      "BLOB_READ_WRITE_TOKEN is required to store portraits and media for display",
-    );
-  }
-
-  const uploaded = await put(filename, bytes, {
-    access: "public",
-    token: blobToken,
-    contentType,
-  });
-  return uploaded.url;
+  return uploadToBlob(filename, bytes, contentType);
 }
 
 /** Stores media in Vercel Blob so browsers and social previews can load it. */
@@ -55,8 +50,8 @@ export async function persistDisplayableMedia(
   urlOrData: string,
   filename: string,
 ): Promise<string> {
-  if (urlOrData.startsWith("https://") && urlOrData.includes("blob.vercel-storage.com")) {
-    return urlOrData;
+  if (isBlobServeUrl(urlOrData) || isBlobUrl(urlOrData)) {
+    return resolvePublicMediaUrl(urlOrData);
   }
 
   if (urlOrData.startsWith("data:")) {
@@ -95,7 +90,7 @@ export async function ensurePublicMediaUrl(
   label: string,
 ): Promise<string> {
   if (urlOrData.startsWith("http://") || urlOrData.startsWith("https://")) {
-    return urlOrData;
+    return resolvePublicMediaUrl(urlOrData);
   }
 
   if (!urlOrData.startsWith("data:")) {
@@ -106,14 +101,12 @@ export async function ensurePublicMediaUrl(
   const ext = extensionForMime(mime);
   const filename = `viraforge-${label}-${Date.now()}.${ext}`;
 
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (blobToken) {
-    const uploaded = await put(filename, bytes, {
-      access: "public",
-      token: blobToken,
-      contentType: mime,
-    });
-    return uploaded.url;
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    try {
+      return await uploadToBlob(filename, bytes, mime);
+    } catch {
+      // fall through to Replicate
+    }
   }
 
   return uploadBytesToReplicate(bytes, mime, filename);

@@ -20,6 +20,7 @@ export default auth((req) => {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/og/") ||
     pathname.startsWith("/api/cron/") ||
+    pathname.startsWith("/api/media/blob") ||
     pathname === "/api/facebook/data-deletion" ||
     pathname === "/api/billing/stripe/webhook" ||
     pathname === "/api/health/db";
