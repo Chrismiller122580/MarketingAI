@@ -193,6 +193,10 @@ export function ViraForgeCreatorStudio() {
   const [motionLoading, setMotionLoading] = useState<InfluencerMotionType | null>(
     null,
   );
+  const [pendingMotionPoll, setPendingMotionPoll] = useState<{
+    jobId: string;
+    motionType: InfluencerMotionType;
+  } | null>(null);
   const [previewMode, setPreviewMode] = useState<"portrait" | "motion">(
     "portrait",
   );
@@ -264,6 +268,16 @@ export function ViraForgeCreatorStudio() {
             setMotionScript(match.assets.lastScript);
           } else if (match.persona.sampleQuote) {
             setMotionScript(match.persona.sampleQuote);
+          }
+          if (
+            match.assets?.motionStatus === "processing" &&
+            match.assets.motionJobId &&
+            match.assets.motionType
+          ) {
+            setPendingMotionPoll({
+              jobId: match.assets.motionJobId,
+              motionType: match.assets.motionType,
+            });
           }
           setInfluencerId(match.id);
           return;
@@ -338,6 +352,14 @@ export function ViraForgeCreatorStudio() {
     },
     [bumpRenderLibrary],
   );
+
+  useEffect(() => {
+    if (!pendingMotionPoll) return;
+    const { jobId, motionType } = pendingMotionPoll;
+    setPendingMotionPoll(null);
+    setMotionLoading(motionType);
+    void pollMotionJob(jobId, motionType);
+  }, [pendingMotionPoll, pollMotionJob]);
 
   const handleMotion = async (
     motionType: InfluencerMotionType,
