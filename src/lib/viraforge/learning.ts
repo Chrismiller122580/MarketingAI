@@ -6,6 +6,7 @@ import {
   mergeInfluencerAssets,
   type InfluencerAssets,
 } from "./influencer-assets";
+import type { AvatarWorldProfile } from "./avatar-world";
 
 export type CreatorEventType =
   | "field_edit"
@@ -13,7 +14,12 @@ export type CreatorEventType =
   | "generate"
   | "regenerate"
   | "approve_quote"
-  | "reject_quote";
+  | "reject_quote"
+  | "life_event"
+  | "world_learn"
+  | "world_collab"
+  | "world_merge"
+  | "world_post";
 
 export type InfluencerMemory = {
   styleAdjustments?: Record<string, string | number>;
@@ -23,7 +29,23 @@ export type InfluencerMemory = {
   preferredMotions?: string[];
   generationCount?: number;
   lastFields?: Partial<CreatorAvatarForm>;
+  world?: AvatarWorldProfile;
 };
+
+export function mergeInfluencerMemory(
+  prior: unknown,
+  patch: Partial<InfluencerMemory> = {},
+): InfluencerMemory {
+  const base =
+    prior && typeof prior === "object" ? (prior as InfluencerMemory) : {};
+  const next: InfluencerMemory = { ...base, ...patch };
+  if (patch.world) {
+    next.world = { ...(base.world ?? {}), ...patch.world } as AvatarWorldProfile;
+  } else if (base.world) {
+    next.world = base.world;
+  }
+  return next;
+}
 
 export type CreatorPreferences = {
   preferredLocations?: string[];
@@ -309,6 +331,7 @@ export async function upsertInfluencerWithFacts(
   }
 
   const mergedAssets = mergeInfluencerAssets(existing?.assets, assets ?? {});
+  const memory = mergeInfluencerMemory(existing?.memory, { lastFields: persona });
 
   const influencer = await prisma.influencer.upsert({
     where: {
@@ -321,14 +344,14 @@ export async function upsertInfluencerWithFacts(
       persona,
       productFactsId: factsId,
       assets: mergedAssets,
-      memory: { lastFields: persona },
+      memory,
     },
     update: {
       displayName: persona.displayName,
       persona,
       productFactsId: factsId,
       assets: mergedAssets,
-      memory: { lastFields: persona },
+      memory,
     },
   });
 

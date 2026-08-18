@@ -15,12 +15,14 @@ export default auth((req) => {
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/domains" ||
-    pathname === "/data-deletion";
+    pathname === "/data-deletion" ||
+    pathname.startsWith("/world/");
   const isPublicApi =
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/og/") ||
     pathname.startsWith("/api/cron/") ||
     pathname.startsWith("/api/media/blob") ||
+    pathname.startsWith("/api/world/") ||
     pathname === "/api/facebook/data-deletion" ||
     pathname === "/api/billing/stripe/webhook" ||
     pathname === "/api/health/db";

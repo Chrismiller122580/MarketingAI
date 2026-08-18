@@ -9,7 +9,7 @@ import type { InfluencerAssets } from "@/lib/viraforge/influencer-assets";
 
 export type SavedRender = {
   id: string;
-  type: "portrait" | "motion" | "voice" | "script" | "site_content";
+  type: "portrait" | "motion" | "voice" | "script" | "site_content" | "merged";
   status: string;
   url: string | null;
   voiceUrl: string | null;
@@ -26,6 +26,7 @@ const TYPE_LABELS: Record<SavedRender["type"], string> = {
   voice: "Voice",
   script: "Script",
   site_content: "Site copy",
+  merged: "Merged reel",
 };
 
 function typeIcon(type: SavedRender["type"]) {
@@ -33,6 +34,7 @@ function typeIcon(type: SavedRender["type"]) {
     case "portrait":
       return ImageIcon;
     case "motion":
+    case "merged":
       return Film;
     case "voice":
       return Mic;

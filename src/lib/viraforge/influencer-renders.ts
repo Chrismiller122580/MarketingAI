@@ -23,7 +23,8 @@ export type InfluencerRenderType =
   | "motion"
   | "voice"
   | "script"
-  | "site_content";
+  | "site_content"
+  | "merged";
 
 export type InfluencerRenderStatus = "processing" | "ready" | "failed";
 
@@ -58,7 +59,11 @@ export async function persistRenderMedia(
 ): Promise<string> {
   const label = mediaLabel(type, motionType);
   const ext =
-    type === "motion" ? "mp4" : type === "voice" ? "mp3" : "png";
+    type === "motion" || type === "merged"
+      ? "mp4"
+      : type === "voice"
+        ? "mp3"
+        : "png";
   const filename = `influencers/${userId}/${influencerId}/${renderId}-${label}.${ext}`;
 
   if (type === "portrait" || isNonPublicMediaUrl(urlOrData)) {
@@ -349,7 +354,7 @@ async function applyRenderToAssets(
     patch.portraitUrl = render.url;
   }
 
-  if (render.type === "motion" && render.url) {
+  if ((render.type === "motion" || render.type === "merged") && render.url) {
     patch.videoUrl = render.url;
     patch.motionStatus = "ready";
     patch.motionError = undefined;

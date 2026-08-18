@@ -93,6 +93,15 @@ export function InfluencersPanel() {
             AI personas that learn from your inputs and locked product facts.
           </p>
         </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          disabled={loading}
+        >
+          <Link href="/avatar-world">Avatar World</Link>
+        </Button>
         <Button
           asChild
           size="sm"
@@ -101,6 +110,7 @@ export function InfluencersPanel() {
         >
           <Link href="/creator-studio">+ New influencer</Link>
         </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -156,6 +166,9 @@ export function InfluencersPanel() {
                 </p>
               </div>
               <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/avatar-world/${inf.id}`}>World</Link>
+                </Button>
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/creator-studio?influencer=${inf.id}`}>Edit</Link>
                 </Button>

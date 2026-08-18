@@ -26,6 +26,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Creator Studio",
     subtitle: "Design hyper-realistic influencer avatars with locked persona fields.",
   },
+  "/avatar-world": {
+    title: "Avatar World",
+    subtitle: "Profiles, video vaults, life events, and collaborations.",
+  },
   "/analytics": {
     title: "Analytics",
     subtitle: "Overview of your crawled site content.",
@@ -57,7 +61,15 @@ export function Header({
 }) {
   const pathname = usePathname();
   const { site } = useSite();
-  const page = pageTitles[pathname] ?? pageTitles["/dashboard"];
+  const raw = pageTitles[pathname];
+  const page =
+    raw ??
+    (pathname.startsWith("/avatar-world")
+      ? {
+          title: "Avatar World",
+          subtitle: "Profiles, video vaults, life events, and collaborations.",
+        }
+      : pageTitles["/dashboard"]);
 
   return (
     <header className="shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">

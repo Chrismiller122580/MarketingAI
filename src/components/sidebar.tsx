@@ -15,6 +15,7 @@ import {
   NavIconDashboard,
   NavIconPosts,
   NavIconSettings,
+  NavIconWorld,
 } from "./nav-icons";
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/campaigns", label: "Campaigns", icon: NavIconCampaigns },
   { href: "/content", label: "Content Studio", icon: NavIconContent },
   { href: "/creator-studio", label: "Creator Studio", icon: NavIconCreatorStudio },
+  { href: "/avatar-world", label: "Avatar World", icon: NavIconWorld },
   { href: "/posts", label: "Post Library", icon: NavIconPosts },
   { href: "/analytics", label: "Analytics", icon: NavIconAnalytics },
   { href: "/billing", label: "Billing", icon: NavIconBilling },
