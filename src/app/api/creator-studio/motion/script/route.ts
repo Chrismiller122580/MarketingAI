@@ -3,7 +3,7 @@ import { z } from "zod";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
-import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { buildPersonalizationContext } from "@/lib/viraforge/learning";
 import {
   generateInfluencerScript,
@@ -51,9 +51,9 @@ export async function POST(request: Request) {
       include: { productFacts: true },
     });
 
-    if (!influencer?.productFacts) {
+    if (!influencer) {
       return NextResponse.json(
-        { error: "Save influencer with product facts first" },
+        { error: "Save the influencer first" },
         { status: 400 },
       );
     }
@@ -63,14 +63,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid persona data" }, { status: 500 });
     }
 
-    const facts = productFactsSchema.parse({
-      name: influencer.productFacts.name,
-      price: influencer.productFacts.price,
-      features: influencer.productFacts.features,
-      location: influencer.productFacts.location ?? undefined,
-      hours: influencer.productFacts.hours ?? undefined,
-      ingredients: influencer.productFacts.ingredients,
-    });
+    const facts = factsFromRecord(influencer.productFacts);
 
     const personalization = await buildPersonalizationContext(
       authResult,

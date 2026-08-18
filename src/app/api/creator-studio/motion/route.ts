@@ -21,7 +21,7 @@ import { resolveMotionVoiceId } from "@/lib/viraforge/motion-voice";
 import { prepareMotionPortrait } from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
-import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { prisma } from "@/lib/db";
 import { hasReplicate } from "@/lib/replicate-client";
 import {
@@ -203,27 +203,17 @@ export async function POST(request: Request) {
 
     const motionVoiceId = resolveMotionVoiceId(assets.voiceId);
 
-    if (motionType === "talk" && influencer.productFacts) {
-      const facts = productFactsSchema.safeParse({
-        name: influencer.productFacts.name,
-        price: influencer.productFacts.price,
-        features: influencer.productFacts.features,
-        location: influencer.productFacts.location ?? undefined,
-        hours: influencer.productFacts.hours ?? undefined,
-        ingredients: influencer.productFacts.ingredients,
-      });
-
-      if (facts.success) {
-        const quoteCheck = validateQuoteAgainstFacts(talkScript, facts.data);
-        if (!quoteCheck.valid) {
-          return NextResponse.json(
-            {
-              error: "Script contains unverified claims",
-              quoteValidation: quoteCheck,
-            },
-            { status: 422 },
-          );
-        }
+    if (motionType === "talk") {
+      const facts = factsFromRecord(influencer.productFacts);
+      const quoteCheck = validateQuoteAgainstFacts(talkScript, facts);
+      if (!quoteCheck.valid) {
+        return NextResponse.json(
+          {
+            error: "Script contains unverified claims",
+            quoteValidation: quoteCheck,
+          },
+          { status: 422 },
+        );
       }
     }
 

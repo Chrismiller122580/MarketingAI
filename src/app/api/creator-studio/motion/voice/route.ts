@@ -13,7 +13,7 @@ import {
   finalizeInfluencerRender,
 } from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
-import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import {
   analyzeTalkScript,
   hashTalkScript,
@@ -67,33 +67,23 @@ export async function POST(request: Request) {
       include: { productFacts: true },
     });
 
-    if (!influencer?.productFacts) {
+    if (!influencer) {
       return NextResponse.json(
-        { error: "Save influencer with product facts first" },
+        { error: "Save the influencer first" },
         { status: 400 },
       );
     }
 
-    const facts = productFactsSchema.safeParse({
-      name: influencer.productFacts.name,
-      price: influencer.productFacts.price,
-      features: influencer.productFacts.features,
-      location: influencer.productFacts.location ?? undefined,
-      hours: influencer.productFacts.hours ?? undefined,
-      ingredients: influencer.productFacts.ingredients,
-    });
-
-    if (facts.success) {
-      const quoteCheck = validateQuoteAgainstFacts(script, facts.data);
-      if (!quoteCheck.valid) {
-        return NextResponse.json(
-          {
-            error: "Script contains unverified claims",
-            quoteValidation: quoteCheck,
-          },
-          { status: 422 },
-        );
-      }
+    const facts = factsFromRecord(influencer.productFacts);
+    const quoteCheck = validateQuoteAgainstFacts(script, facts);
+    if (!quoteCheck.valid) {
+      return NextResponse.json(
+        {
+          error: "Script contains unverified claims",
+          quoteValidation: quoteCheck,
+        },
+        { status: 422 },
+      );
     }
 
     const analysis = analyzeTalkScript(script);

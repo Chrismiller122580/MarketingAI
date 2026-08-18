@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
-import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import type {
   InfluencerGenerateContext,
   SiteData,
@@ -21,19 +21,12 @@ export async function loadInfluencerGenerateContext(
     include: { productFacts: true },
   });
 
-  if (!influencer?.productFacts) return null;
+  if (!influencer) return null;
 
   const persona = parseCreatorAvatar(influencer.persona);
   if (!persona.success) return null;
 
-  const locked = productFactsSchema.parse({
-    name: influencer.productFacts.name,
-    price: influencer.productFacts.price,
-    features: influencer.productFacts.features,
-    location: influencer.productFacts.location ?? undefined,
-    hours: influencer.productFacts.hours ?? undefined,
-    ingredients: influencer.productFacts.ingredients,
-  });
+  const locked = factsFromRecord(influencer.productFacts);
 
   const mergedFacts = mergeFactsWithSite(locked, site, page);
   const pinpoints = buildFactPinpoints(locked, site, page);

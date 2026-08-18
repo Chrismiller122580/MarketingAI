@@ -6,7 +6,7 @@ import { hasReplicate } from "@/lib/replicate-client";
 import { hasElevenLabs } from "@/lib/viraforge/elevenlabs";
 import type { InfluencerAssets } from "@/lib/viraforge/influencer-assets";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
-import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import { factsFromRecord, hasLockedProductFacts } from "@/lib/schemas/product-facts-schema";
 import {
   analyzeTalkScript,
   hashTalkScript,
@@ -99,28 +99,18 @@ export async function POST(request: Request) {
         analysis.messages.find((m) => m.includes("Estimated")) ?? undefined,
     });
 
-    if (influencer.productFacts) {
-      const facts = productFactsSchema.safeParse({
-        name: influencer.productFacts.name,
-        price: influencer.productFacts.price,
-        features: influencer.productFacts.features,
-        location: influencer.productFacts.location ?? undefined,
-        hours: influencer.productFacts.hours ?? undefined,
-        ingredients: influencer.productFacts.ingredients,
-      });
-
-      if (facts.success) {
-        const quoteCheck = validateQuoteAgainstFacts(analysis.script, facts.data);
-        checks.push({
-          id: "facts",
-          label: "Fact-locked claims",
-          status: quoteCheck.valid ? "pass" : "fail",
-          detail: quoteCheck.valid
-            ? "Script matches verified product facts"
-            : quoteCheck.violations.join("; "),
-        });
-      }
-    }
+    const facts = factsFromRecord(influencer.productFacts);
+    const quoteCheck = validateQuoteAgainstFacts(analysis.script, facts);
+    checks.push({
+      id: "facts",
+      label: "Fact-locked claims",
+      status: quoteCheck.valid ? "pass" : "fail",
+      detail: quoteCheck.valid
+        ? hasLockedProductFacts(facts)
+          ? "Script matches verified product facts"
+          : "No facts locked — scripts stay general"
+        : quoteCheck.violations.join("; "),
+    });
 
     const previewApproved =
       !!approvedScriptHash && approvedScriptHash === analysis.scriptHash;

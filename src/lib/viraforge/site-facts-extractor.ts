@@ -824,13 +824,17 @@ export function normalizeProductFactsForSite(
   options?: { showAllFields?: boolean },
 ): ProductFactsForm {
   const showAll = options?.showAllFields ?? false;
-  const normalized: ProductFactsForm = { ...facts };
-
-  if (!showAll && !config.price.show && !normalized.price.trim()) {
-    normalized.price = defaultPriceForHiddenField(config.siteType);
-  }
+  const normalized: ProductFactsForm = {
+    ...facts,
+    name: facts.name ?? "",
+    price: facts.price ?? "",
+    features: facts.features ?? [],
+  };
 
   if (!showAll) {
+    if (!config.price.show && !normalized.price.trim()) {
+      normalized.price = "";
+    }
     if (!config.location.show) normalized.location = undefined;
     if (!config.hours.show) normalized.hours = undefined;
     if (!config.ingredients.show) normalized.ingredients = [];

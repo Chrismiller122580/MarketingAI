@@ -55,5 +55,5 @@ export const defaultCreatorAvatarValues: CreatorAvatarForm = {
   personalityVoice:
     "Personality: Warm, confident, slightly sassy, loves family + health. Voice: Soft Colombian accent, energetic, trustworthy.",
   sampleQuote:
-    "This protein has exactly 24g and zero fillers — my clients love it!",
+    "Show up for yourself first — consistency beats intensity every time.",
 };

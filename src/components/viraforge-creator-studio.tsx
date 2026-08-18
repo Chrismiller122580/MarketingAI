@@ -12,12 +12,14 @@ import {
   Globe,
   Hand,
   Mic,
+  Plus,
   Pointer,
   Shirt,
   Sparkles,
   Trash2,
   Volume2,
   Wand2,
+  X,
 } from "lucide-react";
 import type { InfluencerScriptScene } from "@/lib/viraforge/influencer-script";
 import { toast } from "sonner";
@@ -34,7 +36,10 @@ import {
   type CreatorAvatarForm,
 } from "@/lib/schemas/creator-avatar-schema";
 import {
+  countLockedProductFacts,
   defaultProductFactsValues,
+  factsFromRecord,
+  hasLockedProductFacts,
   productFactsSchema,
   type ProductFactsForm,
 } from "@/lib/schemas/product-facts-schema";
@@ -237,6 +242,7 @@ export function ViraForgeCreatorStudio() {
   const [suggesting, setSuggesting] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
   const [showAllFactFields, setShowAllFactFields] = useState(false);
+  const [featureDraft, setFeatureDraft] = useState("");
   const [deletingAvatar, setDeletingAvatar] = useState(false);
   const [selectedSourcePage, setSelectedSourcePage] = useState("/");
 
@@ -260,6 +266,7 @@ export function ViraForgeCreatorStudio() {
   });
 
   const watched = useWatch({ control: personaForm.control });
+  const factsWatched = useWatch({ control: factsForm.control });
   const values = { ...defaultCreatorAvatarValues, ...watched };
   const generating = status === "loading";
   const motionBusy = motionLoading !== null;
@@ -343,35 +350,36 @@ export function ViraForgeCreatorStudio() {
     setShowAllFactFields(false);
   }, [site?.domain]);
 
-  useEffect(() => {
-    if (!site?.domain || editId) return;
+  const crawledFacts = useMemo(
+    () => (site ? extractCrawledProductFacts(site) : null),
+    [site],
+  );
 
-    const current = factsForm.getValues();
-    const stillDefault =
-      current.name === defaultProductFactsValues.name &&
-      current.price === defaultProductFactsValues.price;
-    if (!stillDefault) return;
+  const featureList = useMemo(
+    () =>
+      featuresText
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [featuresText],
+  );
 
-    const crawled = extractCrawledProductFacts(site);
-    const config = inferProductFactFields(site);
-    const prefilled = normalizeProductFactsForSite(
-      {
-        name: crawled.name ?? site.brand.name,
-        price: crawled.price || defaultProductFactsValues.price,
-        features: crawled.features?.length
-          ? crawled.features
-          : [site.brand.tagline || site.brand.name],
-        location: config.location.show ? crawled.location : undefined,
-        hours: config.hours.show ? crawled.hours : undefined,
-        ingredients: [],
-      },
-      config,
-    );
+  const liveFacts = useMemo(
+    () =>
+      factsFromRecord({
+        ...defaultProductFactsValues,
+        ...factsWatched,
+        features: featureList,
+        ingredients: ingredientsText
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      }),
+    [factsWatched, featureList, ingredientsText],
+  );
 
-    factsForm.reset(prefilled);
-    setFeaturesText(prefilled.features.join("\n"));
-    setIngredientsText((prefilled.ingredients ?? []).join("\n"));
-  }, [site?.domain, editId, factsForm]);
+  const lockedFactCount = countLockedProductFacts(liveFacts);
+  const factsAreLocked = hasLockedProductFacts(liveFacts);
 
   useEffect(() => {
     fetch("/api/creator-studio/capabilities")
@@ -956,9 +964,64 @@ export function ViraForgeCreatorStudio() {
         .map((s) => s.trim())
         .filter(Boolean),
     };
-    return normalizeProductFactsForSite(parsed, factFieldConfig, {
-      showAllFields: showAllFactFields,
-    });
+    return factsFromRecord(
+      normalizeProductFactsForSite(parsed, factFieldConfig, {
+        showAllFields: showAllFactFields,
+      }),
+    );
+  };
+
+  const applyCrawledFacts = () => {
+    if (!site) {
+      toast.error("Load a crawled site first");
+      return;
+    }
+    const crawled = crawledFacts ?? extractCrawledProductFacts(site);
+    const config = inferProductFactFields(site);
+    const next = normalizeProductFactsForSite(
+      {
+        name: crawled.name ?? site.brand.name,
+        price: crawled.price || "",
+        features: crawled.features?.length
+          ? crawled.features
+          : [site.brand.tagline || site.brand.name].filter(Boolean),
+        location: config.location.show ? crawled.location : undefined,
+        hours: config.hours.show ? crawled.hours : undefined,
+        ingredients: [],
+      },
+      config,
+    );
+    factsForm.reset(next);
+    setFeaturesText(next.features.join("\n"));
+    setIngredientsText((next.ingredients ?? []).join("\n"));
+    toast.success("Site facts applied — still optional until you generate or save");
+  };
+
+  const clearFacts = () => {
+    factsForm.reset(defaultProductFactsValues);
+    setFeaturesText("");
+    setIngredientsText("");
+    setFeatureDraft("");
+    toast.info("Facts cleared — scripts will stay general");
+  };
+
+  const addFeature = (value: string) => {
+    const text = value.trim();
+    if (!text) return;
+    if (featureList.includes(text)) {
+      setFeatureDraft("");
+      return;
+    }
+    if (featureList.length >= 12) {
+      toast.error("12 highlights max");
+      return;
+    }
+    setFeaturesText([...featureList, text].join("\n"));
+    setFeatureDraft("");
+  };
+
+  const removeFeature = (value: string) => {
+    setFeaturesText(featureList.filter((item) => item !== value).join("\n"));
   };
 
   const shouldShowFactField = (
@@ -973,7 +1036,7 @@ export function ViraForgeCreatorStudio() {
     const productFacts = parseFacts();
     const parsed = productFactsSchema.safeParse(productFacts);
     if (!parsed.success) {
-      toast.error("Fix product facts before saving");
+      toast.error("A fact field is too long — shorten it or clear the tab");
       setActiveTab("facts");
       return;
     }
@@ -1039,12 +1102,9 @@ export function ViraForgeCreatorStudio() {
 
     const productFacts = parseFacts();
     const factsParsed = productFactsSchema.safeParse(productFacts);
-    if (!factsParsed.success) {
-      setStatus("error");
-      setError(`Complete the ${factsTabTitle} tab before generating`);
-      setActiveTab("facts");
-      return;
-    }
+    const factsData = factsParsed.success
+      ? factsParsed.data
+      : factsFromRecord(productFacts);
 
     try {
       const res = await fetch("/api/creator-studio/generate", {
@@ -1052,7 +1112,7 @@ export function ViraForgeCreatorStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           persona,
-          productFacts: factsParsed.data,
+          productFacts: factsData,
           influencerId,
           siteContext: site
             ? {
@@ -1131,8 +1191,8 @@ export function ViraForgeCreatorStudio() {
             Create New Influencer Avatar
           </h2>
           <p className="text-sm text-muted-foreground">
-            Persona + locked product facts. The system learns from your edits to
-            tailor future outputs.
+            Persona first. Product facts are optional — lock them only if you
+            want scripts and quotes fact-checked.
           </p>
           {session?.user?.name && (
             <p className="mt-1 text-xs text-muted-foreground">
@@ -1339,7 +1399,22 @@ export function ViraForgeCreatorStudio() {
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                {tab.id === "facts" ? factsTabTitle : tab.label}
+                {tab.id === "facts" ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    {factsTabTitle}
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        activeTab === tab.id
+                          ? "bg-white/20 text-white"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {factsAreLocked ? lockedFactCount : "Optional"}
+                    </span>
+                  </span>
+                ) : (
+                  tab.label
+                )}
               </button>
             ))}
           </div>
@@ -1651,7 +1726,7 @@ export function ViraForgeCreatorStudio() {
                   )}
                   {renderPicker(
                     "sampleQuote",
-                    "Sample quote (validated against product facts)",
+                    "Sample quote (fact-checked only if facts are locked)",
                     suggestion.fields.sampleQuote,
                   )}
                   <div className="flex gap-2">
@@ -1701,7 +1776,7 @@ export function ViraForgeCreatorStudio() {
               </div>
               <div>
                 <label htmlFor="sampleQuote" className="text-sm font-medium">
-                  Sample quote (validated against product facts)
+                  Sample quote {factsAreLocked ? "(checked against locked facts)" : "(facts optional)"}
                 </label>
                 <textarea
                   id="sampleQuote"
@@ -1748,14 +1823,106 @@ export function ViraForgeCreatorStudio() {
 
           {activeTab === "facts" && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
-                <p className="text-xs text-muted-foreground">
-                  {factFieldConfig.summary} The influencer may only cite verified
-                  facts in scripts and quotes.
-                </p>
+              <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {factsAreLocked
+                        ? `${lockedFactCount} locked claim${lockedFactCount === 1 ? "" : "s"}`
+                        : "Optional — skip this tab"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {factsAreLocked
+                        ? "Scripts and quotes may only cite these facts. Clear the tab anytime to go back to general copy."
+                        : "Generate a portrait without facts. Add them later to lock prices, features, and claims."}
+                    </p>
+                    {site && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {factFieldConfig.summary}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {site && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={applyCrawledFacts}
+                      >
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                        Use site facts
+                      </Button>
+                    )}
+                    {factsAreLocked && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={clearFacts}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {crawledFacts &&
+                  ((crawledFacts.features?.length ?? 0) > 0 ||
+                    crawledFacts.name ||
+                    crawledFacts.price) && (
+                    <div className="mt-3 border-t border-violet-500/15 pt-3">
+                      <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Suggested from{" "}
+                        {crawledFacts.sourcePath ?? site?.domain ?? "crawl"}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {crawledFacts.name &&
+                          crawledFacts.name !== liveFacts.name && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                factsForm.setValue("name", crawledFacts.name ?? "", {
+                                  shouldDirty: true,
+                                })
+                              }
+                              className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground hover:border-violet-400"
+                            >
+                              + {crawledFacts.name}
+                            </button>
+                          )}
+                        {crawledFacts.price &&
+                          crawledFacts.price !== liveFacts.price && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                factsForm.setValue("price", crawledFacts.price ?? "", {
+                                  shouldDirty: true,
+                                })
+                              }
+                              className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground hover:border-violet-400"
+                            >
+                              + {crawledFacts.price}
+                            </button>
+                          )}
+                        {(crawledFacts.features ?? [])
+                          .filter((item) => !featureList.includes(item))
+                          .slice(0, 6)
+                          .map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => addFeature(item)}
+                              className="rounded-full border border-border bg-card px-3 py-1 text-left text-xs text-foreground hover:border-violet-400"
+                            >
+                              + {item}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 <button
                   type="button"
-                  className="mt-2 text-xs font-medium text-violet-600 hover:text-violet-500 dark:text-violet-300"
+                  className="mt-3 text-xs font-medium text-violet-600 hover:text-violet-500 dark:text-violet-300"
                   onClick={() => setShowAllFactFields((value) => !value)}
                 >
                   {showAllFactFields ? "Show site-tailored fields" : "Show all fields"}
@@ -1764,6 +1931,9 @@ export function ViraForgeCreatorStudio() {
               <div>
                 <label htmlFor="productName" className="text-sm font-medium">
                   {factFieldConfig.name.label}
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    Optional
+                  </span>
                 </label>
                 <input
                   id="productName"
@@ -1775,14 +1945,54 @@ export function ViraForgeCreatorStudio() {
               <div>
                 <label htmlFor="productFeatures" className="text-sm font-medium">
                   {factFieldConfig.features.label}
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    Optional
+                  </span>
                 </label>
-                <textarea
-                  id="productFeatures"
-                  className={`${inputClass} min-h-28 font-mono text-xs`}
-                  placeholder={factFieldConfig.features.placeholder}
-                  value={featuresText}
-                  onChange={(e) => setFeaturesText(e.target.value)}
-                />
+                {featureList.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {featureList.map((item) => (
+                      <span
+                        key={item}
+                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-foreground"
+                      >
+                        <span className="truncate">{item}</span>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${item}`}
+                          onClick={() => removeFeature(item)}
+                          className="shrink-0 rounded-full p-0.5 hover:bg-violet-500/20"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    id="productFeatures"
+                    className={`${inputClass} mt-0`}
+                    placeholder="Add a highlight, then press Enter"
+                    value={featureDraft}
+                    onChange={(e) => setFeatureDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addFeature(featureDraft);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={!featureDraft.trim()}
+                    onClick={() => addFeature(featureDraft)}
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Add
+                  </Button>
+                </div>
                 {factFieldConfig.features.hint && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {factFieldConfig.features.hint}
@@ -1793,11 +2003,9 @@ export function ViraForgeCreatorStudio() {
                 <div>
                   <label htmlFor="productPrice" className="text-sm font-medium">
                     {factFieldConfig.price.label}
-                    {!factFieldConfig.price.show && showAllFactFields && (
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        Optional for this site
-                      </span>
-                    )}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      Optional
+                    </span>
                   </label>
                   <input
                     id="productPrice"
@@ -1816,11 +2024,9 @@ export function ViraForgeCreatorStudio() {
                 <div>
                   <label htmlFor="productLocation" className="text-sm font-medium">
                     {factFieldConfig.location.label}
-                    {!factFieldConfig.location.show && showAllFactFields && (
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        Optional for this site
-                      </span>
-                    )}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      Optional
+                    </span>
                   </label>
                   <input
                     id="productLocation"
@@ -1839,11 +2045,9 @@ export function ViraForgeCreatorStudio() {
                 <div>
                   <label htmlFor="productHours" className="text-sm font-medium">
                     {factFieldConfig.hours.label}
-                    {!factFieldConfig.hours.show && showAllFactFields && (
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        Optional for this site
-                      </span>
-                    )}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      Optional
+                    </span>
                   </label>
                   <input
                     id="productHours"
@@ -1862,15 +2066,14 @@ export function ViraForgeCreatorStudio() {
                 <div>
                   <label htmlFor="productIngredients" className="text-sm font-medium">
                     {factFieldConfig.ingredients.label}
-                    {!factFieldConfig.ingredients.show && showAllFactFields && (
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        Optional for this site
-                      </span>
-                    )}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      Optional
+                    </span>
                   </label>
                   <textarea
                     id="productIngredients"
                     className={`${inputClass} min-h-20 font-mono text-xs`}
+                    placeholder="One item per line"
                     value={ingredientsText}
                     onChange={(e) => setIngredientsText(e.target.value)}
                   />
@@ -2387,7 +2590,9 @@ export function ViraForgeCreatorStudio() {
                         ? "Motion clip saved — use in Content Studio or keep interacting"
                         : status === "success"
                           ? "Portrait ready — wave, talk, or pitch from Motion tab"
-                          : `Complete ${factsTabTitle}, then generate`}
+                          : factsAreLocked
+                            ? `${lockedFactCount} facts locked · generate when ready`
+                            : "Facts optional — generate a portrait anytime"}
                 </p>
               </div>
             </div>

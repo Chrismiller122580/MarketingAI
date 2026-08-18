@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
-import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import {
+  defaultProductFactsValues,
+  productFactsSchema,
+} from "@/lib/schemas/product-facts-schema";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import type { InfluencerAssets } from "@/lib/viraforge/influencer-assets";
 import {
@@ -17,14 +20,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const persona = parseCreatorAvatar(body.persona);
-    const facts = productFactsSchema.safeParse(body.productFacts);
+    const facts = productFactsSchema.safeParse(body.productFacts ?? {});
+    const factsData = facts.success ? facts.data : defaultProductFactsValues;
 
-    if (!persona.success || !facts.success) {
+    if (!persona.success) {
       return NextResponse.json(
         {
-          error: "Invalid persona or product facts",
-          persona: persona.success ? undefined : persona.error.flatten(),
-          facts: facts.success ? undefined : facts.error.flatten(),
+          error: "Invalid persona",
+          persona: persona.error.flatten(),
         },
         { status: 400 },
       );
@@ -32,7 +35,7 @@ export async function POST(request: Request) {
 
     const quoteCheck = validateQuoteAgainstFacts(
       persona.data.sampleQuote,
-      facts.data,
+      factsData,
     );
 
     const assets = body.assets as Partial<InfluencerAssets> | undefined;
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
     const { influencerId, productFactsId } = await upsertInfluencerWithFacts(
       authResult,
       persona.data,
-      facts.data,
+      factsData,
       assets,
     );
 

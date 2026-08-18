@@ -1,4 +1,7 @@
-import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
+import {
+  hasLockedProductFacts,
+  type ProductFactsForm,
+} from "@/lib/schemas/product-facts-schema";
 import { isGenericFactPrice } from "@/lib/viraforge/site-facts-extractor";
 
 export type ClaimValidationResult = {
@@ -17,6 +20,27 @@ export function validateQuoteAgainstFacts(
   facts: ProductFactsForm,
 ): ClaimValidationResult {
   const violations: string[] = [];
+  const locked = hasLockedProductFacts(facts);
+
+  const forbiddenPatterns = [
+    /cures?/i,
+    /guarantee/i,
+    /fda approved/i,
+    /clinically proven/i,
+    /100% natural/i,
+    /no side effects/i,
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    if (pattern.test(quote)) {
+      violations.push(`Phrase matches restricted pattern: ${pattern.source}`);
+    }
+  }
+
+  if (!locked) {
+    return { valid: violations.length === 0, violations };
+  }
+
   const allowedText = [
     facts.name,
     facts.price,
@@ -37,21 +61,6 @@ export function validateQuoteAgainstFacts(
     }
   }
 
-  const forbiddenPatterns = [
-    /cures?/i,
-    /guarantee/i,
-    /fda approved/i,
-    /clinically proven/i,
-    /100% natural/i,
-    /no side effects/i,
-  ];
-
-  for (const pattern of forbiddenPatterns) {
-    if (pattern.test(quote)) {
-      violations.push(`Phrase matches restricted pattern: ${pattern.source}`);
-    }
-  }
-
   if (quote.length > 0 && facts.features.length > 0) {
     const mentionsProduct =
       quote.toLowerCase().includes(facts.name.toLowerCase()) ||
@@ -67,13 +76,22 @@ export function validateQuoteAgainstFacts(
 }
 
 export function formatFactsForPrompt(facts: ProductFactsForm): string {
-  const priceLine = isGenericFactPrice(facts.price)
-    ? `Product: ${facts.name}.`
-    : `Product: ${facts.name}. Price: ${facts.price}.`;
+  if (!hasLockedProductFacts(facts)) {
+    return "No locked product facts. Do not invent specific prices, specs, ingredients, or health claims. Keep the copy general.";
+  }
+
+  const priceLine =
+    !facts.price.trim() || isGenericFactPrice(facts.price)
+      ? facts.name.trim()
+        ? `Product: ${facts.name}.`
+        : ""
+      : `Product: ${facts.name || "offering"}. Price: ${facts.price}.`;
 
   return [
     priceLine,
-    `Verified features (ONLY these may be mentioned): ${facts.features.join("; ")}.`,
+    facts.features.length
+      ? `Verified features (ONLY these may be mentioned): ${facts.features.join("; ")}.`
+      : "",
     facts.location ? `Location: ${facts.location}.` : "",
     facts.hours ? `Hours: ${facts.hours}.` : "",
     facts.ingredients?.length

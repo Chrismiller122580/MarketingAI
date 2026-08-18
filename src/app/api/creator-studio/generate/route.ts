@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       );
     }
 
-    let productFacts = productFactsSchema.safeParse(body.productFacts);
+    let productFacts = productFactsSchema.safeParse(body.productFacts ?? {});
     if (!productFacts.success && body.influencerId) {
       const inf = await prisma.influencer.findFirst({
         where: { id: body.influencerId, userId: authResult },
@@ -52,16 +52,17 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!productFacts.success) {
-      return NextResponse.json(
-        { error: "Product facts required before generation" },
-        { status: 400 },
-      );
-    }
+    const factsData = productFacts.success
+      ? productFacts.data
+      : {
+          name: "",
+          price: "",
+          features: [] as string[],
+        };
 
     const quoteValidation = validateQuoteAgainstFacts(
       parsed.data.sampleQuote,
-      productFacts.data,
+      factsData,
     );
 
     if (!quoteValidation.valid) {
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
 
     const prompt = buildAvatarImagePrompt(parsed.data, {
       personalization,
-      productFacts: productFacts.data,
+      productFacts: factsData,
       site: siteContext,
     });
 
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
     const saved = await upsertInfluencerWithFacts(
       authResult,
       parsed.data,
-      productFacts.data,
+      factsData,
     );
 
     const suggestionSnapshot = body.suggestionSnapshot as

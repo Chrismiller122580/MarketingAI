@@ -9,6 +9,7 @@ import {
 } from "./talk-settings";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
+import { hasLockedProductFacts } from "@/lib/schemas/product-facts-schema";
 
 export type InfluencerScriptScene =
   | "intro"
@@ -60,13 +61,16 @@ export async function generateInfluencerScript(input: {
   const wordRule = isTalkScene
     ? `${TALK_TARGET_MIN_WORDS}–${maxWords} words max, conversational pace, one breath (~8–12 seconds spoken)`
     : "40–90 words max";
+  const factRule = hasLockedProductFacts(input.facts)
+    ? "ONLY mention verified product facts below. Never invent specs, prices, benefits, or health claims."
+    : "No product facts are locked. Do not invent prices, specs, ingredients, or health claims. Keep the copy general.";
 
   const systemPrompt = `You write short spoken scripts for ${input.persona.displayName} (@${input.persona.handle}).
 Voice: ${input.persona.personalityVoice}
 Sample tone: "${input.persona.sampleQuote}"
 
 STRICT RULES:
-- ONLY mention verified product facts below. Never invent specs, prices, benefits, or health claims.
+- ${factRule}
 - Write for the mouth — natural speech, ${wordRule}.
 - Return ONLY the script text. No quotes, labels, or stage directions.
 ${input.personalization ? `\n${input.personalization}` : ""}`;

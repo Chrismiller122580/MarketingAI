@@ -9,7 +9,7 @@ import {
 } from "@/lib/auth-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
-import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { generateInfluencerSiteContent } from "@/lib/viraforge/influencer-content";
 import {
   buildPersonalizationContext,
@@ -73,9 +73,9 @@ export async function POST(request: Request) {
       include: { productFacts: true },
     });
 
-    if (!influencer?.productFacts) {
+    if (!influencer) {
       return NextResponse.json(
-        { error: "Save influencer with product facts first" },
+        { error: "Save the influencer first" },
         { status: 400 },
       );
     }
@@ -115,14 +115,7 @@ export async function POST(request: Request) {
     const page =
       site.pages.find((p) => p.path === (pagePath ?? "/")) ?? site.pages[0];
 
-    const locked = productFactsSchema.parse({
-      name: influencer.productFacts.name,
-      price: influencer.productFacts.price,
-      features: influencer.productFacts.features,
-      location: influencer.productFacts.location ?? undefined,
-      hours: influencer.productFacts.hours ?? undefined,
-      ingredients: influencer.productFacts.ingredients,
-    });
+    const locked = factsFromRecord(influencer.productFacts);
 
     const mergedFacts = mergeFactsWithSite(locked, site, page);
     const pinpoints = buildFactPinpoints(locked, site, page);

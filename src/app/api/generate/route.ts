@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
       if (!influencerContext) {
         return NextResponse.json(
-          { error: "Influencer not found or missing product facts." },
+          { error: "Influencer not found." },
           { status: 404 },
         );
       }
