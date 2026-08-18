@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const productFactsSchema = z.object({
-  name: z.string().max(120).default(""),
-  price: z.string().max(40).default(""),
-  features: z.array(z.string().min(1).max(120)).max(12).default([]),
+  name: z.string().max(120),
+  price: z.string().max(40),
+  features: z.array(z.string().min(1).max(120)).max(12),
   location: z.string().max(120).optional(),
   hours: z.string().max(120).optional(),
   ingredients: z.array(z.string().min(1).max(80)).max(20).optional(),

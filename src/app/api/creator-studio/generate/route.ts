@@ -6,7 +6,7 @@ import {
 } from "@/lib/ai-image";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
-import { productFactsSchema } from "@/lib/schemas/product-facts-schema";
+import { factsFromRecord, productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import {
   buildAvatarImagePrompt,
   buildAvatarPreviewSummary,
@@ -34,21 +34,18 @@ export async function POST(request: Request) {
       );
     }
 
-    let productFacts = productFactsSchema.safeParse(body.productFacts ?? {});
+    let productFacts = productFactsSchema.safeParse(
+      factsFromRecord(body.productFacts),
+    );
     if (!productFacts.success && body.influencerId) {
       const inf = await prisma.influencer.findFirst({
         where: { id: body.influencerId, userId: authResult },
         include: { productFacts: true },
       });
       if (inf?.productFacts) {
-        productFacts = productFactsSchema.safeParse({
-          name: inf.productFacts.name,
-          price: inf.productFacts.price,
-          features: inf.productFacts.features,
-          location: inf.productFacts.location ?? undefined,
-          hours: inf.productFacts.hours ?? undefined,
-          ingredients: inf.productFacts.ingredients,
-        });
+        productFacts = productFactsSchema.safeParse(
+          factsFromRecord(inf.productFacts),
+        );
       }
     }
 

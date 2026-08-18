@@ -3,6 +3,7 @@ import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import {
   defaultProductFactsValues,
+  factsFromRecord,
   productFactsSchema,
 } from "@/lib/schemas/product-facts-schema";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
@@ -20,7 +21,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const persona = parseCreatorAvatar(body.persona);
-    const facts = productFactsSchema.safeParse(body.productFacts ?? {});
+    const facts = productFactsSchema.safeParse(
+      factsFromRecord(body.productFacts),
+    );
     const factsData = facts.success ? facts.data : defaultProductFactsValues;
 
     if (!persona.success) {
