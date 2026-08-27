@@ -3,28 +3,38 @@
 Use this file when creating the Play Console listing and wrapping the PWA as a Trusted Web Activity (TWA).
 
 Canonical web origin: `https://www.crawlspark.ai`  
-App host (if split): `https://app.crawlspark.ai`  
 Privacy: `https://www.crawlspark.ai/privacy`  
 Terms: `https://www.crawlspark.ai/terms`  
 Account deletion: Settings → Danger zone, or `privacy@crawlspark.ai`  
-Suggested package: `ai.crawlspark.app`
+Support: `support@crawlspark.ai`  
+Package: `ai.crawlspark.app`
 
-Do **not** wrap a broken production build. Latest walk-talk typecheck on `162a30f` must be fixed first.
+Do **not** wrap a broken production build. Confirm `https://www.crawlspark.ai/.well-known/assetlinks.json` returns JSON (not `/login`) before generating the TWA.
 
 ---
 
-## What we still need from Chris
+## Locked answers from Chris (2026-08-26)
 
-1. **Public product name.** Repo says crawlspark.ai. You also call it Crawlspace.ai. Listing, icon, and legal pages must use one name.
-2. **Signing key SHA-256.** After PWA Builder creates the upload keystore:
+| # | Item | Answer |
+|---|------|--------|
+| 1 | Public product name | **crawlspark.ai** |
+| 2 | Support email | **support@crawlspark.ai** |
+| 3 | TWA start URL | **https://www.crawlspark.ai** |
+| 4 | Age rating | **18+ confirmed** |
+| 5 | Play Console | **Organization account, not created yet** |
+| 6 | Billing | **Website only** — Stripe or crypto. No Play in-app products. |
+| 7 | Proceed | **Yes** — after production is green and assetlinks is public. |
+
+Still needed from Chris after this deploy:
+
+1. Create a Google Play Console **organization** account ($25 one-time).
+2. After PWA Builder generates the upload keystore, run:
    `keytool -list -v -keystore upload-keystore.jks`
-   Paste into `public/.well-known/assetlinks.json`.
-3. **TWA start URL.** Prefer `https://www.crawlspark.ai` (Meta OAuth already wants www).
-4. **4–8 phone screenshots** (1080×1920): dashboard checklist, Content Studio, library/calendar, Settings → Delete account.
-5. **Feature graphic** 1024×500 PNG.
-6. **Support email** you monitor.
-7. **Play Console account** and confirm **18+**.
-8. Do not submit until production builds and `/api/publish` is auth-gated on the live SHA.
+   and paste the SHA-256 into `public/.well-known/assetlinks.json`.
+3. Capture **4–8 phone screenshots** at 1080×1920: dashboard checklist, Content Studio, library/calendar, Settings → Delete account.
+4. **Feature graphic** 1024×500 PNG (or we generate one).
+5. Point `support@crawlspark.ai` at an inbox Chris monitors.
+6. Do not submit until production builds and assetlinks is public JSON.
 
 ---
 
@@ -50,12 +60,13 @@ What you can do
 - Connect social accounts or open a share sheet
 - Optional Creator Studio avatars for video clips
 
-This app is the installable website. Subscriptions (Pro, Enterprise) are sold on crawlspark.ai through Stripe or XRP — not as Google Play in-app products.
+This app is the installable website. Subscriptions (Pro, Enterprise) are sold on crawlspark.ai through Stripe or crypto — not as Google Play in-app products.
 
 You must be 18 or older. Delete your account in Settings → Danger zone.
 
 Privacy: https://www.crawlspark.ai/privacy
 Terms: https://www.crawlspark.ai/terms
+Support: support@crawlspark.ai
 
 ### Category
 Business (primary) / Productivity (secondary)
@@ -67,12 +78,13 @@ Social communication + AI-generated content. Target age **18+**.
 
 ## How to package (TWA)
 
-1. Fix production typecheck.
-2. https://www.pwabuilder.com → enter https://www.crawlspark.ai
-3. Generate Android TWA package.
-4. Put cert SHA-256 in `public/.well-known/assetlinks.json` and deploy.
-5. Upload AAB to **internal testing** first.
-6. Confirm no Chrome URL bar, then promote.
+1. Wait until production is green.
+2. Confirm https://www.crawlspark.ai/.well-known/assetlinks.json is public JSON.
+3. https://www.pwabuilder.com → enter https://www.crawlspark.ai
+4. Generate Android TWA package.
+5. Put cert SHA-256 in `public/.well-known/assetlinks.json` and deploy.
+6. Upload AAB to **internal testing** first.
+7. Confirm no Chrome URL bar, then promote.
 
 Keep billing on the website. Do not add Play Billing SKUs that duplicate Stripe.
 
