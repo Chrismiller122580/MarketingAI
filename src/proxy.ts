@@ -16,7 +16,8 @@ export default auth((req) => {
     pathname === "/terms" ||
     pathname === "/domains" ||
     pathname === "/data-deletion" ||
-    pathname.startsWith("/world/");
+    pathname.startsWith("/world/") ||
+    pathname.startsWith("/.well-known/");
   const isPublicApi =
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/og/") ||

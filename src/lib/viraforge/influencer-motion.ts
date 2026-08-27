@@ -6,7 +6,7 @@ import {
 import { createModelPrediction } from "@/lib/replicate-client";
 import { synthesizeSpeech } from "./elevenlabs";
 import type { InfluencerMotionType } from "./influencer-assets";
-import { buildMotionPrompt } from "./motion-prompts";
+import { buildMotionPrompt, buildWalkTalkPrompt } from "./motion-prompts";
 import { SADTALKER_INPUT_DEFAULTS } from "./talk-settings";
 import type { PreparedMotionPortrait } from "./influencer-renders";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
@@ -122,7 +122,10 @@ export async function startInfluencerMotion(
     return { error: lastError };
   }
 
-  const prompt = buildMotionPrompt(persona, motionType);
+  const prompt =
+    motionType === "walk-talk"
+      ? buildWalkTalkPrompt(persona)
+      : buildMotionPrompt(persona, motionType);
   const result = await createModelPrediction(KLING_MODEL, {
     prompt,
     start_image: imageUrl,
