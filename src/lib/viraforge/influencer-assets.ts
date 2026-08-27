@@ -1,6 +1,7 @@
 import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
 
 export type InfluencerMotionType =
+  | "walk-talk"
   | "talk"
   | "walk"
   | "spin"

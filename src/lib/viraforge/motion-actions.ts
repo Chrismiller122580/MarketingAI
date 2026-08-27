@@ -9,9 +9,14 @@ export type MotionAction = {
 
 export const MOTION_ACTIONS: MotionAction[] = [
   {
+    type: "walk-talk",
+    label: "Walk & talk",
+    description: "Walk their city while speaking — wider shot, synced voice",
+  },
+  {
     type: "talk",
-    label: "Talk",
-    description: "ElevenLabs voice + lip-sync talking clip",
+    label: "Talk (close-up)",
+    description: "Studio close-up lip-sync (legacy)",
   },
   {
     type: "walk",
@@ -42,12 +47,17 @@ export const MOTION_ACTIONS: MotionAction[] = [
 
 export const MAX_CONTENT_STUDIO_MOTION_CLIPS = 2;
 
+/** Talk and walk-talk both need a script + ElevenLabs voice. */
+export function isSpokenMotion(type: InfluencerMotionType): boolean {
+  return type === "talk" || type === "walk-talk";
+}
+
 /** Map motion type + talk index to the best spoken-script scene for AI coordination. */
 export function motionScriptScene(
   motionType: InfluencerMotionType,
   talkIndex = 0,
 ): InfluencerScriptScene | null {
-  if (motionType === "talk") {
+  if (isSpokenMotion(motionType)) {
     return talkIndex === 0 ? "pitch" : talkIndex === 1 ? "cta" : "quote";
   }
   if (motionType === "wave") return "greet";
@@ -58,7 +68,7 @@ export function motionScriptScene(
 export function normalizeMotionTypeSelection(
   types: InfluencerMotionType[] | undefined,
 ): InfluencerMotionType[] {
-  if (!types?.length) return ["talk"];
+  if (!types?.length) return ["walk-talk"];
   const seen = new Set<InfluencerMotionType>();
   const normalized: InfluencerMotionType[] = [];
   for (const type of types) {

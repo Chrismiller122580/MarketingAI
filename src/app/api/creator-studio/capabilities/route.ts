@@ -13,6 +13,7 @@ export async function GET() {
     motionVideoAvailable: hasReplicate(),
     voiceAvailable: hasElevenLabs(),
     motionTypes: {
+      "walk-talk": hasReplicate() && hasElevenLabs(),
       talk: hasReplicate() && hasElevenLabs(),
       walk: hasReplicate(),
       spin: hasReplicate(),
