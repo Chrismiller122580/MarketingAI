@@ -31,10 +31,18 @@ export async function POST(request: Request) {
     const email =
       typeof body.email === "string" ? body.email.toLowerCase().trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
+    const termsAccepted = body.termsAccepted === true;
 
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: "Name, email, and password are required" },
+        { status: 400 },
+      );
+    }
+
+    if (!termsAccepted) {
+      return NextResponse.json(
+        { error: "Accept the Terms and Privacy Policy to create an account." },
         { status: 400 },
       );
     }

@@ -19,6 +19,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,10 +30,18 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
     try {
       if (mode === "signup") {
+        if (!acceptedTerms) {
+          throw new Error("Accept the Terms and Privacy Policy to create an account.");
+        }
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+            termsAccepted: true,
+          }),
         });
         const data = (await res.json()) as { error?: string };
         if (!res.ok) {
@@ -171,6 +180,29 @@ export function AuthForm({ mode }: { mode: Mode }) {
               </p>
             )}
           </div>
+
+          {isSignup && (
+            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border"
+                required
+              />
+              <span>
+                I am 18 or older and agree to the{" "}
+                <Link href="/terms" className="font-medium text-amber-600 hover:underline">
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="font-medium text-amber-600 hover:underline">
+                  Privacy Policy
+                </Link>
+                .
+              </span>
+            </label>
+          )}
         </div>
 
         {error && (
@@ -184,7 +216,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
         <Button
           type="submit"
-          disabled={loading}
+          disabled={loading || (isSignup && !acceptedTerms)}
           className="mt-6 w-full bg-amber-600 py-2.5 text-sm font-medium text-white hover:bg-amber-700"
         >
           {loading
