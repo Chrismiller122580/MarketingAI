@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { useSite } from "@/context/site-context";
 import { InlineLoading } from "./loading-indicator";
@@ -38,8 +39,23 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
     deleteSavedSite,
     savedSites,
   } = useSite();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const isLoading = status === "loading";
+
+  function selectSavedSite(domain: string) {
+    void loadSavedSite(domain);
+    if (pathname !== "/content" || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("domain") && !params.has("influencer") && !params.has("page")) {
+      return;
+    }
+    params.set("domain", domain);
+    params.delete("page");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   if (compact) {
     return (
@@ -219,7 +235,7 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
                   <div className="flex items-start justify-between gap-2">
                     <button
                       type="button"
-                      onClick={() => !isActive && loadSavedSite(s.domain)}
+                      onClick={() => !isActive && selectSavedSite(s.domain)}
                       disabled={isActive || isLoading}
                       className={`min-w-0 flex-1 text-left ${isActive ? "cursor-default" : "cursor-pointer"}`}
                     >
@@ -262,7 +278,7 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
                   {!isActive && (
                     <button
                       type="button"
-                      onClick={() => loadSavedSite(s.domain)}
+                      onClick={() => selectSavedSite(s.domain)}
                       disabled={isLoading}
                       className="mt-3 text-xs font-medium text-amber-600 hover:text-amber-700 disabled:opacity-50 dark:text-amber-500"
                     >
@@ -287,7 +303,7 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
               return (
                 <button
                   key={s.domain}
-                  onClick={() => loadSavedSite(s.domain)}
+                  onClick={() => selectSavedSite(s.domain)}
                   disabled={isCurrent}
                   className={`text-xs px-3 py-1 rounded-full border transition ${
                     isCurrent
