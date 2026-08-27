@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { publishPost } from "@/lib/social/publishers";
 import type { SavedPost } from "@/lib/types";
 
 export async function POST(request: Request) {
+  const authResult = await requireAuthUserId();
+  if (isAuthError(authResult)) return authResult;
+
   try {
     const body = await request.json();
     const post = body.post as SavedPost;

@@ -7,6 +7,7 @@ import { StatsCards } from "@/components/stats-cards";
 import { ContentCalendar } from "@/components/content-calendar";
 import { InfluencersPanel } from "@/components/influencers-panel";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
+import { FirstRunChecklist } from "@/components/first-run-checklist";
 
 export default function DashboardPage() {
   return (
@@ -15,6 +16,7 @@ export default function DashboardPage() {
         <Suspense>
           <EmailVerificationBanner />
         </Suspense>
+        <FirstRunChecklist />
         <DomainInput variant="dashboard" />
         <InfluencersPanel />
         <QuickActions />
