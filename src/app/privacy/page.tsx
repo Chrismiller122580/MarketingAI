@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PublicNav } from "@/components/public-nav";
 
 export default function PrivacyPolicy() {
-  const lastUpdated = "June 15, 2026";
+  const lastUpdated = "September 1, 2026";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -39,7 +39,7 @@ export default function PrivacyPolicy() {
               <strong>Usage and Analytics:</strong> Information about how you interact with the Service (pages visited, features used, crawl and generation activity).
             </li>
             <li>
-              <strong>Payment Information:</strong> For crypto payments, we record transaction hashes, amounts, references, plan selections, and associated wallet references you submit. We do not store private keys or full wallet access.
+              <strong>Payment Information:</strong> For Stripe, we store customer and subscription IDs (card data is handled by Stripe, not us). For crypto, we record transaction hashes, amounts, references, and wallet addresses you submit. We do not store private keys.
             </li>
             <li>
               <strong>Technical Data:</strong> IP address, browser type, device information, and cookies for authentication and basic functionality.
@@ -61,7 +61,7 @@ export default function PrivacyPolicy() {
           <p>We do not sell your personal information. We may share data in these limited cases:</p>
           <ul>
             <li>
-              <strong>Service Providers:</strong> With hosting (Vercel), database (Neon), and AI providers (xAI, OpenAI) as necessary to deliver the Service. When we send data to AI providers, it is used only for processing your specific request.
+              <strong>Service Providers:</strong> Hosting (Vercel), database (Neon), file storage (Vercel Blob), email (Resend), payments (Stripe), and AI/media vendors (xAI, OpenAI, Replicate, ElevenLabs) as needed to deliver the Service. If you connect social accounts, we send posts through those platforms (Meta, X, LinkedIn, Pinterest) using tokens you authorize. When we send data to AI providers, it is used only to process your request.
             </li>
             <li>
               <strong>Legal Requirements:</strong> If required by law, court order, or to protect our rights and users.
@@ -126,10 +126,10 @@ export default function PrivacyPolicy() {
           </p>
 
           <h2>7. Cookies and Tracking</h2>
-          <p>We use essential cookies for authentication and session management. We may use basic analytics cookies to understand usage. You can control cookies through your browser settings. Our Service does not use third-party advertising cookies.</p>
+          <p>We use essential cookies for authentication and session management. We do not use third-party advertising cookies. If we add product analytics later, we will update this policy.</p>
 
           <h2>8. Children&apos;s Privacy</h2>
-          <p>Our Service is not directed to children under 13 (or the applicable age in your jurisdiction). We do not knowingly collect personal information from children. If you believe we have collected such data, please contact us immediately.</p>
+          <p>You must be 18 or older to use the Service. We do not knowingly collect personal information from anyone under 18. If you believe we have collected such data, contact us and we will delete it.</p>
 
           <h2>9. International Data Transfers</h2>
           <p>Your information may be transferred to and processed in the United States and other countries where our service providers operate. We take steps to ensure adequate protection for your data in accordance with this policy and applicable law.</p>

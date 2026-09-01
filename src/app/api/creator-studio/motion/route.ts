@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveDisplayMediaUrl } from "@/lib/display-media-url";
-import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isAuthError, requirePaidUserId } from "@/lib/auth-helpers";
 import {
   createInfluencerMotionJob,
 } from "@/lib/influencer-motion-jobs";
@@ -81,7 +81,7 @@ async function loadApprovedTalkAudio(
 }
 
 export async function POST(request: Request) {
-  const authResult = await requireAuthUserId();
+  const authResult = await requirePaidUserId();
   if (isAuthError(authResult)) return authResult;
 
   const rl = checkRateLimit(authResult, "motion");

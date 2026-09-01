@@ -4,7 +4,7 @@ import {
   generateImageFromPrompt,
   getImageProviderAvailability,
 } from "@/lib/ai-image";
-import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isAuthError, requirePaidUserId } from "@/lib/auth-helpers";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord, productFactsSchema } from "@/lib/schemas/product-facts-schema";
 import {
@@ -20,7 +20,7 @@ import {
 import { savePortraitRender } from "@/lib/viraforge/influencer-renders";
 
 export async function POST(request: Request) {
-  const authResult = await requireAuthUserId();
+  const authResult = await requirePaidUserId();
   if (isAuthError(authResult)) return authResult;
 
   try {

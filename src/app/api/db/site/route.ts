@@ -4,6 +4,7 @@ import { siteToData } from "@/lib/db-mappers";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { normalizeDomain } from "@/lib/crawl";
 import { clearActiveSiteIfMatches } from "@/lib/active-site";
+import { assertFreeCrawlAllowed } from "@/lib/quota";
 import type { SiteData } from "@/lib/types";
 
 export async function GET(request: Request) {
@@ -88,6 +89,9 @@ export async function PUT(request: Request) {
     if (!siteData?.domain || !siteData.pages) {
       return NextResponse.json({ error: "Invalid site data" }, { status: 400 });
     }
+
+    const quotaErr = await assertFreeCrawlAllowed(userId, siteData.domain);
+    if (quotaErr) return quotaErr;
 
     const site = await prisma.site.upsert({
       where: {

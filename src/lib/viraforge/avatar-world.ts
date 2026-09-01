@@ -120,7 +120,7 @@ export const defaultWorldProfile: AvatarWorldProfile = {
   mood: "inspired",
   moodNote: "",
   catchphrase: "",
-  isPublic: true,
+  isPublic: false,
   relationships: [],
   learnedNotes: [],
 };
@@ -150,7 +150,7 @@ export function parseWorldProfile(input: unknown): AvatarWorldProfile {
     mood: typeof raw.mood === "string" && raw.mood.trim() ? raw.mood : "inspired",
     moodNote: typeof raw.moodNote === "string" ? raw.moodNote : "",
     catchphrase: typeof raw.catchphrase === "string" ? raw.catchphrase : "",
-    isPublic: raw.isPublic !== false,
+    isPublic: raw.isPublic === true,
     relationships: Array.isArray(raw.relationships)
       ? raw.relationships
           .filter(
@@ -831,7 +831,7 @@ export async function loadPublicWorldProfile(
     where: { id: influencerId },
     include: {
       posts: {
-        where: { publishStatus: { in: ["draft", "published", "scheduled"] } },
+        where: { publishStatus: "published" },
         orderBy: { createdAt: "desc" },
         take: 12,
       },

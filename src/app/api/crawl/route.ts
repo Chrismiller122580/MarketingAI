@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { crawlDomain, normalizeDomain } from "@/lib/crawl";
-import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
+import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { assertFreeCrawlAllowed } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const userId = await requirePaidUserId();
+  const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;
 
-  const rl = checkRateLimit(userId as string, "crawl");
+  const rl = checkRateLimit(userId, "crawl");
   if (!rl.allowed) {
     return NextResponse.json(
       { error: `Crawl rate limit exceeded. Please retry in ~${rl.retryAfterSeconds}s.`, retryAfter: rl.retryAfterSeconds },
@@ -24,6 +25,10 @@ export async function POST(request: Request) {
     }
 
     normalizeDomain(domain);
+
+    const quotaErr = await assertFreeCrawlAllowed(userId, domain);
+    if (quotaErr) return quotaErr;
+
     const siteData = await crawlDomain(domain);
     return NextResponse.json(siteData);
   } catch (error) {

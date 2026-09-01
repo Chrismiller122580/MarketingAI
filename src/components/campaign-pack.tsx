@@ -47,6 +47,12 @@ export function CampaignPack() {
       return false;
     }
   }, [userPlan, endsAtRaw, now]);
+  const [usage, setUsage] = useState<{
+    paid: boolean;
+    generationsUsed: number;
+    generationsLimit: number | null;
+    period: string;
+  } | null>(null);
 
   const [prompt, setPrompt] = useState("");
   const [maxPosts, setMaxPosts] = useState(9);
@@ -76,6 +82,15 @@ export function CampaignPack() {
       setPreferAiImage(settings.preferAiImages);
     });
   }, [settings.preferAiImages]);
+
+  useEffect(() => {
+    fetch("/api/account/usage")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.usage) setUsage(data.usage);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!site) return;
@@ -137,8 +152,15 @@ export function CampaignPack() {
 
       const batchData = await batchRes.json();
       if (!batchRes.ok) {
-        if (batchRes.status === 402 || batchData?.code === "SUBSCRIPTION_REQUIRED") {
-          throw new Error(batchData.error || "Paid subscription required. Upgrade at /billing.");
+        if (
+          batchRes.status === 402 ||
+          batchData?.code === "QUOTA_EXCEEDED" ||
+          batchData?.code === "SUBSCRIPTION_REQUIRED"
+        ) {
+          throw new Error(
+            batchData.error ||
+              "You've used this month's free posts. Upgrade at Billing for unlimited campaign packs.",
+          );
         }
         throw new Error(batchData.error ?? "Failed to generate campaign pack");
       }
@@ -151,6 +173,12 @@ export function CampaignPack() {
       setPlanInfo(batchData.plan ?? null);
       setPosts(generated);
       setLoadingProgress(generated.length);
+      fetch("/api/account/usage")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((next) => {
+          if (next?.usage) setUsage(next.usage);
+        })
+        .catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Campaign generation failed");
     } finally {
@@ -307,8 +335,13 @@ export function CampaignPack() {
 
             {!isPaid && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                Campaign packs require an active Pro or Enterprise plan.{" "}
-                <a href="/billing" className="font-semibold underline">Upgrade now</a>
+                Free: {usage?.generationsUsed ?? 0}/{usage?.generationsLimit ?? 15}{" "}
+                posts this month
+                {usage?.period ? ` (${usage.period} UTC)` : ""}. Packs use remaining
+                free posts.{" "}
+                <a href="/billing" className="font-semibold underline">
+                  Upgrade for unlimited
+                </a>
               </div>
             )}
 
@@ -317,7 +350,7 @@ export function CampaignPack() {
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={loading || saving || !isPaid}
+              disabled={loading || saving}
               className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
             >
               {loading

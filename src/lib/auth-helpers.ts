@@ -87,7 +87,7 @@ export async function requirePaidUserId(): Promise<string | NextResponse> {
     return NextResponse.json(
       {
         error:
-          "Active Pro or Enterprise subscription required to crawl sites and generate content.",
+          "Active Pro or Enterprise subscription required for this feature (AI video, motion, and voice).",
         upgradeUrl: "/billing",
         code: "SUBSCRIPTION_REQUIRED",
       },

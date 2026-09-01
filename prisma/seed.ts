@@ -35,31 +35,39 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const admin = await prisma.user.upsert({
+  const existing = await prisma.user.findUnique({
     where: { email },
-    create: {
-      name,
-      email,
-      role: "admin",
-      plan: "enterprise",
-      subscriptionStatus: "active",
-      passwordHash,
-      settings: { create: DEFAULT_SETTINGS },
-    },
-    update: {
-      name,
-      role: "admin",
-      plan: "enterprise",
-      subscriptionStatus: "active",
-      passwordHash,
-    },
+    select: { id: true },
   });
+
+  const admin = existing
+    ? await prisma.user.update({
+        where: { email },
+        data: {
+          name,
+          role: "admin",
+          plan: "enterprise",
+          subscriptionStatus: "active",
+          ...(process.env.ADMIN_RESET_PASSWORD === "1" ? { passwordHash } : {}),
+        },
+      })
+    : await prisma.user.create({
+        data: {
+          name,
+          email,
+          role: "admin",
+          plan: "enterprise",
+          subscriptionStatus: "active",
+          passwordHash,
+          settings: { create: DEFAULT_SETTINGS },
+        },
+      });
 
   console.log("Admin user ready:");
   console.log(`  Email:    ${email}`);
   console.log(`  Role:     ${admin.role}`);
   console.log(`  ID:       ${admin.id}`);
-  console.log("  (Password was set/updated from ADMIN_PASSWORD or default; never logged here for security.)");
+  console.log("  (Password is only set on first create, or when ADMIN_RESET_PASSWORD=1.)");
 }
 
 main()

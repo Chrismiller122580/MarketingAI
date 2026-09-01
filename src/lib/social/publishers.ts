@@ -1,4 +1,4 @@
-import { getTwitterToken, isTwitterBearerOnly } from "../integrations";
+import { hasTwitterOAuthCredentials } from "../integrations";
 import { resolvePublicMediaUrl } from "../blob-storage";
 import { getAppOrigin } from "../app-url";
 import { sendViaResend, textToHtml } from "../email";
@@ -10,9 +10,10 @@ import type { Platform, PublishResult, SavedPost } from "../types";
 type PublishContext = {
   post: SavedPost;
   imageBase64?: string;
-  // Per-site / per-client social tokens (preferred)
+  // Per-site / per-client social tokens only (no shared env tokens)
   twitterAccessToken?: string;
   linkedinAccessToken?: string;
+  linkedinAuthorUrn?: string;
   facebookAccessToken?: string;
   facebookPageId?: string;
   instagramAccessToken?: string;
@@ -45,22 +46,23 @@ function parseEmailContent(text: string, fallbackSubject: string) {
   return { subject, body };
 }
 
+function toLinkedInAuthorUrn(raw?: string): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  if (value.startsWith("urn:")) return value;
+  return `urn:li:person:${value}`;
+}
+
 async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
-  // Prefer per-site token (connected per domain/client via OAuth) over global env
-  const perSiteToken = ctx.twitterAccessToken;
-  const globalToken = getTwitterToken();
-  const token = perSiteToken || globalToken;
+  const token = ctx.twitterAccessToken;
 
-  const bearerOnlyGlobal = isTwitterBearerOnly() && !perSiteToken;
-
-  if (!token || bearerOnlyGlobal) {
+  if (!token) {
     return {
       success: true,
       platform: "twitter",
       method: "share_link",
-      message: bearerOnlyGlobal
-        ? "Global X/Twitter uses app-only Bearer Token (cannot post on behalf of accounts). Use per-site 'Connect with X' or set TWITTER_ACCESS_TOKEN (user token with tweet.write)."
-        : "Twitter API not configured — use share link to post manually.",
+      message:
+        "X is not connected for this site — use the share link, or Connect with X in Settings.",
       url: shareLinks(ctx.post),
     };
   }
@@ -108,15 +110,16 @@ async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
 }
 
 async function publishLinkedIn(ctx: PublishContext): Promise<PublishResult> {
-  const token = ctx.linkedinAccessToken || process.env.LINKEDIN_ACCESS_TOKEN;
-  const authorUrn = process.env.LINKEDIN_AUTHOR_URN;
+  const token = ctx.linkedinAccessToken;
+  const authorUrn = toLinkedInAuthorUrn(ctx.linkedinAuthorUrn);
 
   if (!token || !authorUrn) {
     return {
       success: true,
       platform: "linkedin",
       method: "share_link",
-      message: "LinkedIn API not configured — use share link to post manually.",
+      message:
+        "LinkedIn is not connected for this site — use the share link, or Connect with LinkedIn in Settings.",
       url: shareLinks(ctx.post),
     };
   }
@@ -176,15 +179,16 @@ async function publishLinkedIn(ctx: PublishContext): Promise<PublishResult> {
 }
 
 async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
-  const token = ctx.facebookAccessToken || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-  const pageId = ctx.facebookPageId || process.env.FACEBOOK_PAGE_ID;
+  const token = ctx.facebookAccessToken;
+  const pageId = ctx.facebookPageId;
 
   if (!token || !pageId) {
     return {
       success: true,
       platform: "facebook",
       method: "share_link",
-      message: "Facebook API not configured — use share link to post manually.",
+      message:
+        "Facebook is not connected for this site — use the share link, or Connect with Facebook in Settings.",
       url: shareLinks(ctx.post),
     };
   }
@@ -246,10 +250,8 @@ async function publishFacebook(ctx: PublishContext): Promise<PublishResult> {
 }
 
 async function publishInstagram(ctx: PublishContext): Promise<PublishResult> {
-  const token =
-    ctx.instagramAccessToken || process.env.INSTAGRAM_ACCESS_TOKEN;
-  const accountId =
-    ctx.instagramAccountId || process.env.INSTAGRAM_ACCOUNT_ID;
+  const token = ctx.instagramAccessToken;
+  const accountId = ctx.instagramAccountId;
 
   if (!token || !accountId) {
     return {
@@ -257,7 +259,7 @@ async function publishInstagram(ctx: PublishContext): Promise<PublishResult> {
       platform: "instagram",
       method: "share_link",
       message:
-        "Instagram API not configured — connect Instagram on your site or set INSTAGRAM_ACCESS_TOKEN + INSTAGRAM_ACCOUNT_ID.",
+        "Instagram is not connected for this site — connect Instagram in Settings, or open the share link.",
       url: shareLinks(ctx.post),
     };
   }
@@ -322,10 +324,7 @@ async function publishEmail(ctx: PublishContext): Promise<PublishResult> {
     ctx.post.text,
     `${ctx.post.cta} — update`,
   );
-  const to =
-    ctx.emailRecipient?.trim() ||
-    process.env.EMAIL_DEFAULT_TO?.trim() ||
-    "";
+  const to = ctx.emailRecipient?.trim() || "";
   if (!to) {
     const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     return {
@@ -333,7 +332,7 @@ async function publishEmail(ctx: PublishContext): Promise<PublishResult> {
       platform: "email",
       method: "share_link",
       message:
-        "No recipient set — use Set email recipient on your site, or set EMAIL_DEFAULT_TO.",
+        "No recipient set for this site — use Set email recipient in Settings.",
       url: mailto,
     };
   }
@@ -383,16 +382,16 @@ async function publishEmail(ctx: PublishContext): Promise<PublishResult> {
 }
 
 async function publishPinterest(ctx: PublishContext): Promise<PublishResult> {
-  const token =
-    ctx.pinterestAccessToken || process.env.PINTEREST_ACCESS_TOKEN;
-  const boardId = ctx.pinterestBoardId || process.env.PINTEREST_BOARD_ID;
+  const token = ctx.pinterestAccessToken;
+  const boardId = ctx.pinterestBoardId;
 
   if (!token || !boardId) {
     return {
       success: true,
       platform: "pinterest",
       method: "share_link",
-      message: "Pinterest API not configured — use share link to pin manually.",
+      message:
+        "Pinterest is not connected for this site — use the share link, or Connect Pinterest in Settings.",
       url: shareLinks(ctx.post),
     };
   }
@@ -464,25 +463,17 @@ export async function publishPost(
 }
 
 export function getConnectionStatus(): import("../types").SocialConnectionStatus[] {
-  const hasUserToken = !!process.env.TWITTER_ACCESS_TOKEN;
-  const hasBearer = !!process.env.TWITTER_BEARER_TOKEN;
-  const hasAnyTwitter = hasUserToken || hasBearer;
-
   return [
     {
       platform: "twitter",
-      connected: hasAnyTwitter,
-      method: hasAnyTwitter ? "api" : "manual",
-      label: hasUserToken
-        ? "X / Twitter"
-        : hasBearer
-          ? "X / Twitter (app-only bearer — limited)"
-          : "X / Twitter",
+      connected: hasTwitterOAuthCredentials(),
+      method: hasTwitterOAuthCredentials() ? "api" : "manual",
+      label: "X / Twitter",
     },
     {
       platform: "linkedin",
       connected: !!(
-        process.env.LINKEDIN_ACCESS_TOKEN && process.env.LINKEDIN_AUTHOR_URN
+        process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET
       ),
       method: "api",
       label: "LinkedIn",
@@ -490,7 +481,7 @@ export function getConnectionStatus(): import("../types").SocialConnectionStatus
     {
       platform: "facebook",
       connected: !!(
-        process.env.FACEBOOK_PAGE_ACCESS_TOKEN && process.env.FACEBOOK_PAGE_ID
+        process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET
       ),
       method: "api",
       label: "Facebook",
@@ -498,10 +489,7 @@ export function getConnectionStatus(): import("../types").SocialConnectionStatus
     {
       platform: "instagram",
       connected: !!(
-        (process.env.INSTAGRAM_ACCESS_TOKEN &&
-          process.env.INSTAGRAM_ACCOUNT_ID) ||
-        (process.env.INSTAGRAM_CLIENT_ID &&
-          process.env.INSTAGRAM_CLIENT_SECRET)
+        process.env.INSTAGRAM_CLIENT_ID && process.env.INSTAGRAM_CLIENT_SECRET
       ),
       method: "api",
       label: "Instagram",
@@ -509,18 +497,14 @@ export function getConnectionStatus(): import("../types").SocialConnectionStatus
     {
       platform: "pinterest",
       connected: !!(
-        (process.env.PINTEREST_ACCESS_TOKEN &&
-          process.env.PINTEREST_BOARD_ID) ||
-        (process.env.PINTEREST_CLIENT_ID && process.env.PINTEREST_CLIENT_SECRET)
+        process.env.PINTEREST_CLIENT_ID && process.env.PINTEREST_CLIENT_SECRET
       ),
       method: "api",
       label: "Pinterest",
     },
     {
       platform: "email",
-      connected: !!(
-        process.env.RESEND_API_KEY && process.env.EMAIL_FROM
-      ),
+      connected: !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
       method: "api",
       label: "Email (Resend)",
     },

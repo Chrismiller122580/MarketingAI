@@ -89,6 +89,46 @@ export async function POST(request: Request) {
       }
     }
 
+    if (platform === "linkedin" && accessToken) {
+      try {
+        const meRes = await fetch("https://api.linkedin.com/v2/userinfo", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (meRes.ok) {
+          const me = (await meRes.json()) as { sub?: string };
+          if (me.sub) {
+            accountId = me.sub.startsWith("urn:")
+              ? me.sub
+              : `urn:li:person:${me.sub}`;
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+      if (!accountId) {
+        try {
+          const meRes = await fetch("https://api.linkedin.com/v2/me", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (meRes.ok) {
+            const me = (await meRes.json()) as { id?: string };
+            if (me.id) accountId = `urn:li:person:${me.id}`;
+          }
+        } catch {
+          /* optional */
+        }
+      }
+      if (!accountId) {
+        const linkedAccount = await prisma.account.findFirst({
+          where: { userId, provider: "linkedin" },
+          select: { providerAccountId: true },
+        });
+        if (linkedAccount?.providerAccountId) {
+          accountId = `urn:li:person:${linkedAccount.providerAccountId}`;
+        }
+      }
+    }
+
     let providerUserId: string | undefined;
 
     if (platform === "facebook") {
@@ -194,7 +234,14 @@ export async function POST(request: Request) {
     // Clear pending
     // In real, we would clear from localStorage on client after this call
 
-    return NextResponse.json({ success: true, connection });
+    return NextResponse.json({
+      success: true,
+      connection: {
+        platform: connection.platform,
+        accountId: connection.accountId,
+        connected: true,
+      },
+    });
   } catch (error) {
     console.error("Social link error", error);
     const message = error instanceof Error ? error.message : "Failed to link social account";

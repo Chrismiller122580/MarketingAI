@@ -4,7 +4,7 @@ import {
   synthesizeSpeechWithMeta,
   uploadVoiceover,
 } from "@/lib/ai-voice";
-import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isAuthError, requirePaidUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hasElevenLabs } from "@/lib/viraforge/elevenlabs";
@@ -26,7 +26,7 @@ const voiceSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const authResult = await requireAuthUserId();
+  const authResult = await requirePaidUserId();
   if (isAuthError(authResult)) return authResult;
 
   if (!hasElevenLabs()) {

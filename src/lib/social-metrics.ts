@@ -189,26 +189,22 @@ export async function fetchPostMetrics(
 ): Promise<PostPerformance | null> {
   switch (platform) {
     case "twitter": {
-      const token =
-        ctx.twitterAccessToken || process.env.TWITTER_ACCESS_TOKEN;
+      const token = ctx.twitterAccessToken;
       if (!token) return null;
       return fetchTwitterMetrics(externalPostId, token);
     }
     case "facebook": {
-      const token =
-        ctx.facebookAccessToken || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+      const token = ctx.facebookAccessToken;
       if (!token) return null;
       return fetchFacebookMetrics(externalPostId, token);
     }
     case "instagram": {
-      const token =
-        ctx.instagramAccessToken || process.env.INSTAGRAM_ACCESS_TOKEN;
+      const token = ctx.instagramAccessToken;
       if (!token) return null;
       return fetchInstagramMetrics(externalPostId, token);
     }
     case "pinterest": {
-      const token =
-        ctx.pinterestAccessToken || process.env.PINTEREST_ACCESS_TOKEN;
+      const token = ctx.pinterestAccessToken;
       if (!token) return null;
       return fetchPinterestMetrics(externalPostId, token);
     }

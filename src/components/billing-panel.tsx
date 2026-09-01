@@ -62,6 +62,14 @@ export function BillingPanel() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [stripeConfigured, setStripeConfigured] = useState(false);
   const [hasStripeSub, setHasStripeSub] = useState(false);
+  const [usage, setUsage] = useState<{
+    paid: boolean;
+    sitesUsed: number;
+    sitesLimit: number | null;
+    generationsUsed: number;
+    generationsLimit: number | null;
+    period: string;
+  } | null>(null);
 
   const isPaid = currentPlan !== "free";
   const receiver = getReceiverAddress();
@@ -81,6 +89,15 @@ export function BillingPanel() {
       .then((data) => {
         setStripeConfigured(!!data.stripeConfigured);
         setHasStripeSub(!!data.stripeSubscriptionId);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/account/usage")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.usage) setUsage(data.usage);
       })
       .catch(() => {});
   }, []);
@@ -311,7 +328,11 @@ export function BillingPanel() {
             )}
             {!isPaid && (
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Upgrade to unlock crawl, generation, and publishing.
+                Free includes {usage?.sitesLimit ?? 1} website (you have{" "}
+                {usage?.sitesUsed ?? 0}) and {usage?.generationsLimit ?? 15} posts
+                per month. You've used {usage?.generationsUsed ?? 0}
+                {usage?.period ? ` in ${usage.period}` : ""}. Upgrade for unlimited
+                sites, generations, calendar auto-publish, and AI video.
               </p>
             )}
           </div>

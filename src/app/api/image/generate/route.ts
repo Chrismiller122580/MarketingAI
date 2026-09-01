@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { generateAiImage } from "@/lib/ai-image";
-import { isAuthError, requirePaidUserId } from "@/lib/auth-helpers";
+import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { assertFreeGenerationsAllowed, consumeGenerations } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { Platform, SiteData, SitePage } from "@/lib/types";
 
 export async function POST(request: Request) {
-  const userId = await requirePaidUserId();
+  const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;
 
-  const rl = checkRateLimit(userId as string, "generate");
+  const rl = checkRateLimit(userId, "generate");
   if (!rl.allowed) {
     return NextResponse.json(
       {
@@ -18,6 +19,9 @@ export async function POST(request: Request) {
       { status: 429 },
     );
   }
+
+  const quotaErr = await assertFreeGenerationsAllowed(userId, 1);
+  if (quotaErr) return quotaErr;
 
   try {
     const body = await request.json();
@@ -43,6 +47,8 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
+
+    await consumeGenerations(userId, 1);
 
     if (result.url.startsWith("data:")) {
       return NextResponse.json({

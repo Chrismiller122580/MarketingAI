@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PublicNav } from "@/components/public-nav";
 
 export default function TermsOfService() {
-  const lastUpdated = "June 11, 2026";
+  const lastUpdated = "September 1, 2026";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -81,13 +81,13 @@ export default function TermsOfService() {
 
           <h2>7. Payments and Subscriptions</h2>
           <p>
-            Certain features require a paid subscription (Pro or Enterprise). Subscriptions are billed in USDC cryptocurrency on the Base network (or other supported networks) on a monthly basis. By selecting a paid plan, you agree to the pricing displayed at the time of purchase.
+            A Free account includes one crawled website and 15 generated posts per calendar month (UTC), plus share-link publishing. Paid plans (Pro, Enterprise, and Enterprise Plus) unlock unlimited crawls and generations, calendar auto-publish, AI video, and (on Enterprise Plus) Creator Studio avatars. Current prices are shown on the homepage and Billing page.
           </p>
           <p>
-            You are responsible for all transactions from your cryptocurrency wallet. We record transaction references and hashes for verification purposes. Payments are generally non-refundable except as required by law or at our sole discretion.
+            Card subscriptions are billed monthly through Stripe. You can cancel in Billing → Manage Stripe subscription; access continues through the paid period unless Stripe reports the subscription as fully canceled. Crypto (XRP on the XRP Ledger, or USDC where offered) is prepaid monthly and is generally non-refundable except as required by law. You are responsible for on-chain transactions from your wallet.
           </p>
           <p>
-            We may change pricing with reasonable notice. Your continued use after a price change constitutes acceptance.
+            Deleting your account cancels an active Stripe subscription. We may change pricing with reasonable notice.
           </p>
 
           <h2>8. AI-Generated Content Disclaimer</h2>
@@ -126,7 +126,7 @@ export default function TermsOfService() {
 
           <h2>13. Governing Law and Dispute Resolution</h2>
           <p>
-            These Terms shall be governed by and construed in accordance with the laws of the State of [Your State], United States, without regard to its conflict of laws principles. Any dispute arising out of or relating to these Terms or the Service shall be resolved exclusively in the state or federal courts located in [Your County/City], and you consent to personal jurisdiction there.
+            These Terms shall be governed by and construed in accordance with the laws of the State of Georgia, United States, without regard to its conflict of laws principles. Any dispute arising out of or relating to these Terms or the Service shall be resolved exclusively in the state or federal courts located in Fulton County, Georgia, and you consent to personal jurisdiction there.
           </p>
 
           <h2>14. Miscellaneous</h2>

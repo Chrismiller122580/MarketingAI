@@ -47,14 +47,14 @@ export function FirstRunChecklist() {
       {
         id: "crawl",
         label: "Add and crawl your website",
-        hint: "Brand voice and images come from your live pages.",
+        hint: "Free includes one site. Brand voice and images come from your live pages.",
         href: "/dashboard",
         done: hasSite,
       },
       {
         id: "post",
         label: "Generate and save your first post",
-        hint: "Content Studio writes from the crawled site — not a blank prompt.",
+        hint: "Free includes 15 posts this month from your crawled pages.",
         href: "/content",
         done: hasPost,
       },

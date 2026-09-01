@@ -96,8 +96,9 @@ export function LandingPage() {
                 </span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
-                Crawl your domain, generate on-brand posts with images, build
-                campaign packs, and schedule publishing — all from one workspace.
+                Crawl your domain, generate on-brand posts with images, and
+                publish when you're ready. Free includes one site and 15
+                posts a month — no card required.
               </p>
               <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link
@@ -125,7 +126,7 @@ export function LandingPage() {
                       <span className="h-3 w-3 rounded-full bg-emerald-400" />
                     </div>
                     <div className="mx-auto rounded-md bg-slate-100 dark:bg-slate-800 px-4 py-1 text-xs text-slate-500 dark:text-slate-400">
-                      app.crawlspark.ai/dashboard
+                      www.crawlspark.ai/dashboard
                     </div>
                   </div>
                   <div className="grid gap-4 p-6 md:grid-cols-3">
@@ -286,20 +287,67 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Pricing teaser for market readiness */}
+        {/* Pricing */}
         <section id="pricing" className="border-t border-slate-200 dark:border-slate-800 px-6 py-24 bg-slate-50 dark:bg-slate-950/50">
-          <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-6xl">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Simple, flexible pricing</h2>
-              <p className="mt-3 text-slate-600 dark:text-slate-400">Subscribe with card via Stripe or pay with XRP — your choice.</p>
+              <p className="mt-3 text-slate-600 dark:text-slate-400">Start free. Upgrade with card (Stripe) or XRP when you need more.</p>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
               {[
-                { name: "Free", price: "0", features: ["Basic generations", "1 site crawl", "Community support", "Manual publishing"], cta: "Get started", href: "/signup" },
-                { name: "Pro", price: "29", features: ["Unlimited generations", "Unlimited sites", "Priority AI", "Content calendar & auto-publish", "Stripe or XRP billing"], cta: "Upgrade to Pro", href: "/signup", popular: true },
-                { name: "Enterprise", price: "99", features: ["Everything in Pro", "Priority support", "Custom onboarding", "Volume pricing", "Dedicated account manager"], cta: "Contact sales", href: "/signup" },
+                {
+                  name: "Free",
+                  price: "0",
+                  features: [
+                    "1 website (recrawl anytime)",
+                    "15 posts per month",
+                    "Post library + share-link publish",
+                    "Crawled images on posts",
+                  ],
+                  cta: "Start free",
+                  href: "/signup",
+                },
+                {
+                  name: "Pro",
+                  price: "29",
+                  features: [
+                    "Unlimited sites & generations",
+                    "Content calendar & auto-publish",
+                    "AI images and video ads",
+                    "Connect social accounts",
+                    "Stripe or XRP billing",
+                  ],
+                  cta: "Upgrade to Pro",
+                  href: "/signup",
+                  popular: true,
+                },
+                {
+                  name: "Enterprise",
+                  price: "99",
+                  features: [
+                    "Everything in Pro",
+                    "Priority support",
+                    "Custom onboarding",
+                    "Volume pricing",
+                  ],
+                  cta: "Choose Enterprise",
+                  href: "/signup",
+                },
+                {
+                  name: "Enterprise Plus",
+                  price: "149",
+                  features: [
+                    "Everything in Enterprise",
+                    "ViraForge influencer avatars",
+                    "Talk / motion clips",
+                    "Fact-locked site content",
+                  ],
+                  cta: "Choose Plus",
+                  href: "/signup",
+                },
               ].map((tier) => (
-                <div key={tier.name} className={`card p-6 flex flex-col ${tier.popular ? 'ring-2 ring-amber-500' : ''}`}>
+                <div key={tier.name} className={`card p-6 flex flex-col ${tier.popular ? "ring-2 ring-amber-500" : ""}`}>
                   {tier.popular && <div className="text-[10px] uppercase tracking-widest text-amber-600 font-semibold mb-1">Most popular</div>}
                   <div className="text-xl font-semibold">{tier.name}</div>
                   <div className="mt-4 flex items-baseline">
@@ -307,7 +355,12 @@ export function LandingPage() {
                     <span className="text-sm text-slate-500 ml-1">/mo</span>
                   </div>
                   <ul className="mt-6 space-y-2 text-sm flex-1">
-                    {tier.features.map(f => <li key={f} className="flex items-center gap-2">✓ {f}</li>)}
+                    {tier.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2">
+                        <span aria-hidden>✓</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
                   </ul>
                   <Link href={tier.href} className={tier.popular ? "btn-primary mt-6 text-center" : "btn-secondary mt-6 text-center"}>
                     {tier.cta}
@@ -315,7 +368,9 @@ export function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="text-center text-xs mt-6 text-slate-500">Card or XRP billing. Plans managed in your Billing page after signup.</p>
+            <p className="text-center text-xs mt-6 text-slate-500">
+              You must be 18 or older. Cancel Stripe anytime in Billing. Crypto is prepaid monthly.
+            </p>
           </div>
         </section>
 
@@ -325,8 +380,8 @@ export function LandingPage() {
               Ready to market smarter?
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-spark-100">
-              Create your free account, crawl your site, and generate your first
-              campaign pack today.
+              Create a free account, crawl one site, and generate your first 15
+              posts this month — then upgrade when you're ready.
             </p>
             <Link
               href="/signup"
@@ -359,6 +414,9 @@ export function LandingPage() {
             <Link href="/terms" className="hover:text-slate-900 dark:text-slate-100">
               Terms
             </Link>
+            <a href="mailto:support@crawlspark.ai" className="hover:text-slate-900 dark:text-slate-100">
+              Support
+            </a>
             <Link href="/login" className="hover:text-slate-900 dark:text-slate-100">
               Sign in
             </Link>

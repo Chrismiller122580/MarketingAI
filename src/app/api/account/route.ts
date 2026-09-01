@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireAuthUserId, isAuthError } from "@/lib/auth-helpers";
+import { getStripe, isStripeConfigured } from "@/lib/stripe";
 
 export async function GET() {
   const userId = await requireAuthUserId();
@@ -76,7 +77,12 @@ export async function DELETE(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, passwordHash: true, role: true },
+      select: {
+        id: true,
+        passwordHash: true,
+        role: true,
+        stripeSubscriptionId: true,
+      },
     });
 
     if (!user?.passwordHash) {
@@ -95,6 +101,14 @@ export async function DELETE(request: Request) {
           { error: "Cannot delete the last admin account" },
           { status: 400 },
         );
+      }
+    }
+
+    if (user.stripeSubscriptionId && isStripeConfigured()) {
+      try {
+        await getStripe().subscriptions.cancel(user.stripeSubscriptionId);
+      } catch (error) {
+        console.error("[account] Stripe cancel on delete failed:", error);
       }
     }
 

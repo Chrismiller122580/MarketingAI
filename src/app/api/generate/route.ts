@@ -13,11 +13,12 @@ import {
   getUserPlanInfo,
   isActivePaidPlan,
   isAuthError,
-  requirePaidUserId,
+  requireAuthUserId,
 } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { getPromptPreferences } from "@/lib/learning-preferences";
 import { isEnterprisePlusPlan } from "@/lib/plans";
+import { assertFreeGenerationsAllowed, consumeGenerations } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hasVoiceProvider } from "@/lib/ai-voice";
 import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
@@ -29,16 +30,19 @@ import {
 } from "@/lib/viraforge/content-studio-motion";
 
 export async function POST(request: Request) {
-  const userId = await requirePaidUserId();
+  const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;
 
-  const rl = checkRateLimit(userId as string, "generate");
+  const rl = checkRateLimit(userId, "generate");
   if (!rl.allowed) {
     return NextResponse.json(
       { error: `Generation rate limit exceeded. Please retry in ~${rl.retryAfterSeconds}s.`, retryAfter: rl.retryAfterSeconds },
       { status: 429 },
     );
   }
+
+  const quotaErr = await assertFreeGenerationsAllowed(userId, 1);
+  if (quotaErr) return quotaErr;
 
   try {
     const body = await request.json();
@@ -52,6 +56,30 @@ export async function POST(request: Request) {
 
     const contentType = (body.contentType ?? "Social Post") as ContentType;
     const storyMedia = (body.storyMedia ?? "image") as StoryMedia;
+    const planInfo = await getUserPlanInfo(userId);
+    const paid =
+      (await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      }))?.role === "admin" ||
+      (!!planInfo && isActivePaidPlan(planInfo.plan, planInfo.subscriptionEndsAt));
+
+    if (
+      !paid &&
+      (contentType === "Reel" ||
+        (contentType === "Story" && storyMedia === "video") ||
+        contentType === "Video Ad")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "AI video is on Pro and above. Free includes on-brand text posts and crawled images.",
+          code: "QUOTA_EXCEEDED",
+          upgradeUrl: "/billing",
+        },
+        { status: 402 },
+      );
+    }
 
     if (contentType === "Reel" && !hasVideoProvider()) {
       return NextResponse.json(
@@ -142,6 +170,7 @@ export async function POST(request: Request) {
       body.influencerMotionTypes as InfluencerMotionType[] | undefined,
     );
     const generateFreshMotion =
+      paid &&
       !!influencerContext &&
       useInfluencerPortrait &&
       visualMode === "fresh" &&
@@ -176,6 +205,7 @@ export async function POST(request: Request) {
     if (influencerId) {
       post.influencerId = influencerId;
     }
+    await consumeGenerations(userId, 1);
 
     if (generateFreshMotion && influencerContext) {
       const motionResult = await startContentStudioMotionClips({

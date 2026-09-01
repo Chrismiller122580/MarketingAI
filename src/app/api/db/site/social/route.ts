@@ -33,7 +33,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ connections: [] });
     }
 
-    return NextResponse.json({ connections: site.socialConnections });
+    return NextResponse.json({
+      connections: site.socialConnections.map((c) => ({
+        platform: c.platform,
+        accountId: c.accountId,
+        connected: true,
+        expiresAt: c.expiresAt,
+      })),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Database error";
     return NextResponse.json({ error: message }, { status: 500 });

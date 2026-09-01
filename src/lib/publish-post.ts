@@ -26,6 +26,7 @@ export async function buildPublishContext(
         break;
       case "linkedin":
         extraCtx.linkedinAccessToken = siteSocial.accessToken;
+        if (siteSocial.accountId) extraCtx.linkedinAuthorUrn = siteSocial.accountId;
         break;
       case "facebook":
         extraCtx.facebookAccessToken = siteSocial.accessToken;
@@ -58,10 +59,7 @@ export async function publishPostRecord(
   if (!post) return { error: "Post not found" };
 
   const extraCtx = await buildPublishContext(post, sessionTwitterToken);
-  const result = await publishToSocial({
-    ...postToSaved(post),
-    ...extraCtx,
-  });
+  const result = await publishToSocial(postToSaved(post), extraCtx);
 
   const platform = post.platform as Platform;
   const externalPostId =

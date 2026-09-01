@@ -201,7 +201,9 @@ export function SocialConnections() {
                 (platform) => {
                   const conn = siteSocialConnections[platform];
                   const connected =
-                    !!conn?.accessToken || !!conn?.accountId;
+                    conn?.connected === true ||
+                    !!conn?.accessToken ||
+                    !!conn?.accountId;
                   const label =
                     platform === "twitter"
                       ? "X"
@@ -305,7 +307,10 @@ export function SocialConnections() {
             <div className="flex flex-wrap gap-2">
               {(["twitter", "linkedin", "facebook", "instagram", "pinterest"] as const).map((platform) => {
                 const conn = siteSocialConnections[platform];
-                const isConnected = !!conn?.accessToken;
+                const isConnected =
+                  conn?.connected === true ||
+                  !!conn?.accessToken ||
+                  !!conn?.accountId;
                 const label =
                   platform === "twitter"
                     ? "X"

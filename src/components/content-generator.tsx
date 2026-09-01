@@ -102,6 +102,12 @@ export function ContentGenerator() {
   const hasEnterprisePlus = isAdmin || isEnterprisePlusPlan(userPlan);
   const endsAtRaw = su.subscriptionEndsAt;
   const isPaid = userPlan !== "free" && (!endsAtRaw || (() => { try { return new Date(endsAtRaw as any) > new Date(); } catch { return false; } })());
+  const [usage, setUsage] = useState<{
+    paid: boolean;
+    generationsUsed: number;
+    generationsLimit: number | null;
+    period: string;
+  } | null>(null);
 
   const [savedPost, setSavedPost] = useState<SavedPost | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -177,6 +183,15 @@ export function ContentGenerator() {
           aiVideoProvider: data.aiVideoProvider ?? null,
           aiVoiceProvider: data.aiVoiceProvider ?? null,
         });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/account/usage")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.usage) setUsage(data.usage);
       })
       .catch(() => {});
   }, []);
@@ -579,14 +594,27 @@ export function ContentGenerator() {
 
       const data = await response.json();
       if (!response.ok) {
-        if (response.status === 402 || data?.code === "SUBSCRIPTION_REQUIRED") {
-          throw new Error(data.error || "Paid subscription required. Upgrade at /billing.");
+        if (
+          response.status === 402 ||
+          data?.code === "QUOTA_EXCEEDED" ||
+          data?.code === "SUBSCRIPTION_REQUIRED"
+        ) {
+          throw new Error(
+            data.error ||
+              "You've used this month's free posts. Upgrade at Billing for unlimited generations.",
+          );
         }
         throw new Error(data.error ?? "Generation failed");
       }
 
       const generated = data as GeneratedPost;
       setPost(generated);
+      fetch("/api/account/usage")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((next) => {
+          if (next?.usage) setUsage(next.usage);
+        })
+        .catch(() => {});
 
       try {
         const saved = await savePost(generated);
@@ -1108,8 +1136,25 @@ export function ContentGenerator() {
 
           {!isPaid && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-              Crawl and content generation require an active Pro or Enterprise plan.{" "}
-              <a href="/billing" className="font-semibold underline">Upgrade now</a>
+              {willGenerateVideo ? (
+                <>
+                  AI video is on Pro and above. Free includes text posts and crawled
+                  images.{" "}
+                  <a href="/billing" className="font-semibold underline">
+                    Upgrade
+                  </a>
+                </>
+              ) : (
+                <>
+                  Free: {usage?.generationsUsed ?? 0}/
+                  {usage?.generationsLimit ?? 15} posts this month
+                  {usage?.period ? ` (${usage.period} UTC)` : ""}. Recrawl your
+                  site anytime.{" "}
+                  <a href="/billing" className="font-semibold underline">
+                    Upgrade for unlimited
+                  </a>
+                </>
+              )}
             </div>
           )}
 
@@ -1126,7 +1171,7 @@ export function ContentGenerator() {
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={!site || loading || !isPaid || missingProvider}
+            disabled={!site || loading || missingProvider || (willGenerateVideo && !isPaid)}
             className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading
@@ -1242,7 +1287,7 @@ export function ContentGenerator() {
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={loading || videoLoading || !isPaid}
+            disabled={loading || videoLoading || (willGenerateVideo && !isPaid)}
             className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
           >
             Regenerate

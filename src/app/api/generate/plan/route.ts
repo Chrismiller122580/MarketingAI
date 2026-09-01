@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { planCampaign } from "@/lib/campaign-planner";
 import type { BatchGenerateRequest } from "@/lib/types";
-import { requirePaidUserId, isAuthError } from "@/lib/auth-helpers";
+import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const userId = await requirePaidUserId();
+  const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;
 
   const rl = checkRateLimit(userId as string, "generate");

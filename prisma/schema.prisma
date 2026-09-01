@@ -164,6 +164,7 @@ model UserSettings {
   preferAiImages     Boolean  @default(false)
   promptPreferences  Json?
   creatorPreferences Json?
+  usage              Json?
   activeSiteDomain   String?
   activeSiteChosen   Boolean  @default(false)
   updatedAt          DateTime @updatedAt
