@@ -20,8 +20,13 @@ export function PublicNav() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
-        <BrandLogo href="/" size="sm" onClick={() => setOpen(false)} />
+      <div className="relative mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+        <BrandLogo
+          href="/"
+          size="sm"
+          onClick={() => setOpen(false)}
+          className="max-md:absolute max-md:left-1/2 max-md:-translate-x-1/2"
+        />
 
         <nav className="hidden items-center gap-5 text-sm font-medium text-slate-600 md:flex dark:text-slate-400">
           {links.map((link) => (
@@ -35,7 +40,7 @@ export function PublicNav() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 md:ml-0">
           <ThemeToggle className="hidden sm:flex" />
           {isLoggedIn ? (
             <Link

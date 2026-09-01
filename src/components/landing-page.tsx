@@ -86,8 +86,11 @@ export function LandingPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-spark-500" />
                 Crawl your site. Spark your content.
               </p>
-              <div className="mb-3 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[1px] text-crawl-600 dark:text-crawl-400">
-                <span>📱</span> Installable on Android &amp; iPhone
+              <div className="mb-3 flex flex-col items-center gap-1 text-[10px] uppercase tracking-[1px] text-crawl-600 dark:text-crawl-400">
+                <span className="text-base leading-none" aria-hidden>
+                  📱
+                </span>
+                <span>Installable on Android and iPhone</span>
               </div>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl md:text-6xl">
                 Turn your site into a{" "}

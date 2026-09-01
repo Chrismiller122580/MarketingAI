@@ -22,8 +22,13 @@ export function LandingNav() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-        <BrandLogo href="/" size="sm" onClick={() => setOpen(false)} />
+      <div className="relative mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <BrandLogo
+          href="/"
+          size="sm"
+          onClick={() => setOpen(false)}
+          className="max-lg:absolute max-lg:left-1/2 max-lg:-translate-x-1/2"
+        />
 
         <nav className="hidden items-center gap-5 text-sm font-medium text-slate-600 lg:flex dark:text-slate-400">
           {anchorLinks.map((link) => (
@@ -37,7 +42,7 @@ export function LandingNav() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
           <ThemeToggle className="hidden sm:flex" />
           <PwaInstallButton className="hidden md:inline-flex" />
           {isLoggedIn ? (
