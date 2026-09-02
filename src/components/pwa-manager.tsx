@@ -33,9 +33,16 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function PwaManager() {
   useEffect(() => {
-    // Register service worker (idempotent)
+    let reloading = false;
+    const onControllerChange = () => {
+      // Only reload when replacing an existing worker — first install should not bounce.
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    };
+
     if ("serviceWorker" in navigator) {
-      // Delay slightly to not block first paint
+      const hadController = Boolean(navigator.serviceWorker.controller);
       const register = () => {
         navigator.serviceWorker
           .register("/sw.js", { updateViaCache: "none" })
@@ -63,9 +70,15 @@ export function PwaManager() {
       } else {
         window.addEventListener("load", register, { once: true });
       }
+
+      if (hadController) {
+        navigator.serviceWorker.addEventListener(
+          "controllerchange",
+          onControllerChange,
+        );
+      }
     }
 
-    // Capture the install prompt for our Install button / banner (not standalone)
     const handler = (e: Event) => {
       const isStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
@@ -79,7 +92,6 @@ export function PwaManager() {
     };
     window.addEventListener("beforeinstallprompt", handler as EventListener);
 
-    // When app installed, clean up
     const installedHandler = () => {
       deferredPrompt = null;
       dispatchInstallDismissed();
@@ -89,6 +101,12 @@ export function PwaManager() {
     return () => {
       window.removeEventListener("beforeinstallprompt", handler as EventListener);
       window.removeEventListener("appinstalled", installedHandler);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener(
+          "controllerchange",
+          onControllerChange,
+        );
+      }
     };
   }, []);
 

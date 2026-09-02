@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useSession } from "next-auth/react";
@@ -42,6 +43,7 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<SavedPost[]>([]);
   const [packs, setPacks] = useState<CampaignPack[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadedForSession = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -67,9 +69,12 @@ export function PostsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === "loading") return;
     if (status !== "authenticated") {
+      loadedForSession.current = false;
       setLoading(false);
       return;
     }
+    if (loadedForSession.current) return;
+    loadedForSession.current = true;
     const t = setTimeout(() => {
       void refresh();
     }, 0);

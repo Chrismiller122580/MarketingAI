@@ -1,7 +1,7 @@
 // crawlspark.ai — Service worker for PWA installability only.
 // Does NOT intercept navigations or Next.js RSC requests (avoids broken routing).
 
-const CACHE_NAME = "crawlspark-v5";
+const CACHE_NAME = "crawlspark-v6";
 
 const APP_SHELL = [
   "/manifest.webmanifest",

@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { signIn, useSession } from "next-auth/react";
@@ -78,6 +79,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [siteSocialConnections, setSiteSocialConnections] = useState<
     Record<string, Record<string, unknown>>
   >({});
+  const bootstrappedForUser = useRef(false);
 
   const loadSavedSitesList = useCallback(async (): Promise<SavedSiteSummary[]> => {
     try {
@@ -134,9 +136,12 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (sessionStatus === "loading") return;
     if (sessionStatus !== "authenticated") {
+      bootstrappedForUser.current = false;
       setLoading(false);
       return;
     }
+    if (bootstrappedForUser.current) return;
+    bootstrappedForUser.current = true;
 
     async function bootstrap() {
       try {

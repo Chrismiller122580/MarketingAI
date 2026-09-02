@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -12,11 +12,10 @@ const verifiedTokens = new Set<string>();
 
 export function VerifyEmailClient() {
   const searchParams = useSearchParams();
-  const { data: session, status: sessionStatus, update } = useSession();
+  const { data: session } = useSession();
   const [status, setStatus] = useState<Status>(() =>
     searchParams.get("error") ? "error" : "working",
   );
-  const refreshed = useRef(false);
 
   useEffect(() => {
     const token = searchParams.get("token")?.trim() ?? "";
@@ -65,16 +64,7 @@ export function VerifyEmailClient() {
       });
   }, [searchParams]);
 
-  useEffect(() => {
-    if (status !== "ok" || refreshed.current) return;
-    if (sessionStatus === "loading") return;
-    refreshed.current = true;
-    if (sessionStatus === "authenticated") {
-      void update();
-    }
-  }, [status, sessionStatus, update]);
-
-  const loggedIn = sessionStatus === "authenticated" && Boolean(session?.user?.id);
+  const loggedIn = Boolean(session?.user?.id);
 
   return (
     <div className="w-full max-w-md text-center">

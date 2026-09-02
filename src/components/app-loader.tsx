@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import { usePosts } from "@/context/posts-context";
@@ -8,12 +9,21 @@ export function AppLoader({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
   const { loading: siteLoading } = useSite();
   const { loading: postsLoading } = usePosts();
+  const [ready, setReady] = useState(false);
 
-  const isLoading =
-    status === "loading" ||
-    (status === "authenticated" && (siteLoading || postsLoading));
+  useEffect(() => {
+    if (ready) return;
+    if (status === "loading") return;
+    if (status === "unauthenticated") {
+      setReady(true);
+      return;
+    }
+    if (status === "authenticated" && !siteLoading && !postsLoading) {
+      setReady(true);
+    }
+  }, [ready, status, siteLoading, postsLoading]);
 
-  if (isLoading) {
+  if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="text-center">
