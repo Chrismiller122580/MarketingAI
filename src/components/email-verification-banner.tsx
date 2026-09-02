@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,35 @@ export function EmailVerificationBanner() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
+  const refreshed = useRef(false);
+  const checkedAccount = useRef(false);
 
   useEffect(() => {
-    if (searchParams.get("verified") === "1") {
-      void update().then(() => setVerified(true));
+    if (searchParams.get("verified") !== "1" || refreshed.current) return;
+    refreshed.current = true;
+    setVerified(true);
+    void update();
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("verified");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}`);
     }
   }, [searchParams, update]);
+
+  useEffect(() => {
+    if (checkedAccount.current) return;
+    if (!session?.user?.id || session.user.emailVerified) return;
+    checkedAccount.current = true;
+    void fetch("/api/account")
+      .then((res) => res.json())
+      .then((data: { user?: { emailVerified?: string | null } }) => {
+        if (data.user?.emailVerified) {
+          setVerified(true);
+          void update();
+        }
+      })
+      .catch(() => {});
+  }, [session?.user?.id, session?.user?.emailVerified, update]);
 
   if (verified) {
     return (
@@ -48,7 +71,12 @@ export function EmailVerificationBanner() {
               : "Failed to send"),
         );
       }
-      setMsg("Verification email sent — check your inbox.");
+      if (data.message === "Email already verified") {
+        setVerified(true);
+        void update();
+        return;
+      }
+      setMsg("Verification email sent — check inbox and spam.");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Failed to send");
     } finally {
@@ -60,7 +88,8 @@ export function EmailVerificationBanner() {
     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-amber-900 dark:text-amber-100">
-          Please verify your email address to secure your account.
+          Please verify your email address to secure your account. Check spam
+          if you do not see it.
         </p>
         <Button
           type="button"

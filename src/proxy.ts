@@ -16,6 +16,7 @@ export default auth((req) => {
     pathname === "/terms" ||
     pathname === "/domains" ||
     pathname === "/data-deletion" ||
+    pathname === "/verify-email" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
     pathname.startsWith("/world/") ||

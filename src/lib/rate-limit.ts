@@ -22,6 +22,7 @@ export const IP_RATE_LIMITS = {
   authForgotPassword: { max: 3, windowMs: WINDOW_MS },
   authLogin: { max: 20, windowMs: WINDOW_MS },
   authResendVerification: { max: 3, windowMs: WINDOW_MS },
+  authVerifyEmail: { max: 20, windowMs: WINDOW_MS },
 };
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;
