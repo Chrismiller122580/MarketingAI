@@ -20,17 +20,31 @@ export async function fetchFacebookUserId(
 export async function fetchFacebookPages(
   userAccessToken: string,
 ): Promise<FacebookPage[]> {
+  const { pages } = await fetchFacebookPagesResult(userAccessToken);
+  return pages;
+}
+
+export async function fetchFacebookPagesResult(
+  userAccessToken: string,
+): Promise<{ pages: FacebookPage[]; error?: string }> {
   const collected: FacebookPage[] = [];
   let url: string | null =
     `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token&limit=100&access_token=${encodeURIComponent(userAccessToken)}`;
+  let lastError: string | undefined;
 
   for (let i = 0; i < 15 && url; i += 1) {
     const response = await fetch(url);
-    if (!response.ok) break;
-    const data = (await response.json()) as {
+    const data = (await response.json().catch(() => ({}))) as {
       data?: { id?: string; name?: string; access_token?: string }[];
       paging?: { next?: string };
+      error?: { message?: string; code?: number };
     };
+    if (!response.ok) {
+      lastError = data.error?.message
+        ? `${data.error.message}${data.error.code ? ` (${data.error.code})` : ""}`
+        : `Facebook API error: ${response.status}`;
+      break;
+    }
     const pages = Array.isArray(data.data) ? data.data : [];
     for (const p of pages) {
       if (p.id && p.access_token) {
@@ -44,7 +58,10 @@ export async function fetchFacebookPages(
     url = typeof data.paging?.next === "string" ? data.paging.next : null;
   }
 
-  return collected;
+  return {
+    pages: collected,
+    error: collected.length === 0 ? lastError : undefined,
+  };
 }
 
 export async function resolveFacebookPageToken(

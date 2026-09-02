@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { assertFreeSocialAllowed } from "@/lib/quota";
-import { fetchFacebookPages } from "@/lib/social/facebook";
+import { fetchFacebookPagesResult } from "@/lib/social/facebook";
 import { resolveInstagramAccount } from "@/lib/social/instagram";
 import { getMetaLogin, persistMetaUserToken, resolveMetaUserToken } from "@/lib/social/meta-login";
 import { resolvePinterestBoard } from "@/lib/social/pinterest";
@@ -155,12 +155,15 @@ export async function POST(request: Request) {
         providerUserId = saved?.userId ?? undefined;
       }
 
-      const pages = await fetchFacebookPages(accessToken);
+      const { pages, error: pagesError } = await fetchFacebookPagesResult(
+        accessToken,
+      );
       if (pages.length === 0) {
         return NextResponse.json(
           {
             error:
-              "No Facebook Pages found for this Meta login. You must be an admin of a Page — a personal profile is not enough.",
+              pagesError ||
+              "No Facebook Pages found for this login. You need to be an admin of a Page — a personal profile is not enough.",
             pages: [],
           },
           { status: 400 },

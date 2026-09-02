@@ -30,12 +30,13 @@ export async function GET() {
     });
   }
 
-  const pages = await listMetaPages(userToken);
+  const { pages, error } = await listMetaPages(userToken);
 
   return NextResponse.json({
     connected: true,
     loginName: stored?.name ?? null,
     email: stored?.email ?? session.user.email ?? null,
     pages,
+    error: error ?? null,
   });
 }

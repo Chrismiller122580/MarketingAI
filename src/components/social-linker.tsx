@@ -73,21 +73,44 @@ export function SocialLinker() {
     if (!pendingDomain && !pendingMetaUser) return;
     if (!hasMeta && platformsToLink.length === 0) return;
 
+    try {
+      if (sessionStorage.getItem("crawlspark_social_attempted") === "1") {
+        return;
+      }
+      sessionStorage.setItem("crawlspark_social_attempted", "1");
+    } catch {
+      /* ignore */
+    }
+
     linkingRef.current = true;
 
     (async () => {
       try {
+        let linkSucceeded = false;
+        let lastError: string | null = null;
+
         if (hasMeta || pendingMetaUser) {
-          await fetch("/api/social/meta/connect", { method: "POST" });
-          try {
-            localStorage.removeItem("pendingMetaUserConnect");
-          } catch {
-            /* ignore */
+          const connectRes = await fetch("/api/social/meta/connect", {
+            method: "POST",
+          });
+          const connectData = await connectRes.json().catch(() => ({}));
+          if (connectRes.ok) {
+            try {
+              localStorage.removeItem("pendingMetaUserConnect");
+            } catch {
+              /* ignore */
+            }
+            linkSucceeded = true;
+          } else {
+            lastError =
+              typeof connectData.error === "string"
+                ? connectData.error
+                : "Could not save Facebook login.";
           }
         }
 
         if (pendingDomain && platformsToLink.length > 0) {
-          await Promise.all(
+          const results = await Promise.all(
             platformsToLink.map(async (platform) => {
               const res = await fetch("/api/social/link", {
                 method: "POST",
@@ -97,22 +120,38 @@ export function SocialLinker() {
                   siteDomain: pendingDomain,
                 }),
               });
-              if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                if (!data.needsPageChoice) {
-                  console.warn(
-                    `Social link ${platform}:`,
-                    data.error ?? res.status,
-                  );
-                }
-              }
+              const data = await res.json().catch(() => ({}));
+              return { platform, ok: res.ok, data };
             }),
           );
-          clearSocialLinkSite();
-          if (!site || site.domain !== pendingDomain) {
-            await loadSavedSite(pendingDomain);
+
+          const usable = results.filter(
+            (r) => r.ok || r.data?.needsPageChoice,
+          );
+          if (usable.length > 0) {
+            linkSucceeded = true;
+            clearSocialLinkSite();
+            if (!site || site.domain !== pendingDomain) {
+              await loadSavedSite(pendingDomain);
+            } else {
+              await loadSiteSocialConnections();
+            }
           } else {
-            await loadSiteSocialConnections();
+            const failed = results.find(
+              (r) => typeof r.data?.error === "string",
+            );
+            lastError =
+              (failed?.data?.error as string | undefined) ||
+              lastError ||
+              "Could not finish connecting that account. Tap Connect Facebook again.";
+          }
+        }
+
+        if (lastError && !linkSucceeded) {
+          try {
+            sessionStorage.setItem("crawlspark_social_error", lastError);
+          } catch {
+            /* ignore */
           }
         }
 

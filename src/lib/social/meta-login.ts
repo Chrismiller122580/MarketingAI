@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
-import { fetchFacebookPages } from "./facebook";
+import { fetchFacebookPagesResult } from "./facebook";
 import { exchangeMetaLongLivedToken } from "./meta-credentials";
 
 export type StoredMetaLogin = {
@@ -145,15 +145,18 @@ async function instagramForPage(
 
 export async function listMetaPages(
   userAccessToken: string,
-): Promise<MetaPageOption[]> {
-  const rawPages = await fetchFacebookPages(userAccessToken);
-  return Promise.all(
+): Promise<{ pages: MetaPageOption[]; error?: string }> {
+  const { pages: rawPages, error } = await fetchFacebookPagesResult(
+    userAccessToken,
+  );
+  const pages = await Promise.all(
     rawPages.map(async (page) => ({
       id: page.id,
       name: page.name,
       instagram: await instagramForPage(page.id, page.accessToken),
     })),
   );
+  return { pages, error };
 }
 
 export async function resolveMetaUserToken(options: {

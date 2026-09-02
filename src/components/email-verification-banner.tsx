@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { useEmailVerified } from "@/hooks/use-email-verified";
@@ -10,6 +10,13 @@ export function EmailVerificationBanner() {
   const emailVerified = useEmailVerified();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#verify-email") return;
+    const el = document.getElementById("verify-email");
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [emailVerified]);
 
   if (!session?.user?.id) return null;
 
@@ -46,7 +53,10 @@ export function EmailVerificationBanner() {
   }
 
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+    <div
+      id="verify-email"
+      className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-amber-900 dark:text-amber-100">
           Please verify your email address to secure your account. Check spam

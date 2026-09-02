@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useSite } from "@/context/site-context";
 import { usePosts } from "@/context/posts-context";
 import { useEmailVerified } from "@/hooks/use-email-verified";
@@ -12,7 +13,8 @@ type Step = {
   id: string;
   label: string;
   hint: string;
-  href: string;
+  href?: string;
+  action?: "resend-email";
   done: boolean;
 };
 
@@ -21,6 +23,10 @@ export function FirstRunChecklist() {
   const { site, savedSites, siteSocialConnections } = useSite();
   const { posts } = usePosts();
   const [dismissed, setDismissed] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -39,8 +45,10 @@ export function FirstRunChecklist() {
       {
         id: "email",
         label: "Verify your email",
-        hint: "Required before connecting Instagram or Facebook.",
-        href: "/dashboard",
+        hint: emailMsg
+          ? emailMsg
+          : "Tap to resend the verification email. Check inbox and spam.",
+        action: "resend-email",
         done: emailVerified,
       },
       {
@@ -69,6 +77,7 @@ export function FirstRunChecklist() {
     posts.length,
     savedSites.length,
     emailVerified,
+    emailMsg,
     site,
     siteSocialConnections,
   ]);
@@ -85,6 +94,35 @@ export function FirstRunChecklist() {
       /* ignore quota / private mode */
     }
     setDismissed(true);
+  }
+
+  async function resendVerification() {
+    if (emailSending) return;
+    setEmailSending(true);
+    setEmailMsg(null);
+    try {
+      if (pathname !== "/dashboard") {
+        router.push("/dashboard#verify-email");
+      } else {
+        document
+          .getElementById("verify-email")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        throw new Error(data.error ?? "Could not send verification email.");
+      }
+      setEmailMsg("Sent — check inbox and spam.");
+    } catch (err) {
+      setEmailMsg(
+        err instanceof Error ? err.message : "Could not send verification email.",
+      );
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   return (
@@ -112,16 +150,14 @@ export function FirstRunChecklist() {
       </div>
 
       <ol className="mt-4 space-y-2">
-        {steps.map((step, index) => (
-          <li key={step.id}>
-            <Link
-              href={step.href}
-              className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 transition ${
-                step.done
-                  ? "border-emerald-200 bg-white/80 dark:border-emerald-900/40 dark:bg-slate-900/40"
-                  : "border-slate-200 bg-white hover:border-amber-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-700"
-              }`}
-            >
+        {steps.map((step, index) => {
+          const className = `flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition ${
+            step.done
+              ? "border-emerald-200 bg-white/80 dark:border-emerald-900/40 dark:bg-slate-900/40"
+              : "border-slate-200 bg-white hover:border-amber-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-700"
+          }`;
+          const body = (
+            <>
               <span
                 className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                   step.done
@@ -134,14 +170,41 @@ export function FirstRunChecklist() {
               <span>
                 <span className="block text-sm font-medium text-slate-900 dark:text-slate-100">
                   {step.label}
+                  {step.action === "resend-email" &&
+                    !step.done &&
+                    emailSending &&
+                    " — sending…"}
                 </span>
                 <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
                   {step.hint}
                 </span>
               </span>
-            </Link>
-          </li>
-        ))}
+            </>
+          );
+
+          if (step.action === "resend-email" && !step.done) {
+            return (
+              <li key={step.id}>
+                <button
+                  type="button"
+                  onClick={() => void resendVerification()}
+                  disabled={emailSending}
+                  className={className}
+                >
+                  {body}
+                </button>
+              </li>
+            );
+          }
+
+          return (
+            <li key={step.id}>
+              <Link href={step.href ?? "/dashboard"} className={className}>
+                {body}
+              </Link>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

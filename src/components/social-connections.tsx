@@ -17,6 +17,7 @@ type MetaAccountsResponse = {
   loginName?: string | null;
   email?: string | null;
   pages?: MetaPageOption[];
+  error?: string | null;
 };
 
 const PLATFORMS = [
@@ -62,8 +63,23 @@ export function SocialConnections() {
   const fetchMetaAccounts = useCallback(() => {
     fetch("/api/social/meta/accounts")
       .then((r) => r.json())
-      .then((data: MetaAccountsResponse) => setMetaAccounts(data))
+      .then((data: MetaAccountsResponse) => {
+        setMetaAccounts(data);
+        if (data.error) setMetaError(data.error);
+      })
       .catch(() => setMetaAccounts(null));
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("crawlspark_social_error");
+      if (stored) {
+        setMetaError(stored);
+        sessionStorage.removeItem("crawlspark_social_error");
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   useEffect(() => {
@@ -160,10 +176,14 @@ export function SocialConnections() {
             </span>
           )}
         </div>
+        {metaError && !metaAccounts?.connected && (
+          <p className="mt-3 text-xs text-rose-600">{metaError}</p>
+        )}
         {metaAccounts?.connected && (metaAccounts.pages ?? []).length === 0 && (
           <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
-            This Facebook login has no Pages. You need to be an admin of a
-            Facebook Page (a personal profile is not enough).
+            {metaAccounts.error ||
+              metaError ||
+              "This Facebook login has no Pages. You need to be an admin of a Facebook Page (a personal profile is not enough)."}
           </p>
         )}
         {metaAccounts?.connected && (metaAccounts.pages ?? []).length > 0 && !site && (
@@ -273,8 +293,9 @@ export function SocialConnections() {
                 </p>
                 {(metaAccounts.pages ?? []).length === 0 ? (
                   <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                    No Facebook Pages on this login. Be an admin of a Page, then
-                    reconnect.
+                    {metaAccounts.error ||
+                      metaError ||
+                      "No Facebook Pages on this login. Be an admin of a Page, then reconnect."}
                   </p>
                 ) : (
                   <div className="mt-2 space-y-2">

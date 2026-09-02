@@ -143,6 +143,13 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       }
       setQuotaExceeded(false);
 
+      try {
+        sessionStorage.removeItem("crawlspark_social_attempted");
+        sessionStorage.removeItem("crawlspark_social_error");
+      } catch {
+        /* ignore */
+      }
+
       if (isMeta) {
         try {
           localStorage.setItem("pendingMetaUserConnect", "1");
