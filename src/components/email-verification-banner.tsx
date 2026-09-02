@@ -1,47 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useEmailVerified } from "@/hooks/use-email-verified";
 
 export function EmailVerificationBanner() {
   const { data: session, update } = useSession();
-  const searchParams = useSearchParams();
+  const emailVerified = useEmailVerified();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [verified, setVerified] = useState(false);
-  const refreshed = useRef(false);
-  const checkedAccount = useRef(false);
 
-  useEffect(() => {
-    if (searchParams.get("verified") !== "1" || refreshed.current) return;
-    refreshed.current = true;
-    setVerified(true);
-    void update();
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("verified");
-      window.history.replaceState({}, "", `${url.pathname}${url.search}`);
-    }
-  }, [searchParams, update]);
+  if (!session?.user?.id) return null;
 
-  useEffect(() => {
-    if (checkedAccount.current) return;
-    if (!session?.user?.id || session.user.emailVerified) return;
-    checkedAccount.current = true;
-    void fetch("/api/account")
-      .then((res) => res.json())
-      .then((data: { user?: { emailVerified?: string | null } }) => {
-        if (data.user?.emailVerified) {
-          setVerified(true);
-          void update();
-        }
-      })
-      .catch(() => {});
-  }, [session?.user?.id, session?.user?.emailVerified, update]);
-
-  if (verified) {
+  if (emailVerified) {
+    if (session.user.emailVerified) return null;
     return (
       <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900/50 dark:bg-green-950/30">
         <p className="text-sm text-green-900 dark:text-green-100">
@@ -49,10 +22,6 @@ export function EmailVerificationBanner() {
         </p>
       </div>
     );
-  }
-
-  if (!session?.user?.id || session.user.emailVerified) {
-    return null;
   }
 
   async function resend() {
@@ -72,8 +41,7 @@ export function EmailVerificationBanner() {
         );
       }
       if (data.message === "Email already verified") {
-        setVerified(true);
-        void update();
+        void update({ emailVerified: new Date().toISOString() });
         return;
       }
       setMsg("Verification email sent — check inbox and spam.");

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import { usePosts } from "@/context/posts-context";
+import { useEmailVerified } from "@/hooks/use-email-verified";
 
 const DISMISS_KEY = "crawlspark-first-run-dismissed";
 
@@ -17,7 +17,7 @@ type Step = {
 };
 
 export function FirstRunChecklist() {
-  const { data: session } = useSession();
+  const emailVerified = useEmailVerified();
   const { site, savedSites, siteSocialConnections } = useSite();
   const { posts } = usePosts();
   const [dismissed, setDismissed] = useState(false);
@@ -34,7 +34,6 @@ export function FirstRunChecklist() {
     const hasSite = Boolean(site) || savedSites.length > 0;
     const hasPost = posts.length > 0;
     const hasSocial = Object.keys(siteSocialConnections).length > 0;
-    const emailVerified = Boolean(session?.user?.emailVerified);
 
     return [
       {
@@ -69,7 +68,7 @@ export function FirstRunChecklist() {
   }, [
     posts.length,
     savedSites.length,
-    session?.user?.emailVerified,
+    emailVerified,
     site,
     siteSocialConnections,
   ]);

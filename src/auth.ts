@@ -196,7 +196,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   ],
   callbacks: {
-    async jwt({ token, user, account, trigger }) {
+    async jwt({ token, user, account, trigger, session }) {
       const tt = token as ExtToken;
       const SOCIAL_PROVIDERS = [
         "twitter",
@@ -259,6 +259,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Refresh plan from DB after Stripe checkout, billing, or session.update()
       if (trigger === "update" && token.id) {
         await refreshSubscriptionFromDb(token.id as string);
+        const payload = session as { emailVerified?: string | null } | undefined;
+        if (payload?.emailVerified) {
+          tt.emailVerified = payload.emailVerified;
+        }
       }
 
       // Store OAuth tokens for social platforms (per user, will be linked to specific sites)
