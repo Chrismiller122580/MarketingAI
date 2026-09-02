@@ -167,6 +167,7 @@ model UserSettings {
   usage              Json?
   activeSiteDomain   String?
   activeSiteChosen   Boolean  @default(false)
+  metaLogin          Json?
   updatedAt          DateTime @updatedAt
 }
 

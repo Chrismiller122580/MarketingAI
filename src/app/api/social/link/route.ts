@@ -2,13 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
-import {
-  exchangeFacebookLongLivedToken,
-  fetchFacebookPages,
-  fetchFacebookUserId,
-} from "@/lib/social/facebook";
+import { fetchFacebookPages } from "@/lib/social/facebook";
 import { resolveInstagramAccount } from "@/lib/social/instagram";
-import { exchangeMetaLongLivedToken } from "@/lib/social/meta-credentials";
+import { persistMetaUserToken, resolveMetaUserToken } from "@/lib/social/meta-login";
 import { resolvePinterestBoard } from "@/lib/social/pinterest";
 import { normalizeDomain } from "@/lib/crawl";
 
@@ -85,6 +81,15 @@ export async function POST(request: Request) {
       }
 
       if (!accessToken) {
+        if (platform === "facebook" || platform === "instagram") {
+          accessToken = await resolveMetaUserToken({
+            userId,
+            sessionToken: undefined,
+          });
+        }
+      }
+
+      if (!accessToken) {
         return NextResponse.json({ error: `No ${platform} token found in your session. Please connect via OAuth first.` }, { status: 400 });
       }
     }
@@ -132,15 +137,13 @@ export async function POST(request: Request) {
     let providerUserId: string | undefined;
 
     if (platform === "facebook") {
-      providerUserId =
-        (await fetchFacebookUserId(accessToken)) ?? undefined;
-
-      const longLived = await exchangeFacebookLongLivedToken(accessToken);
-      if (longLived.accessToken) {
-        accessToken = longLived.accessToken;
-        providerUserId =
-          (await fetchFacebookUserId(accessToken)) ?? providerUserId;
-      }
+      const saved = await persistMetaUserToken(
+        userId,
+        accessToken,
+        "facebook",
+      );
+      if (saved?.accessToken) accessToken = saved.accessToken;
+      providerUserId = saved?.userId ?? undefined;
 
       const pages = await fetchFacebookPages(accessToken);
       if (pages.length === 0) {
@@ -170,18 +173,13 @@ export async function POST(request: Request) {
     }
 
     if (platform === "instagram") {
-      providerUserId =
-        (await fetchFacebookUserId(accessToken)) ?? undefined;
-
-      const longLived = await exchangeMetaLongLivedToken(
+      const saved = await persistMetaUserToken(
+        userId,
         accessToken,
         "instagram",
       );
-      if (longLived.accessToken) {
-        accessToken = longLived.accessToken;
-        providerUserId =
-          (await fetchFacebookUserId(accessToken)) ?? providerUserId;
-      }
+      if (saved?.accessToken) accessToken = saved.accessToken;
+      providerUserId = saved?.userId ?? undefined;
 
       const igAccount = await resolveInstagramAccount(
         accessToken,

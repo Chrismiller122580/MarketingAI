@@ -45,65 +45,78 @@ export function SocialLinker() {
   const linkingRef = useRef(false);
 
   useEffect(() => {
-    const pendingDomain = readSocialLinkSite();
-    if (
-      status !== "authenticated" ||
-      !session?.user?.id ||
-      !pendingDomain ||
-      linkingRef.current
-    ) {
+    if (status !== "authenticated" || !session?.user?.id || linkingRef.current) {
       return;
     }
 
     const su = session.user as Record<string, unknown>;
-    const platformsToLink = PLATFORMS.filter((platform) => {
-      if (platform === "twitter") return !!su.twitterAccessToken;
-      if (platform === "linkedin") return !!su.linkedinAccessToken;
-      if (platform === "facebook") return !!su.facebookAccessToken;
-      if (platform === "instagram") return !!su.instagramAccessToken;
-      if (platform === "pinterest") return !!su.pinterestAccessToken;
-      return false;
-    });
+    const hasMeta = Boolean(su.facebookAccessToken || su.instagramAccessToken);
+    const pendingDomain = readSocialLinkSite();
+    let pendingMetaUser = false;
+    try {
+      pendingMetaUser = localStorage.getItem("pendingMetaUserConnect") === "1";
+    } catch {
+      /* ignore */
+    }
 
-    if (platformsToLink.length === 0) return;
+    const platformsToLink = pendingDomain
+      ? PLATFORMS.filter((platform) => {
+          if (platform === "twitter") return !!su.twitterAccessToken;
+          if (platform === "linkedin") return !!su.linkedinAccessToken;
+          if (platform === "facebook") return !!su.facebookAccessToken;
+          if (platform === "instagram") return !!su.instagramAccessToken;
+          if (platform === "pinterest") return !!su.pinterestAccessToken;
+          return false;
+        })
+      : [];
+
+    if (!pendingDomain && !pendingMetaUser) return;
+    if (!hasMeta && platformsToLink.length === 0) return;
 
     linkingRef.current = true;
 
     (async () => {
       try {
-        await Promise.all(
-          platformsToLink.map(async (platform) => {
-            const res = await fetch("/api/social/link", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                platform,
-                siteDomain: pendingDomain,
-              }),
-            });
-            if (!res.ok) {
-              const data = await res.json().catch(() => ({}));
-              if (!data.needsPageChoice) {
-                console.warn(
-                  `Social link ${platform}:`,
-                  data.error ?? res.status,
-                );
-              }
-            }
-          }),
-        );
-
-        clearSocialLinkSite();
-
-        // Restore subscription fields after OAuth (plan must not revert to free)
-        await update();
-
-        // Reload site so "Connect accounts for this site" panel stays visible
-        if (!site || site.domain !== pendingDomain) {
-          await loadSavedSite(pendingDomain);
-        } else {
-          await loadSiteSocialConnections();
+        if (hasMeta || pendingMetaUser) {
+          await fetch("/api/social/meta/connect", { method: "POST" });
+          try {
+            localStorage.removeItem("pendingMetaUserConnect");
+          } catch {
+            /* ignore */
+          }
         }
+
+        if (pendingDomain && platformsToLink.length > 0) {
+          await Promise.all(
+            platformsToLink.map(async (platform) => {
+              const res = await fetch("/api/social/link", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  platform,
+                  siteDomain: pendingDomain,
+                }),
+              });
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                if (!data.needsPageChoice) {
+                  console.warn(
+                    `Social link ${platform}:`,
+                    data.error ?? res.status,
+                  );
+                }
+              }
+            }),
+          );
+          clearSocialLinkSite();
+          if (!site || site.domain !== pendingDomain) {
+            await loadSavedSite(pendingDomain);
+          } else {
+            await loadSiteSocialConnections();
+          }
+        }
+
+        await update();
       } catch (e) {
         console.error("Social linker failed", e);
       } finally {

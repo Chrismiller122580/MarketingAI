@@ -38,13 +38,20 @@ const features = [
     description:
       "Publish directly to social APIs, or get share-ready links when direct posting isn't configured.",
   },
+  {
+    icon: "👥",
+    title: "One login, many Pages",
+    description:
+      "Connect Meta once — for yourself or an agency roster. Assign a different Facebook Page and Instagram to each site you crawl.",
+  },
 ];
 
 const steps = [
   {
     step: "01",
-    title: "Add your domain",
-    description: "Enter your website URL. We crawl pages, images, and brand signals in seconds.",
+    title: "Add a site",
+    description:
+      "Crawl your brand or a client domain. We pull pages, images, and brand voice in seconds.",
   },
   {
     step: "02",
@@ -99,9 +106,9 @@ export function LandingPage() {
                 </span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
-                Crawl your domain, generate on-brand posts with images, and
-                publish when you're ready. Free includes one site and 15
-                posts a month — no card required.
+                Crawl a domain, generate on-brand posts, and publish. Built for
+                one brand or a company marketing many client Pages. Free
+                includes one site and 15 posts a month — no card required.
               </p>
               <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link

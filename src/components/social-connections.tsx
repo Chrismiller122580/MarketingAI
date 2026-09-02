@@ -135,15 +135,11 @@ export function SocialConnections() {
   }, [fetchStatus]);
 
   useEffect(() => {
-    if (!site) {
-      setMetaAccounts(null);
-      return;
-    }
     const t = setTimeout(() => {
       void fetchMetaAccounts();
     }, 0);
     return () => clearTimeout(t);
-  }, [site, session, fetchMetaAccounts]);
+  }, [session, fetchMetaAccounts]);
 
   const chooseMetaPage = useCallback(
     async (page: MetaPageOption) => {
@@ -218,6 +214,43 @@ export function SocialConnections() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          Meta login
+        </h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Connect Facebook once for this crawlspark account — your own brand or
+          every client Page you manage. Then assign a Page to each crawled site.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => connectSocial("facebook")}
+            className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+          >
+            {metaAccounts?.connected ? "Reconnect Facebook / Meta" : "Connect Facebook / Meta"}
+          </button>
+          {metaAccounts?.connected && (
+            <span className="text-xs text-emerald-700 dark:text-emerald-300">
+              ✓ {metaAccounts.loginName || metaAccounts.email || "Meta connected"}
+              {typeof metaAccounts.pages?.length === "number"
+                ? ` · ${metaAccounts.pages.length} Page${metaAccounts.pages.length === 1 ? "" : "s"}`
+                : ""}
+            </span>
+          )}
+        </div>
+        {metaAccounts?.connected && (metaAccounts.pages ?? []).length === 0 && (
+          <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
+            This Meta login has no Facebook Pages. Add the login as a Page admin (your Page or a client's) and reconnect.
+          </p>
+        )}
+        {metaAccounts?.connected && (metaAccounts.pages ?? []).length > 0 && !site && (
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            Load a site below, then tap which Page publishes for that domain.
+          </p>
+        )}
+      </div>
+
       {isAdmin ? (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
@@ -410,8 +443,8 @@ export function SocialConnections() {
               Connect accounts for this site: {site.domain}
             </h3>
             <p className="text-xs text-emerald-700 dark:text-emerald-300 mb-3">
-              Connect the Facebook Page and Instagram account you post with.
-              This is for publishing, not Meta Ads Manager.
+              Assign a Facebook Page to this site. One Meta login can cover your
+              brand and every client you market for.
             </p>
             <div className="flex flex-wrap gap-2">
               {(["twitter", "linkedin", "facebook", "instagram", "pinterest"] as const).map((platform) => {
@@ -477,13 +510,13 @@ export function SocialConnections() {
             {metaAccounts?.connected ? (
               <div className="mt-4 rounded-lg border border-emerald-200 bg-white p-3 dark:border-emerald-900 dark:bg-slate-950">
                 <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
-                  Facebook / Meta accounts on this login
+                  Pages on this Meta login
                 </p>
                 <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                   {metaAccounts.loginName || metaAccounts.email
                     ? `Logged into Meta as ${[metaAccounts.loginName, metaAccounts.email].filter(Boolean).join(" · ")}.`
                     : "Pages this Meta login can manage."}{" "}
-                  Tap the Page you want crawlspark to publish to for {site.domain}.
+                  Tap the Page crawlspark should publish to for {site.domain}. Same login, different Page per site.
                 </p>
                 {(metaAccounts.pages ?? []).length === 0 ? (
                   <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">

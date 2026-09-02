@@ -128,10 +128,19 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
   const connectSocial = useCallback(
     (platform: string) => {
-      if (!site) return;
+      if (platform === "facebook" || platform === "instagram") {
+        try {
+          localStorage.setItem("pendingMetaUserConnect", "1");
+        } catch {
+          /* ignore */
+        }
+      }
 
-      localStorage.setItem("pendingSocialConnectSite", site.domain);
-      writeSocialLinkCookie(site.domain);
+      if (site) {
+        localStorage.setItem("pendingSocialConnectSite", site.domain);
+        writeSocialLinkCookie(site.domain);
+      }
+
       const returnPath =
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
