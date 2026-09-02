@@ -85,7 +85,6 @@ export async function POST(request: Request) {
     if (contentType === "Reel" && !hasVideoProvider()) {
       return NextResponse.json(
         {
-          error:
           error: PUBLIC_ERRORS.videoUnavailable,
         },
         { status: 503 },
@@ -99,7 +98,6 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         {
-          error:
           error: PUBLIC_ERRORS.imageUnavailable,
         },
         { status: 503 },
@@ -113,7 +111,6 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         {
-          error:
           error: PUBLIC_ERRORS.videoUnavailable,
         },
         { status: 503 },
