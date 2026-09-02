@@ -4,8 +4,8 @@ import { auth } from "@/auth";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import {
   exchangeFacebookLongLivedToken,
+  fetchFacebookPages,
   fetchFacebookUserId,
-  resolveFacebookPageToken,
 } from "@/lib/social/facebook";
 import { resolveInstagramAccount } from "@/lib/social/instagram";
 import { exchangeMetaLongLivedToken } from "@/lib/social/meta-credentials";
@@ -142,19 +142,29 @@ export async function POST(request: Request) {
           (await fetchFacebookUserId(accessToken)) ?? providerUserId;
       }
 
-      const page = await resolveFacebookPageToken(
-        accessToken,
-        preferredPageId,
-      );
-      if (!page) {
+      const pages = await fetchFacebookPages(accessToken);
+      if (pages.length === 0) {
         return NextResponse.json(
           {
             error:
-              "No Facebook Pages found for this account. Ensure you are an admin of a Page and granted pages_show_list permission.",
+              "No Facebook Pages found for this Meta login. You must be an admin of a Page — a personal profile is not enough.",
+            pages: [],
           },
           { status: 400 },
         );
       }
+
+      if (!preferredPageId && pages.length > 1) {
+        return NextResponse.json({
+          success: false,
+          needsPageChoice: true,
+          pages: pages.map((p) => ({ id: p.id, name: p.name })),
+        });
+      }
+
+      const page = preferredPageId
+        ? (pages.find((p) => p.id === preferredPageId) ?? pages[0])
+        : pages[0];
       accessToken = page.accessToken;
       accountId = page.id;
     }

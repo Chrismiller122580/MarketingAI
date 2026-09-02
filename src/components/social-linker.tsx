@@ -83,10 +83,12 @@ export function SocialLinker() {
             });
             if (!res.ok) {
               const data = await res.json().catch(() => ({}));
-              console.warn(
-                `Social link ${platform}:`,
-                data.error ?? res.status,
-              );
+              if (!data.needsPageChoice) {
+                console.warn(
+                  `Social link ${platform}:`,
+                  data.error ?? res.status,
+                );
+              }
             }
           }),
         );

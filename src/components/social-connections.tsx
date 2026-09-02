@@ -86,9 +86,27 @@ function GuideCard({ guide, connected }: { guide: IntegrationGuide; connected: b
   );
 }
 
+type MetaPageOption = {
+  id: string;
+  name: string;
+  instagram: { id: string; username: string | null } | null;
+};
+
+type MetaAccountsResponse = {
+  connected: boolean;
+  loginName?: string | null;
+  email?: string | null;
+  pages?: MetaPageOption[];
+};
+
 export function SocialConnections() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [metaAccounts, setMetaAccounts] = useState<MetaAccountsResponse | null>(
+    null,
+  );
+  const [pickingPage, setPickingPage] = useState<string | null>(null);
+  const [metaError, setMetaError] = useState<string | null>(null);
 
   const { data: session } = useSession();
   const { site, savedSites, loadSavedSite, siteSocialConnections, connectSocial, loadSiteSocialConnections } = useSite();
@@ -102,12 +120,82 @@ export function SocialConnections() {
       .finally(() => setLoading(false));
   }, []);
 
+  const fetchMetaAccounts = useCallback(() => {
+    fetch("/api/social/meta/accounts")
+      .then((r) => r.json())
+      .then((data: MetaAccountsResponse) => setMetaAccounts(data))
+      .catch(() => setMetaAccounts(null));
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => {
       void fetchStatus();
     }, 0);
     return () => clearTimeout(t);
   }, [fetchStatus]);
+
+  useEffect(() => {
+    if (!site) {
+      setMetaAccounts(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      void fetchMetaAccounts();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [site, session, fetchMetaAccounts]);
+
+  const chooseMetaPage = useCallback(
+    async (page: MetaPageOption) => {
+      if (!site) return;
+      setPickingPage(page.id);
+      setMetaError(null);
+      try {
+        const fbRes = await fetch("/api/social/link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            platform: "facebook",
+            siteDomain: site.domain,
+            pageId: page.id,
+          }),
+        });
+        const fbData = await fbRes.json().catch(() => ({}));
+        if (!fbRes.ok) {
+          throw new Error(
+            typeof fbData.error === "string"
+              ? fbData.error
+              : "Could not connect that Facebook Page",
+          );
+        }
+        if (page.instagram) {
+          const igRes = await fetch("/api/social/link", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              platform: "instagram",
+              siteDomain: site.domain,
+              pageId: page.id,
+            }),
+          });
+          if (!igRes.ok) {
+            const igData = await igRes.json().catch(() => ({}));
+            throw new Error(
+              typeof igData.error === "string"
+                ? igData.error
+                : "Page connected. Instagram on that Page could not be linked.",
+            );
+          }
+        }
+        await loadSiteSocialConnections();
+      } catch (err) {
+        setMetaError(err instanceof Error ? err.message : "Could not connect page");
+      } finally {
+        setPickingPage(null);
+      }
+    },
+    [site, loadSiteSocialConnections],
+  );
 
   if (loading) {
     return (
@@ -386,6 +474,75 @@ export function SocialConnections() {
                   : "Set email recipient"}
               </button>
             </div>
+            {metaAccounts?.connected ? (
+              <div className="mt-4 rounded-lg border border-emerald-200 bg-white p-3 dark:border-emerald-900 dark:bg-slate-950">
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+                  Facebook / Meta accounts on this login
+                </p>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  {metaAccounts.loginName || metaAccounts.email
+                    ? `Logged into Meta as ${[metaAccounts.loginName, metaAccounts.email].filter(Boolean).join(" · ")}.`
+                    : "Pages this Meta login can manage."}{" "}
+                  Tap the Page you want crawlspark to publish to for {site.domain}.
+                </p>
+                {(metaAccounts.pages ?? []).length === 0 ? (
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                    No Facebook Pages on this login. A personal profile is not enough — you need to be admin of a Page (and an Instagram professional account linked to it).
+                  </p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {(metaAccounts.pages ?? []).map((page) => {
+                      const selected =
+                        siteSocialConnections.facebook?.accountId === page.id;
+                      const igSelected =
+                        !!page.instagram &&
+                        siteSocialConnections.instagram?.accountId ===
+                          page.instagram.id;
+                      return (
+                        <button
+                          key={page.id}
+                          type="button"
+                          disabled={pickingPage === page.id}
+                          onClick={() => void chooseMetaPage(page)}
+                          className={`flex w-full items-start justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs ${
+                            selected
+                              ? "border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/40"
+                              : "border-slate-200 hover:border-amber-300 dark:border-slate-700"
+                          }`}
+                        >
+                          <span>
+                            <span className="block font-medium text-slate-900 dark:text-slate-100">
+                              {selected ? "✓ " : ""}
+                              {page.name}
+                            </span>
+                            <span className="block text-[11px] text-slate-500">
+                              Facebook Page
+                              {page.instagram
+                                ? ` · Instagram ${page.instagram.username ? `@${page.instagram.username}` : "linked"}${igSelected ? " ✓" : ""}`
+                                : " · no Instagram professional account"}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                            {pickingPage === page.id
+                              ? "Connecting…"
+                              : selected
+                                ? "Using"
+                                : "Use this"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {metaError && (
+                  <p className="mt-2 text-xs text-rose-600">{metaError}</p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+                After you tap Connect Facebook / Meta and approve access, crawlspark will list the Pages on that email here so you can pick one.
+              </p>
+            )}
             <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400">
               After connecting, posts for this site will use your accounts.
             </p>
