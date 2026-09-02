@@ -196,7 +196,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   ],
   callbacks: {
-    async jwt({ token, user, account, trigger, session }) {
+    async jwt({ token, user, account, trigger }) {
       const tt = token as ExtToken;
       const SOCIAL_PROVIDERS = [
         "twitter",
@@ -250,6 +250,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Social OAuth is for linking tokens only — never replace the crawlspark user.
       if (account && SOCIAL_PROVIDERS.includes(account.provider)) {
         if (!token.id) {
+          try {
+            const { cookies } = await import("next/headers");
+            const { verifyLinkUserId, LINK_USER_COOKIE } = await import(
+              "@/lib/social/link-uid"
+            );
+            const raw = (await cookies()).get(LINK_USER_COOKIE)?.value;
+            const fromCookie = verifyLinkUserId(raw);
+            if (fromCookie) {
+              const exists = await prisma.user.findUnique({
+                where: { id: fromCookie },
+                select: { id: true },
+              });
+              if (exists) token.id = exists.id;
+            }
+          } catch {
+            /* jwt may run outside a request */
+          }
+        }
+        if (!token.id) {
           const email =
             typeof user?.email === "string"
               ? user.email.toLowerCase().trim()
@@ -272,10 +291,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Refresh plan from DB after Stripe checkout, billing, or session.update()
       if (trigger === "update" && token.id) {
         await refreshSubscriptionFromDb(token.id as string);
-        const payload = session as { emailVerified?: string | null } | undefined;
-        if (payload?.emailVerified) {
-          tt.emailVerified = payload.emailVerified;
-        }
       }
 
       // Store OAuth tokens for social platforms (per user, will be linked to specific sites)

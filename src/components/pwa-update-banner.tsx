@@ -31,7 +31,14 @@ export function PwaUpdateBanner() {
         </button>
         <button
           type="button"
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            try {
+              sessionStorage.setItem("pwa-reload", "1");
+            } catch {
+              /* ignore */
+            }
+            window.location.reload();
+          }}
           className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
         >
           Refresh

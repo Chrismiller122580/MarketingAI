@@ -35,10 +35,13 @@ export function PwaManager() {
   useEffect(() => {
     let reloading = false;
     const onControllerChange = () => {
-      // Only reload when replacing an existing worker — first install should not bounce.
+      // Reload only after the user taps Refresh on the update banner.
       if (reloading) return;
-      reloading = true;
-      window.location.reload();
+      if (typeof window !== "undefined" && sessionStorage.getItem("pwa-reload") === "1") {
+        sessionStorage.removeItem("pwa-reload");
+        reloading = true;
+        window.location.reload();
+      }
     };
 
     if ("serviceWorker" in navigator) {

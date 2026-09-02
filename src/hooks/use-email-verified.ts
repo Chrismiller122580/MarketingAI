@@ -34,12 +34,19 @@ export function useEmailVerified(): boolean {
   const fromSession = Boolean(session?.user?.emailVerified);
   const [fromAccount, setFromAccount] = useState(false);
 
+  const userId = session?.user?.id;
+
+  useEffect(() => {
+    resetEmailVerifiedCheck();
+    setFromAccount(false);
+  }, [userId]);
+
   useEffect(() => {
     if (fromSession) {
       setFromAccount(true);
       return;
     }
-    if (status === "loading" || !session?.user?.id) return;
+    if (status === "loading" || !userId) return;
 
     const apply = (value: string | null) => {
       if (!value) return;
@@ -59,7 +66,7 @@ export function useEmailVerified(): boolean {
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fromSession, session?.user?.id, status, update]);
+  }, [fromSession, userId, status, update]);
 
   return fromSession || fromAccount;
 }

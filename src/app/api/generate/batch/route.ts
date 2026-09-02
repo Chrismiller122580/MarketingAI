@@ -34,16 +34,15 @@ export async function POST(request: Request) {
     }
 
     const usage = await getQuotaSnapshot(userId);
-    const remaining = remainingFreeGenerations(usage);
     const requested = Math.min(body.maxPosts ?? 9, 20);
+    if (!usage.paid) {
+      const quotaErr = await assertFreeGenerationsAllowed(userId, requested);
+      if (quotaErr) return quotaErr;
+    }
+    const remaining = remainingFreeGenerations(usage);
     const maxPosts = Number.isFinite(remaining)
       ? Math.min(requested, remaining)
       : requested;
-
-    if (!usage.paid && maxPosts < 1) {
-      const quotaErr = await assertFreeGenerationsAllowed(userId, 1);
-      if (quotaErr) return quotaErr;
-    }
 
     const promptPreferences = await getPromptPreferences(userId);
 

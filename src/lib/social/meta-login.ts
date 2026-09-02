@@ -75,12 +75,16 @@ export async function persistMetaUserToken(
   let accessToken = shortOrLongLivedToken;
   let expiresAt: string | null = null;
 
+  const existing = await getMetaLogin(userId);
+
   const longLived = await exchangeMetaLongLivedToken(accessToken, platform);
   if (longLived.accessToken) {
     accessToken = longLived.accessToken;
     if (typeof longLived.expiresIn === "number") {
       expiresAt = new Date(Date.now() + longLived.expiresIn * 1000).toISOString();
     }
+  } else if (existing?.accessToken && longLived.error) {
+    return existing;
   }
 
   let name: string | null = null;
@@ -102,6 +106,10 @@ export async function persistMetaUserToken(
     }
   } catch {
     /* optional */
+  }
+
+  if (!metaUserId) {
+    return existing ?? null;
   }
 
   const login: StoredMetaLogin = {

@@ -148,7 +148,12 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
           : "/settings";
-      signIn(platform.toLowerCase(), { callbackUrl: returnPath });
+
+      void fetch("/api/social/prepare", { method: "POST" })
+        .catch(() => undefined)
+        .finally(() => {
+          signIn(platform.toLowerCase(), { callbackUrl: returnPath });
+        });
     },
     [site],
   );
