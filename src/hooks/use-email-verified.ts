@@ -14,9 +14,18 @@ function fetchAccountEmailVerified(): Promise<string | null> {
         (data: { user?: { emailVerified?: string | null } }) =>
           data.user?.emailVerified ?? null,
       )
-      .catch(() => null);
+      .catch(() => null)
+      .then((value) => {
+        if (!value) accountCheck = null;
+        return value;
+      });
   }
   return accountCheck;
+}
+
+export function resetEmailVerifiedCheck() {
+  accountCheck = null;
+  sessionPushed = false;
 }
 
 /** True when the account email is verified in session or on the server. */
@@ -32,14 +41,24 @@ export function useEmailVerified(): boolean {
     }
     if (status === "loading" || !session?.user?.id) return;
 
-    void fetchAccountEmailVerified().then((value) => {
+    const apply = (value: string | null) => {
       if (!value) return;
       setFromAccount(true);
       if (!sessionPushed) {
         sessionPushed = true;
         void update({ emailVerified: value });
       }
-    });
+    };
+
+    void fetchAccountEmailVerified().then(apply);
+
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      accountCheck = null;
+      void fetchAccountEmailVerified().then(apply);
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fromSession, session?.user?.id, status, update]);
 
   return fromSession || fromAccount;

@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     default: "crawlspark.ai",
     template: "%s — crawlspark.ai",
   },
-  description: "Crawl your site, spark your content — AI marketing grounded in your website. Installable on Android and iOS.",
+  description: "Crawl your site, spark your content — AI marketing grounded in your website. One login for you or many client Pages. Installable on Android and iOS.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [

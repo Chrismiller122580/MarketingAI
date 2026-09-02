@@ -10,6 +10,7 @@ import { PwaManager } from "./pwa-manager";
 import { PwaUpdateBanner } from "./pwa-update-banner";
 import { PwaInstallBanner } from "./pwa-install-banner";
 import { SocialLinker } from "./social-linker";
+import { SessionGuard } from "./session-guard";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <PwaUpdateBanner />
       <PwaInstallBanner />
       <AuthSessionProvider>
+        <SessionGuard />
         <SiteProvider>
           <SocialLinker />
           <SettingsProvider>

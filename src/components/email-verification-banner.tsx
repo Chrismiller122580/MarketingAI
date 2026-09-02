@@ -14,14 +14,7 @@ export function EmailVerificationBanner() {
   if (!session?.user?.id) return null;
 
   if (emailVerified) {
-    if (session.user.emailVerified) return null;
-    return (
-      <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900/50 dark:bg-green-950/30">
-        <p className="text-sm text-green-900 dark:text-green-100">
-          Email verified successfully.
-        </p>
-      </div>
-    );
+    return null;
   }
 
   async function resend() {

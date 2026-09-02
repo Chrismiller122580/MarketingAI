@@ -12,7 +12,7 @@ const verifiedTokens = new Set<string>();
 
 export function VerifyEmailClient() {
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const [status, setStatus] = useState<Status>(() =>
     searchParams.get("error") ? "error" : "working",
   );
@@ -52,6 +52,7 @@ export function VerifyEmailClient() {
         if (res.ok && data.ok) {
           verifiedTokens.add(token);
           setStatus("ok");
+          void update({ emailVerified: new Date().toISOString() });
           return;
         }
         setStatus((prev) => (prev === "ok" ? "ok" : "error"));
@@ -62,7 +63,7 @@ export function VerifyEmailClient() {
       .finally(() => {
         verifyingTokens.delete(token);
       });
-  }, [searchParams]);
+  }, [searchParams, update]);
 
   const loggedIn = Boolean(session?.user?.id);
 

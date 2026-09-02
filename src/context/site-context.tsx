@@ -128,7 +128,10 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
   const connectSocial = useCallback(
     (platform: string) => {
-      if (platform === "facebook" || platform === "instagram") {
+      const isMeta = platform === "facebook" || platform === "instagram";
+      if (!isMeta && !site) return;
+
+      if (isMeta) {
         try {
           localStorage.setItem("pendingMetaUserConnect", "1");
         } catch {

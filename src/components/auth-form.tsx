@@ -21,7 +21,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    () => searchParams.get("error"),
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,7 +98,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {isSignup
-            ? "Start generating AI-powered marketing content"
+            ? "Free: one site and 15 posts a month. No card required."
             : "Sign in to your crawlspark.ai workspace"}
         </p>
       </div>

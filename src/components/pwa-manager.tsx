@@ -52,10 +52,7 @@ export function PwaManager() {
               const newWorker = reg.installing;
               if (!newWorker) return;
               newWorker.addEventListener("statechange", () => {
-                if (
-                  newWorker.state === "activated" &&
-                  navigator.serviceWorker.controller
-                ) {
+                if (newWorker.state === "installed" && hadController) {
                   window.dispatchEvent(new CustomEvent("pwa-update-available"));
                 }
               });

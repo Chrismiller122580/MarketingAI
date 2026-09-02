@@ -27,7 +27,7 @@ export default function SettingsPage() {
         </div>
 
         <AccountSettings />
-        <DomainInput />
+        <DomainInput variant="dashboard" />
         <SocialConnections />
         <SettingsForm />
         <BrandInsights />

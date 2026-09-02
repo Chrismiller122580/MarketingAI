@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { fetchFacebookPages } from "@/lib/social/facebook";
 import { resolveInstagramAccount } from "@/lib/social/instagram";
-import { persistMetaUserToken, resolveMetaUserToken } from "@/lib/social/meta-login";
+import { getMetaLogin, persistMetaUserToken, resolveMetaUserToken } from "@/lib/social/meta-login";
 import { resolvePinterestBoard } from "@/lib/social/pinterest";
 import { normalizeDomain } from "@/lib/crawl";
 
@@ -137,13 +137,19 @@ export async function POST(request: Request) {
     let providerUserId: string | undefined;
 
     if (platform === "facebook") {
-      const saved = await persistMetaUserToken(
-        userId,
-        accessToken,
-        "facebook",
-      );
-      if (saved?.accessToken) accessToken = saved.accessToken;
-      providerUserId = saved?.userId ?? undefined;
+      const stored = await getMetaLogin(userId);
+      if (stored?.accessToken) {
+        accessToken = stored.accessToken;
+        providerUserId = stored.userId ?? undefined;
+      } else {
+        const saved = await persistMetaUserToken(
+          userId,
+          accessToken,
+          "facebook",
+        );
+        if (saved?.accessToken) accessToken = saved.accessToken;
+        providerUserId = saved?.userId ?? undefined;
+      }
 
       const pages = await fetchFacebookPages(accessToken);
       if (pages.length === 0) {
@@ -173,13 +179,19 @@ export async function POST(request: Request) {
     }
 
     if (platform === "instagram") {
-      const saved = await persistMetaUserToken(
-        userId,
-        accessToken,
-        "instagram",
-      );
-      if (saved?.accessToken) accessToken = saved.accessToken;
-      providerUserId = saved?.userId ?? undefined;
+      const stored = await getMetaLogin(userId);
+      if (stored?.accessToken) {
+        accessToken = stored.accessToken;
+        providerUserId = stored.userId ?? undefined;
+      } else {
+        const saved = await persistMetaUserToken(
+          userId,
+          accessToken,
+          "instagram",
+        );
+        if (saved?.accessToken) accessToken = saved.accessToken;
+        providerUserId = saved?.userId ?? undefined;
+      }
 
       const igAccount = await resolveInstagramAccount(
         accessToken,
