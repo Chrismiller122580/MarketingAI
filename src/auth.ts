@@ -247,13 +247,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
-      // Social OAuth is for linking tokens only — preserve paid plan from DB
-      if (
-        account &&
-        SOCIAL_PROVIDERS.includes(account.provider) &&
-        token.id
-      ) {
-        await refreshSubscriptionFromDb(token.id as string);
+      // Social OAuth is for linking tokens only — never replace the crawlspark user.
+      if (account && SOCIAL_PROVIDERS.includes(account.provider)) {
+        if (!token.id) {
+          const email =
+            typeof user?.email === "string"
+              ? user.email.toLowerCase().trim()
+              : typeof token.email === "string"
+                ? token.email.toLowerCase().trim()
+                : "";
+          if (email) {
+            const existing = await prisma.user.findUnique({
+              where: { email },
+              select: { id: true },
+            });
+            if (existing) token.id = existing.id;
+          }
+        }
+        if (token.id) {
+          await refreshSubscriptionFromDb(token.id as string);
+        }
       }
 
       // Refresh plan from DB after Stripe checkout, billing, or session.update()

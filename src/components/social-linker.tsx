@@ -12,6 +12,29 @@ const PLATFORMS = [
   "pinterest",
 ] as const;
 
+function readSocialLinkSite(): string {
+  try {
+    const fromStore = localStorage.getItem("pendingSocialConnectSite");
+    if (fromStore) return fromStore;
+  } catch {
+    /* private mode */
+  }
+  const match = document.cookie.match(/(?:^|; )crawlspark_link_site=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function clearSocialLinkSite() {
+  try {
+    localStorage.removeItem("pendingSocialConnectSite");
+  } catch {
+    /* ignore */
+  }
+  const cookieDomain = window.location.hostname.endsWith("crawlspark.ai")
+    ? "; Domain=.crawlspark.ai"
+    : "";
+  document.cookie = `crawlspark_link_site=; Path=/; Max-Age=0; SameSite=Lax; Secure${cookieDomain}`;
+}
+
 /**
  * After social OAuth, links tokens to the pending site domain (from localStorage).
  * Does not require the site to already be loaded in context — fixes post-OAuth 404s.
@@ -22,10 +45,10 @@ export function SocialLinker() {
   const linkingRef = useRef(false);
 
   useEffect(() => {
-    const pendingDomain = localStorage.getItem("pendingSocialConnectSite");
+    const pendingDomain = readSocialLinkSite();
     if (
       status !== "authenticated" ||
-      !session?.user ||
+      !session?.user?.id ||
       !pendingDomain ||
       linkingRef.current
     ) {
@@ -68,7 +91,7 @@ export function SocialLinker() {
           }),
         );
 
-        localStorage.removeItem("pendingSocialConnectSite");
+        clearSocialLinkSite();
 
         // Restore subscription fields after OAuth (plan must not revert to free)
         await update();

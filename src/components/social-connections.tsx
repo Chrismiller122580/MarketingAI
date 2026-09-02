@@ -91,7 +91,7 @@ export function SocialConnections() {
   const [loading, setLoading] = useState(true);
 
   const { data: session } = useSession();
-  const { site, siteSocialConnections, connectSocial, loadSiteSocialConnections } = useSite();
+  const { site, savedSites, loadSavedSite, siteSocialConnections, connectSocial, loadSiteSocialConnections } = useSite();
   const isAdmin = session?.user?.role === "admin";
 
   const fetchStatus = useCallback(() => {
@@ -207,7 +207,9 @@ export function SocialConnections() {
                   const label =
                     platform === "twitter"
                       ? "X"
-                      : platform.charAt(0).toUpperCase() + platform.slice(1);
+                      : platform === "facebook"
+                        ? "Facebook / Meta"
+                        : platform.charAt(0).toUpperCase() + platform.slice(1);
                   return (
                     <span
                       key={platform}
@@ -227,9 +229,27 @@ export function SocialConnections() {
                 },
               )}
             </div>
+          ) : savedSites.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Choose a crawled site to connect Facebook, Instagram, and the rest.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {savedSites.map((s) => (
+                  <button
+                    key={s.domain}
+                    type="button"
+                    onClick={() => void loadSavedSite(s.domain)}
+                    className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+                  >
+                    {s.domain.replace(/^https?:\/\//, "")}
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : (
             <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
-              Load a site in the domain card to see and connect accounts for that domain.
+              Crawl a site on the dashboard first, then connect Meta for that domain.
             </p>
           )}
           {site && (
@@ -302,7 +322,8 @@ export function SocialConnections() {
               Connect accounts for this site: {site.domain}
             </h3>
             <p className="text-xs text-emerald-700 dark:text-emerald-300 mb-3">
-              Click to log in and grant access. Your tokens are stored privately for this domain only.
+              Connect the Facebook Page and Instagram account you post with.
+              This is for publishing, not Meta Ads Manager.
             </p>
             <div className="flex flex-wrap gap-2">
               {(["twitter", "linkedin", "facebook", "instagram", "pinterest"] as const).map((platform) => {
@@ -314,7 +335,9 @@ export function SocialConnections() {
                 const label =
                   platform === "twitter"
                     ? "X"
-                    : platform.charAt(0).toUpperCase() + platform.slice(1);
+                    : platform === "facebook"
+                      ? "Facebook / Meta"
+                      : platform.charAt(0).toUpperCase() + platform.slice(1);
                 return (
                   <button
                     key={platform}
@@ -367,9 +390,27 @@ export function SocialConnections() {
               After connecting, posts for this site will use your accounts.
             </p>
           </div>
+        ) : savedSites.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Tap your site, then connect Facebook / Meta.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {savedSites.map((s) => (
+                <button
+                  key={s.domain}
+                  type="button"
+                  onClick={() => void loadSavedSite(s.domain)}
+                  className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+                >
+                  {s.domain.replace(/^https?:\/\//, "")}
+                </button>
+              ))}
+            </div>
+          </div>
         ) : (
           <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-            Load a site first (in the domain card) to connect its social accounts.
+            Crawl your site on the dashboard first, then connect Meta here.
           </p>
         )}
 

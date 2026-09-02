@@ -55,6 +55,14 @@ function stripDomain(domain: string): string {
   return domain.replace(/^https?:\/\//, "");
 }
 
+function writeSocialLinkCookie(domain: string) {
+  if (typeof document === "undefined") return;
+  const cookieDomain = window.location.hostname.endsWith("crawlspark.ai")
+    ? "; Domain=.crawlspark.ai"
+    : "";
+  document.cookie = `crawlspark_link_site=${encodeURIComponent(domain)}; Path=/; Max-Age=600; SameSite=Lax; Secure${cookieDomain}`;
+}
+
 async function patchActiveSite(domain: string | null): Promise<void> {
   await fetch("/api/db/settings", {
     method: "PUT",
@@ -123,7 +131,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       if (!site) return;
 
       localStorage.setItem("pendingSocialConnectSite", site.domain);
-
+      writeSocialLinkCookie(site.domain);
       const returnPath =
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
@@ -150,12 +158,15 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
           loadSavedSitesList(),
         ]);
 
-        if (isUnauthorizedStatus(settingsRes.status)) return;
+        if (isUnauthorizedStatus(settingsRes.status)) {
+          bootstrappedForUser.current = false;
+          return;
+        }
 
         const settings = settingsRes.data.settings;
         let activeDomain = settings?.activeSiteDomain ?? null;
 
-        if (!settings?.activeSiteChosen && sites.length > 0) {
+        if (!activeDomain && sites.length > 0) {
           activeDomain = sites[0].domain;
           await patchActiveSite(activeDomain);
         }
@@ -164,7 +175,10 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
           const siteRes = await fetchJson<{ site?: SiteData }>(
             `/api/db/site?domain=${encodeURIComponent(activeDomain)}`,
           );
-          if (isUnauthorizedStatus(siteRes.status)) return;
+          if (isUnauthorizedStatus(siteRes.status)) {
+            bootstrappedForUser.current = false;
+            return;
+          }
           if (siteRes.data.site && isValidSiteData(siteRes.data.site)) {
             setSite(siteRes.data.site);
             setDomainInput(stripDomain(siteRes.data.site.domain));
