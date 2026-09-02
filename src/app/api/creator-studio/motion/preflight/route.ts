@@ -47,21 +47,21 @@ export async function POST(request: Request) {
     const replicateOk = hasReplicate();
     checks.push({
       id: "replicate",
-      label: "Replicate (lip-sync video)",
+      label: "Video engine",
       status: replicateOk ? "pass" : "fail",
       detail: replicateOk
-        ? "REPLICATE_API_TOKEN configured"
-        : "Add REPLICATE_API_TOKEN in Settings → Integrations",
+        ? "Ready"
+        : "Video isn't available right now",
     });
 
     const elevenOk = hasElevenLabs();
     checks.push({
       id: "elevenlabs",
-      label: "ElevenLabs (voice)",
+      label: "Voice",
       status: elevenOk ? "pass" : "fail",
       detail: elevenOk
-        ? "ELEVENLABS_API_KEY configured"
-        : "Add ELEVENLABS_API_KEY in Settings → Integrations",
+        ? "Ready"
+        : "Voice isn't available right now",
     });
 
     const influencer = await prisma.influencer.findFirst({

@@ -160,7 +160,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Talk clips require REPLICATE_API_TOKEN and ELEVENLABS_API_KEY.",
+              "Talking clips aren't available right now.",
             content,
             script: scriptResult.script,
             contentStudioUrl: buildContentStudioUrl(

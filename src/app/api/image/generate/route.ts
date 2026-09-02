@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "AI image generation unavailable. Add OPENAI_API_KEY or XAI_API_KEY.",
+            "AI image generation unavailable. Try a photo from your site, or try again later.",
         },
         { status: 503 },
       );

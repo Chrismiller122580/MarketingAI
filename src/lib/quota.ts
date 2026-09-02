@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { normalizeDomain } from "@/lib/crawl";
 import { isActivePaidPlan } from "@/lib/auth-helpers";
+import { isFreeSocialPlatform } from "@/lib/plans";
 
 export const FREE_QUOTA = {
   sites: 1,
@@ -113,7 +114,7 @@ export async function assertFreeCrawlAllowed(
   if (count >= FREE_QUOTA.sites) {
     const usage = await getQuotaSnapshot(userId);
     return quotaExceededResponse(
-      `Free includes ${FREE_QUOTA.sites} website. Recrawl your existing site anytime, or upgrade to Pro for unlimited sites.`,
+      `Free includes ${FREE_QUOTA.sites} website. Recrawl it anytime, or upgrade to Pro to add client sites and publish to more accounts.`,
       usage,
     );
   }
@@ -132,7 +133,7 @@ export async function assertFreeGenerationsAllowed(
   const limit = FREE_QUOTA.generationsPerMonth;
   if (used >= limit) {
     return quotaExceededResponse(
-      `Free includes ${limit} posts this month (${usage.period}). You've used them all. Upgrade to Pro for unlimited generations.`,
+      `Free includes ${limit} posts this month (${usage.period}). You've used them all. Upgrade to Pro for unlimited posts across multiple accounts.`,
       usage,
     );
   }
@@ -181,4 +182,15 @@ export async function consumeGenerations(
 export function remainingFreeGenerations(usage: QuotaSnapshot): number {
   if (usage.paid || usage.generationsLimit == null) return Number.POSITIVE_INFINITY;
   return Math.max(0, usage.generationsLimit - usage.generationsUsed);
+}
+
+export async function assertFreeSocialAllowed(
+  userId: string,
+  platform: string,
+): Promise<NextResponse | null> {
+  if (await userHasPaidAccess(userId)) return null;
+  if (isFreeSocialPlatform(platform)) return null;
+  return quotaExceededResponse(
+    "Free publishes to Facebook and Instagram for your one website. Upgrade to Pro to connect more accounts and market multiple client sites.",
+  );
 }

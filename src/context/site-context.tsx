@@ -11,6 +11,7 @@ import {
 } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { fetchJson, isUnauthorizedStatus } from "@/lib/client-fetch";
+import { isFreeSocialPlatform, sessionIsPaid } from "@/lib/plans";
 import type { CrawlStatus, SiteData, UserSettings } from "@/lib/types";
 
 type SavedSiteSummary = {
@@ -27,6 +28,7 @@ type SiteContextValue = {
   site: SiteData | null;
   status: CrawlStatus;
   error: string | null;
+  quotaExceeded: boolean;
   crawlSite: () => Promise<void>;
   clearSite: () => Promise<void>;
   saveSite: () => Promise<void>;
@@ -77,11 +79,12 @@ async function patchActiveSite(domain: string | null): Promise<void> {
 }
 
 export function SiteProvider({ children }: { children: React.ReactNode }) {
-  const { status: sessionStatus } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [domainInput, setDomainInput] = useState("");
   const [site, setSite] = useState<SiteData | null>(null);
   const [status, setStatus] = useState<CrawlStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savedSites, setSavedSites] = useState<SavedSiteSummary[]>([]);
   const [siteSocialConnections, setSiteSocialConnections] = useState<
@@ -131,6 +134,15 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       const isMeta = platform === "facebook" || platform === "instagram";
       if (!isMeta && !site) return;
 
+      if (!isFreeSocialPlatform(platform) && !sessionIsPaid(session?.user as { plan?: string; role?: string; subscriptionEndsAt?: string | null } | undefined)) {
+        setError(
+          "Free publishes to Facebook and Instagram for your one website. Upgrade to Pro to connect more accounts and market multiple client sites.",
+        );
+        setQuotaExceeded(true);
+        return;
+      }
+      setQuotaExceeded(false);
+
       if (isMeta) {
         try {
           localStorage.setItem("pendingMetaUserConnect", "1");
@@ -155,7 +167,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
           signIn(platform.toLowerCase(), { callbackUrl: returnPath });
         });
     },
-    [site],
+    [site, session?.user],
   );
 
   useEffect(() => {
@@ -236,6 +248,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
 
     setStatus("loading");
     setError(null);
+    setQuotaExceeded(false);
 
     try {
       const response = await fetch("/api/crawl", {
@@ -245,7 +258,10 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to crawl domain");
+      if (!response.ok) {
+        if (data?.code === "QUOTA_EXCEEDED") setQuotaExceeded(true);
+        throw new Error(data.error ?? "Failed to crawl domain");
+      }
       if (!isValidSiteData(data)) throw new Error("Invalid crawl response");
 
       setSite(data);
@@ -337,6 +353,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       site,
       status,
       error,
+      quotaExceeded,
       crawlSite,
       clearSite,
       saveSite,
@@ -353,6 +370,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       site,
       status,
       error,
+      quotaExceeded,
       crawlSite,
       clearSite,
       saveSite,

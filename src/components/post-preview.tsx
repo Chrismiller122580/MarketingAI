@@ -161,7 +161,7 @@ export function PostPreview({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-rose-900/50 backdrop-blur-sm">
             <p className="text-sm font-medium text-white">Video generation failed</p>
             <p className="mt-1 px-4 text-center text-xs text-rose-100">
-              Check REPLICATE_API_TOKEN in Settings
+              Try again, or publish the image version.
             </p>
           </div>
         )}

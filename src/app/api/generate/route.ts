@@ -18,6 +18,7 @@ import {
 import { prisma } from "@/lib/db";
 import { getPromptPreferences } from "@/lib/learning-preferences";
 import { isEnterprisePlusPlan } from "@/lib/plans";
+import { PUBLIC_ERRORS } from "@/lib/public-errors";
 import { assertFreeGenerationsAllowed, consumeGenerations } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { hasVoiceProvider } from "@/lib/ai-voice";
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Reel video generation requires REPLICATE_API_TOKEN. Add it in Settings → Integrations.",
+          error: PUBLIC_ERRORS.videoUnavailable,
         },
         { status: 503 },
       );
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Story image generation requires OPENAI_API_KEY or XAI_API_KEY. Add one in Settings → Integrations.",
+          error: PUBLIC_ERRORS.imageUnavailable,
         },
         { status: 503 },
       );
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Story video generation requires REPLICATE_API_TOKEN. Add it in Settings → Integrations.",
+          error: PUBLIC_ERRORS.videoUnavailable,
         },
         { status: 503 },
       );
@@ -335,7 +336,7 @@ export async function POST(request: Request) {
         } else if (!hasVoiceProvider() && (contentType === "Reel" || contentType === "Video Ad")) {
           post.insights = [
             ...post.insights,
-            "Optional: add ELEVENLABS_API_KEY (+ BLOB_READ_WRITE_TOKEN) for Reel MP3 voiceovers.",
+            "Voiceover is optional — this reel can still publish without it.",
           ];
         }
       }

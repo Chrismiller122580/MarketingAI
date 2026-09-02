@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Motion video requires REPLICATE_API_TOKEN. Add it in Vercel env vars.",
+          "Motion video isn't available right now.",
       },
       { status: 503 },
     );
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Talking clips require ELEVENLABS_API_KEY. Walk, spin, and jump only need Replicate.",
+            "Talking clips aren't available right now. Walk, spin, and jump still work.",
         },
         { status: 503 },
       );

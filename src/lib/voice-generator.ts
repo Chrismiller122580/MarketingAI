@@ -30,5 +30,5 @@ export async function startVoiceoverGeneration(
     };
   }
 
-  return { error: "Failed to generate voiceover. Check ELEVENLABS_API_KEY." };
+  return { error: "Failed to generate voiceover. The post can still publish without it." };
 }

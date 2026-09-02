@@ -50,7 +50,7 @@ export async function generateInfluencerScript(input: {
 }> {
   if (!hasAnyAiKey()) {
     throw new Error(
-      "AI script writing requires OPENAI_API_KEY or XAI_API_KEY.",
+      "AI script writing isn't available right now. Try again in a moment.",
     );
   }
 
@@ -120,7 +120,7 @@ export async function shortenInfluencerScriptForTalk(input: {
 }> {
   if (!hasAnyAiKey()) {
     throw new Error(
-      "AI script writing requires OPENAI_API_KEY or XAI_API_KEY.",
+      "AI script writing isn't available right now. Try again in a moment.",
     );
   }
 

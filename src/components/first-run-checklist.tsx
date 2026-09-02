@@ -60,7 +60,7 @@ export function FirstRunChecklist() {
       {
         id: "social",
         label: "Connect a social account",
-        hint: "Connect Meta once, then pick a Facebook Page per site — yours or a client's.",
+        hint: "Connect Facebook for your site. Extra accounts and client Pages are on Pro.",
         href: "/settings",
         done: hasSocial,
       },

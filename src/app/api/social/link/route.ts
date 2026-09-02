@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { assertFreeSocialAllowed } from "@/lib/quota";
 import { fetchFacebookPages } from "@/lib/social/facebook";
 import { resolveInstagramAccount } from "@/lib/social/instagram";
 import { getMetaLogin, persistMetaUserToken, resolveMetaUserToken } from "@/lib/social/meta-login";
@@ -30,6 +31,9 @@ export async function POST(request: Request) {
     if (!platform || !siteDomain) {
       return NextResponse.json({ error: "platform and siteDomain required" }, { status: 400 });
     }
+
+    const socialQuota = await assertFreeSocialAllowed(userId, platform);
+    if (socialQuota) return socialQuota;
 
     let normalizedDomain = siteDomain;
     try {

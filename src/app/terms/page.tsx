@@ -81,7 +81,7 @@ export default function TermsOfService() {
 
           <h2>7. Payments and Subscriptions</h2>
           <p>
-            A Free account includes one crawled website and 15 generated posts per calendar month (UTC), plus share-link publishing. Paid plans (Pro, Enterprise, and Enterprise Plus) unlock unlimited crawls and generations, calendar auto-publish, AI video, and (on Enterprise Plus) Creator Studio avatars. Current prices are shown on the homepage and Billing page.
+            A Free account includes one crawled website, 15 generated posts per calendar month (UTC), and publishing to Facebook and Instagram for that site. Paid plans (Pro, Enterprise, and Enterprise Plus) unlock unlimited sites and generations, extra publishing accounts, calendar auto-publish, AI video, and (on Enterprise Plus) Creator Studio avatars. Current prices are shown on the homepage and Billing page.
           </p>
           <p>
             Card subscriptions are billed monthly through Stripe. You can cancel in Billing → Manage Stripe subscription; access continues through the paid period unless Stripe reports the subscription as fully canceled. Crypto (XRP on the XRP Ledger, or USDC where offered) is prepaid monthly and is generally non-refundable except as required by law. You are responsible for on-chain transactions from your wallet.

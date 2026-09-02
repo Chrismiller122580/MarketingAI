@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import {
   getAiImageProvider,
   getAiProvider,
@@ -11,16 +12,30 @@ import {
 import { getConnectionStatus } from "@/lib/social/publishers";
 
 export async function GET() {
-  const connections = getConnectionStatus();
-  const connectedCount = connections.filter((c) => c.connected).length;
+  const session = await auth();
+  const isAdmin = session?.user?.role === "admin";
+
   const copyProvider = getAiProvider();
   const imageProvider = getAiImageProvider();
   const videoProvider = getAiVideoProvider();
   const voiceProvider = getAiVoiceProvider();
 
+  if (!isAdmin) {
+    return NextResponse.json({
+      aiCopyAvailable: !!copyProvider,
+      aiImageAvailable: !!imageProvider,
+      aiVideoAvailable: !!videoProvider,
+      aiVoiceAvailable: !!voiceProvider,
+      connections: [],
+      connectedCount: 0,
+      guides: [],
+    });
+  }
+
+  const connections = getConnectionStatus();
   return NextResponse.json({
     connections,
-    connectedCount,
+    connectedCount: connections.filter((c) => c.connected).length,
     aiCopyAvailable: !!copyProvider,
     aiImageAvailable: !!imageProvider,
     aiVideoAvailable: !!videoProvider,

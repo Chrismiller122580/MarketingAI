@@ -16,7 +16,7 @@ export const STRIPE_PRICING = {
     amount: Number(process.env.STRIPE_PRICE_PRO_AMOUNT ?? 29),
     currency: "USD",
     label: "Pro",
-    description: "Unlimited generations, priority support, advanced features",
+    description: "Unlimited sites, extra accounts, calendar, and AI video",
     monthly: true,
   },
   enterprise: {
@@ -42,7 +42,7 @@ export const PRICING = {
     currency: DEFAULT_CURRENCY,
     network: DEFAULT_NETWORK,
     label: "Pro",
-    description: "Unlimited generations, priority support, advanced features",
+    description: "Unlimited sites, extra accounts, calendar, and AI video",
     monthly: true,
   },
   enterprise: {

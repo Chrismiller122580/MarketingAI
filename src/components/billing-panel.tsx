@@ -331,8 +331,9 @@ export function BillingPanel() {
                 Free includes {usage?.sitesLimit ?? 1} website (you have{" "}
                 {usage?.sitesUsed ?? 0}) and {usage?.generationsLimit ?? 15} posts
                 per month. You've used {usage?.generationsUsed ?? 0}
-                {usage?.period ? ` in ${usage.period}` : ""}. Upgrade for unlimited
-                sites, generations, calendar auto-publish, and AI video.
+                {usage?.period ? ` in ${usage.period}` : ""}. Upgrade to Pro for
+                unlimited sites, extra accounts (X, LinkedIn, more Pages), calendar
+                auto-publish, and AI video.
               </p>
             )}
           </div>

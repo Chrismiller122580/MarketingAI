@@ -983,7 +983,7 @@ export function ContentGenerator() {
                           : "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
                       }`}
                     >
-                      Video: {aiCaps.aiVideoAvailable ? "Replicate ready" : "Replicate not configured"}
+                      Video: {aiCaps.aiVideoAvailable ? "Ready" : "Unavailable"}
                     </span>
                   )}
                   {isStory && storyMedia === "image" && (
@@ -1008,7 +1008,7 @@ export function ContentGenerator() {
                           : "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
                       }`}
                     >
-                      Video: {aiCaps.aiVideoAvailable ? "Replicate ready" : "Replicate not configured"}
+                      Video: {aiCaps.aiVideoAvailable ? "Ready" : "Unavailable"}
                     </span>
                   )}
                   {willGenerateVideo && (
@@ -1019,7 +1019,7 @@ export function ContentGenerator() {
                           : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                       }`}
                     >
-                      Voice: {aiCaps.aiVoiceAvailable ? "ElevenLabs ready" : "Optional — add ELEVENLABS_API_KEY"}
+                      Voice: {aiCaps.aiVoiceAvailable ? "Ready" : "Optional"}
                     </span>
                   )}
                 </div>
@@ -1073,7 +1073,7 @@ export function ContentGenerator() {
                         ? " ElevenLabs will narrate your hook as an MP3 voiceover."
                         : ""
                     }`
-                  : "Add REPLICATE_API_TOKEN in Settings → Integrations to enable video."}
+                  : "Video isn't available right now. Try an image post."}
               </p>
             </div>
           )}
@@ -1161,8 +1161,8 @@ export function ContentGenerator() {
           {missingProvider && (
             <p className="text-sm text-rose-600">
               {isReel || isStoryVideo
-                ? "Replicate is required for video. Add REPLICATE_API_TOKEN in Settings → Integrations."
-                : "OpenAI or xAI is required for Story images. Add OPENAI_API_KEY or XAI_API_KEY in Settings → Integrations."}
+                ? "Video isn't available right now. Try an image post."
+                : "AI images aren't available right now. Use a photo from your site."}
             </p>
           )}
 

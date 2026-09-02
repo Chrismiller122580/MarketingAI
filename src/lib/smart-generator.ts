@@ -709,7 +709,7 @@ export async function generateSmartPost(
 
   if (preferAi && image.source !== "ai") {
     insights.push(
-      "AI image generation failed — using branded placeholder. Check OPENAI_API_KEY or XAI_API_KEY on the server.",
+      "AI image generation failed — using a branded placeholder instead.",
     );
   }
   if (contentType === "Reel") {

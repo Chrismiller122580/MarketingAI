@@ -22,7 +22,7 @@ export async function synthesizeSpeech(
 }> {
   if (!hasVoiceProvider()) {
     throw new Error(
-      "ElevenLabs is not configured. Add ELEVENLABS_API_KEY to enable talking clips.",
+      "Voice isn't available right now. The clip can still generate without it.",
     );
   }
 
@@ -33,7 +33,7 @@ export async function synthesizeSpeech(
 
   if (!result) {
     throw new Error(
-      "ElevenLabs synthesis failed. Check ELEVENLABS_API_KEY and voice ID.",
+      "Voice synthesis failed. Try again in a moment.",
     );
   }
 

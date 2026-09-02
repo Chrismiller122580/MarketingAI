@@ -2103,14 +2103,13 @@ export function ViraForgeCreatorStudio() {
 
               {capabilities && !capabilities.motionVideoAvailable && (
                 <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  Add REPLICATE_API_TOKEN to enable motion clips.
+                  Motion clips aren't available right now.
                 </p>
               )}
 
               {capabilities && !capabilities.voiceAvailable && (
                 <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  Add ELEVENLABS_API_KEY for talking clips (walk/spin/jump still
-                  work with Replicate only).
+                  Voice isn't available for talking clips. Walk, spin, and jump still work.
                 </p>
               )}
 
@@ -2247,7 +2246,7 @@ export function ViraForgeCreatorStudio() {
                   let disabledReason: string | undefined;
                   if (isTalk && !capabilities?.motionTypes.talk) {
                     disabledReason =
-                      "Needs REPLICATE_API_TOKEN + ELEVENLABS_API_KEY";
+                      "Needs video + voice";
                   } else if (!previewImage) {
                     disabledReason = "Generate a portrait first";
                   } else if (isTalk && !approvedTalkPreview) {

@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "AI video generation unavailable. Add REPLICATE_API_TOKEN to enable Video Ads.",
+          "Video isn't available right now. Publish an image post, or try again later.",
       },
       { status: 503 },
     );

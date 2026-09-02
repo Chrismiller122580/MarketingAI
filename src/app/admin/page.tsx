@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { AppShell } from "@/components/app-shell";
 import { AdminDashboard } from "@/components/admin-dashboard";
+import { AdminIntegrations } from "@/components/admin-integrations";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -15,10 +16,11 @@ export default async function AdminPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Admin</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Platform stats, user management, and payment review.
+            Platform stats, user management, payment review, and backend API connections.
           </p>
         </div>
         <AdminDashboard />
+        <AdminIntegrations />
       </div>
     </AppShell>
   );

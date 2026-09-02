@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
+import { sessionIsPaid } from "@/lib/plans";
 import { InlineLoading } from "./loading-indicator";
 
 function formatRelativeDate(iso: string): string {
@@ -33,12 +35,21 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
     site,
     status,
     error,
+    quotaExceeded,
     crawlSite,
     clearSite,
     loadSavedSite,
     deleteSavedSite,
     savedSites,
   } = useSite();
+  const { data: session } = useSession();
+  const paid = sessionIsPaid(
+    session?.user as {
+      plan?: string;
+      role?: string;
+      subscriptionEndsAt?: string | null;
+    } | undefined,
+  );
   const router = useRouter();
   const pathname = usePathname();
 
@@ -94,8 +105,8 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
             Site domain
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Crawl your site to extract pages, images, brand voice, and keywords
-            for AI-powered posts.
+            Crawl your website to extract pages, images, and brand voice for posts.
+            Free includes one site — upgrade to add client domains.
           </p>
         </div>
         {site && (
@@ -152,12 +163,21 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
         </div>
       )}
 
-      {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+      {error && (
+        <p className="mt-3 text-sm text-rose-600">
+          {error}{" "}
+          {quotaExceeded && (
+            <Link href="/billing" className="font-semibold underline">
+              Open Billing
+            </Link>
+          )}
+        </p>
+      )}
 
       {isDashboard && site && status === "success" && (
         <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
           <p className="text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            Active client
+            {paid ? "Active client" : "Your website"}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-800 dark:text-emerald-200">
             <strong>{site.brand.name}</strong>

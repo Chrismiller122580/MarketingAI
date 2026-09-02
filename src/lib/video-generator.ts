@@ -30,7 +30,7 @@ export async function startVideoGeneration(
   if (!hasVideoProvider()) {
     return {
       error:
-        "AI video generation unavailable. Add REPLICATE_API_TOKEN to enable Video Ads.",
+        "Video isn't available right now. Publish an image post, or try again later.",
     };
   }
 
@@ -61,7 +61,7 @@ export async function startVideoGeneration(
   );
 
   if (!prediction) {
-    return { error: "Failed to start video generation. Check REPLICATE_API_TOKEN." };
+    return { error: "Failed to start video generation. Try again in a moment." };
   }
 
   const job = await createVideoJob(

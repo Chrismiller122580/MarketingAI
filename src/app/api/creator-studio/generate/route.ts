@@ -96,10 +96,8 @@ export async function POST(request: Request) {
     if (!result) {
       const providers = getImageProviderAvailability();
       const error = providers.any
-        ? "Image API request failed. Check OPENAI_API_KEY billing/limits or server logs."
-        : process.env.NODE_ENV === "development"
-          ? "No AI image keys in .env.local. Set OPENAI_API_KEY or XAI_API_KEY, then restart npm run dev."
-          : "AI image generation unavailable. Add OPENAI_API_KEY or XAI_API_KEY in Vercel env vars and redeploy.";
+        ? "Image generation failed. Try again in a moment."
+        : "AI images aren't available right now.";
       return NextResponse.json(
         { error, providers },
         { status: 503 },

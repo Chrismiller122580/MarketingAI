@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Voice preview requires ELEVENLABS_API_KEY. Add it in environment settings.",
+          "Voice preview isn't available right now.",
       },
       { status: 503 },
     );
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "ElevenLabs synthesis failed. Check ELEVENLABS_API_KEY and voice ID.",
+            "Voice synthesis failed. Try again in a moment.",
         },
         { status: 502 },
       );

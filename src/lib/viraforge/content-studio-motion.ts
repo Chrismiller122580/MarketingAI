@@ -78,8 +78,8 @@ export async function startContentStudioMotionClip(input: {
     return {
       error:
         input.motionType === "talk"
-          ? "Talk motion requires REPLICATE_API_TOKEN and ELEVENLABS_API_KEY."
-          : "Motion clips require REPLICATE_API_TOKEN.",
+          ? "Talking clips aren't available right now."
+          : "Motion clips aren't available right now.",
     };
   }
 

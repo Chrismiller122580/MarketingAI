@@ -48,7 +48,7 @@ export async function generateInfluencerSiteContent(input: {
 }): Promise<InfluencerSiteContentResult> {
   if (!hasAnyAiKey()) {
     throw new Error(
-      "AI copy unavailable. Add OPENAI_API_KEY or XAI_API_KEY.",
+      "AI copy unavailable. Try again in a moment.",
     );
   }
 

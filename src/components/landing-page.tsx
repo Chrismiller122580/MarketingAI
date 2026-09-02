@@ -24,7 +24,7 @@ const features = [
     icon: "◎",
     title: "Campaign packs",
     description:
-      "Spin up 15 posts at once for product launches, seasonal promos, or thought leadership pushes.",
+      "On Pro, spin up a full pack for launches and seasonal promos. Free includes 15 posts a month.",
   },
   {
     icon: "▣",
@@ -42,7 +42,7 @@ const features = [
     icon: "👥",
     title: "One login, many Pages",
     description:
-      "Connect Meta once — for yourself or an agency roster. Assign a different Facebook Page and Instagram to each site you crawl.",
+      "Pro and above: connect Meta once and assign a different Facebook Page to each client site.",
   },
 ];
 
@@ -51,19 +51,19 @@ const steps = [
     step: "01",
     title: "Add a site",
     description:
-      "Crawl your brand or a client domain. We pull pages, images, and brand voice in seconds.",
+      "Crawl your website. We pull pages, images, and brand voice in seconds.",
   },
   {
     step: "02",
     title: "Generate content",
     description:
-      "Create single posts or full campaign packs tailored to LinkedIn, X, Instagram, and more.",
+      "Create posts from your pages. Free includes 15 a month; Pro unlocks full campaign packs.",
   },
   {
     step: "03",
     title: "Schedule & publish",
     description:
-      "Drop posts on your calendar and publish when you're ready — or ship immediately.",
+      "Publish to Facebook and Instagram on Free. Pro adds more accounts, calendar, and auto-publish.",
   },
 ];
 
@@ -106,9 +106,9 @@ export function LandingPage() {
                 </span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
-                Crawl a domain, generate on-brand posts, and publish. Built for
-                one brand or a company marketing many client Pages. Free
-                includes one site and 15 posts a month — no card required.
+                Crawl a domain, generate on-brand posts, and publish. Free is
+                for one website and 15 posts a month. Pro unlocks client sites
+                and more publishing accounts.
               </p>
               <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link
@@ -302,7 +302,7 @@ export function LandingPage() {
           <div className="mx-auto max-w-6xl">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Simple, flexible pricing</h2>
-              <p className="mt-3 text-slate-600 dark:text-slate-400">Start free. Upgrade with card (Stripe) or XRP when you need more.</p>
+              <p className="mt-3 text-slate-600 dark:text-slate-400">Start free with one website and 15 posts a month. Upgrade when you need client sites and more accounts.</p>
             </div>
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
               {[
@@ -312,8 +312,8 @@ export function LandingPage() {
                   features: [
                     "1 website (recrawl anytime)",
                     "15 posts per month",
+                    "Facebook + Instagram for that site",
                     "Post library + share-link publish",
-                    "Crawled images on posts",
                   ],
                   cta: "Start free",
                   href: "/signup",
@@ -323,9 +323,9 @@ export function LandingPage() {
                   price: "29",
                   features: [
                     "Unlimited sites & generations",
-                    "Content calendar & auto-publish",
-                    "AI images and video ads",
-                    "Connect social accounts",
+                    "Many Pages / accounts per login",
+                    "X, LinkedIn, Pinterest + calendar",
+                    "AI images and video",
                     "Stripe or XRP billing",
                   ],
                   cta: "Upgrade to Pro",
