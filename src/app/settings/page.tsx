@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
 import { DomainInput } from "@/components/domain-input";
 import { SettingsForm } from "@/components/settings-form";
@@ -14,8 +15,8 @@ export default function SettingsPage() {
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Billing &amp; Payments</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">View your plan, upgrade with XRP, and see payment history.</p>
+              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Billing & Payments</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">View your plan, upgrade with XRP, and see payment history.</p>
             </div>
             <Link
               href="/billing"
@@ -28,7 +29,9 @@ export default function SettingsPage() {
 
         <AccountSettings />
         <DomainInput variant="dashboard" />
-        <SocialConnections />
+        <Suspense>
+          <SocialConnections />
+        </Suspense>
         <SettingsForm />
         <BrandInsights />
       </div>

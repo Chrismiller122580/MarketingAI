@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import { isFreeSocialPlatform, sessionIsPaid } from "@/lib/plans";
@@ -34,6 +35,24 @@ function platformLabel(platform: string) {
   return platform.charAt(0).toUpperCase() + platform.slice(1);
 }
 
+function facebookOAuthErrorMessage(code: string | null): string | null {
+  if (!code) return null;
+  const normalized = code.toLowerCase();
+  if (
+    normalized === "accessdenied" ||
+    normalized === "access_denied" ||
+    normalized === "oauthcallback" ||
+    normalized === "oauthsignin" ||
+    normalized === "callback"
+  ) {
+    return "Facebook canceled this login. Close that Facebook page, then tap Connect Facebook again and approve Pages (and Instagram if you use it). Ads is not needed.";
+  }
+  if (normalized === "configuration") {
+    return "Facebook login is not finished setting up. Try Connect Facebook again after this page reloads.";
+  }
+  return "Facebook did not finish connecting. Close that Facebook page and tap Connect Facebook again.";
+}
+
 export function SocialConnections() {
   const [metaAccounts, setMetaAccounts] = useState<MetaAccountsResponse | null>(
     null,
@@ -42,7 +61,10 @@ export function SocialConnections() {
   const [metaError, setMetaError] = useState<string | null>(null);
 
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const oauthError = facebookOAuthErrorMessage(searchParams.get("error"));
   const {
+    site,
     site,
     savedSites,
     loadSavedSite,
@@ -69,6 +91,10 @@ export function SocialConnections() {
       })
       .catch(() => setMetaAccounts(null));
   }, []);
+
+  useEffect(() => {
+    if (oauthError) setMetaError(oauthError);
+  }, [oauthError]);
 
   useEffect(() => {
     try {

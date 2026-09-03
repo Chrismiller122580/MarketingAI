@@ -27,6 +27,22 @@ if (
 type ExtToken = Record<string, unknown>;
 type ExtUser = Record<string, unknown>;
 
+function metaAuthorizationParams(configId?: string) {
+  const useBusinessLogin =
+    process.env.FACEBOOK_USE_BUSINESS_LOGIN === "1" && Boolean(configId);
+  if (useBusinessLogin) {
+    return {
+      config_id: configId,
+      response_type: "code",
+    };
+  }
+  return {
+    scope:
+      "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish",
+    response_type: "code",
+  };
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: authSecret,
   trustHost: true,
@@ -34,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
+    error: "/settings",
   },
   providers: [
     Credentials({
@@ -117,12 +134,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
       authorization: {
         url: "https://www.facebook.com/v19.0/dialog/oauth",
-        params: process.env.FACEBOOK_LOGIN_CONFIG_ID
-          ? { config_id: process.env.FACEBOOK_LOGIN_CONFIG_ID }
-          : {
-              scope:
-                "pages_show_list,pages_manage_posts,pages_read_engagement",
-            },
+        params: metaAuthorizationParams(process.env.FACEBOOK_LOGIN_CONFIG_ID),
       },
       token: "https://graph.facebook.com/v19.0/oauth/access_token",
       userinfo: "https://graph.facebook.com/v19.0/me?fields=id,name,email",
@@ -177,12 +189,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         process.env.FACEBOOK_CLIENT_SECRET,
       authorization: {
         url: "https://www.facebook.com/v19.0/dialog/oauth",
-        params: process.env.INSTAGRAM_LOGIN_CONFIG_ID
-          ? { config_id: process.env.INSTAGRAM_LOGIN_CONFIG_ID }
-          : {
-              scope:
-                "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement",
-            },
+        params: metaAuthorizationParams(
+          process.env.INSTAGRAM_LOGIN_CONFIG_ID ??
+            process.env.FACEBOOK_LOGIN_CONFIG_ID,
+        ),
       },
       token: "https://graph.facebook.com/v19.0/oauth/access_token",
       userinfo: "https://graph.facebook.com/v19.0/me?fields=id,name,email",
