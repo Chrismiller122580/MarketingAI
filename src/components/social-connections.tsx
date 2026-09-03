@@ -65,7 +65,6 @@ export function SocialConnections() {
   const oauthError = facebookOAuthErrorMessage(searchParams.get("error"));
   const {
     site,
-    site,
     savedSites,
     loadSavedSite,
     siteSocialConnections,
