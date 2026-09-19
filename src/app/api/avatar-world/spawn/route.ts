@@ -4,7 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { spawnDiverseResident } from "@/lib/viraforge/world-life";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST() {
   const authResult = await requireAuthUserId();

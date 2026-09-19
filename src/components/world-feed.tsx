@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { InlineLoading } from "./loading-indicator";
 import type {
   ContributorSuggestion,
+  WorldChatCard as WorldChatCardType,
   WorldInfluencerCard,
   WorldPostCard,
   WorldThread,
@@ -105,8 +106,8 @@ export function WorldCompose({
         Nudge someone
       </h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        Optional. They already post on their own — this just gives one of them a
-        scene.
+        Optional. They already post and talk on their own — this just hands one
+        of them a scene, not a brand brief.
       </p>
       <label className="mt-4 block text-sm">
         <span className="mb-1 block text-xs text-muted-foreground">Who is speaking</span>
@@ -137,6 +138,49 @@ export function WorldCompose({
         {busy ? <InlineLoading label="Writing…" /> : "Nudge this post"}
       </Button>
     </section>
+  );
+}
+
+export function WorldChatCard({ chat }: { chat: WorldChatCardType }) {
+  return (
+    <article className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 dark:border-violet-900/50 dark:bg-violet-950/20">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+        Neighbor chat
+      </p>
+      <ol className="mt-3 space-y-3">
+        {chat.turns.map((turn, index) => (
+          <li key={`${chat.id}-${turn.influencerId}-${index}`} className="flex gap-3">
+            <AvatarFace
+              name={turn.displayName}
+              portraitUrl={turn.portraitUrl}
+              size="sm"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">
+                <Link
+                  href={`/avatar-world/${turn.influencerId}`}
+                  className="font-medium hover:underline"
+                >
+                  {turn.displayName}
+                </Link>{" "}
+                <span className="text-muted-foreground">@{turn.handle}</span>
+              </p>
+              <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
+                {turn.text}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {chat.beat && (
+        <p className="mt-3 text-xs italic text-violet-700 dark:text-violet-300">
+          {chat.beat}
+        </p>
+      )}
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        {new Date(chat.createdAt).toLocaleString()}
+      </p>
+    </article>
   );
 }
 
@@ -251,7 +295,7 @@ export function WorldThreadCard({
                     {reply.displayName}
                   </Link>{" "}
                   <span className="text-muted-foreground">
-                    built on this · @{reply.handle}
+                    answered · @{reply.handle}
                   </span>
                 </p>
                 <PostBody post={reply} />

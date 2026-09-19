@@ -64,10 +64,9 @@ export async function POST(request: Request, context: RouteContext) {
     const generated = await generateBackstoryContent({
       persona: detail.persona,
       world: detail.world,
-      facts: detail.facts,
       recentEvents: detail.events,
-      prompt: parsed.data.prompt,
-      platform: parsed.data.platform,
+      scene: parsed.data.prompt,
+      autonomous: true,
       worldLore: worldContext.lore,
       neighborPosts: worldContext.neighborPosts.filter(
         (post) => post.handle !== detail.handle,
@@ -115,7 +114,7 @@ export async function POST(request: Request, context: RouteContext) {
         eventType: "world_post",
         payload: {
           kind: "create",
-          title: "Wrote a post from backstory",
+          title: "Wrote a note from their life",
           body: generated.text.slice(0, 280),
           mood: detail.world.mood,
           postId,

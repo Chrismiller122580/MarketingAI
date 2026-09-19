@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton } from "./loading-indicator";
 import {
   AvatarFace,
+  WorldChatCard,
   WorldCompose,
   WorldThreadCard,
 } from "./world-feed";
 import type {
   ContributorSuggestion,
+  WorldChatCard as WorldChat,
   WorldInfluencerCard,
   WorldLifeEvent,
   WorldThread,
@@ -24,6 +26,7 @@ type HubData = {
   lore: string[];
   suggestions: Record<string, ContributorSuggestion[]>;
   lastTickAt: string | null;
+  chats: WorldChat[];
 };
 
 function livedToday(iso: string | null): boolean {
@@ -62,6 +65,7 @@ export function AvatarWorldHub() {
         lore: json.lore ?? [],
         suggestions: json.suggestions ?? {},
         lastTickAt: json.lastTickAt ?? null,
+        chats: json.chats ?? [],
       });
       setLeadId((prev) => prev || json.avatars?.[0]?.id || "");
       setPartnerId((prev) => {
@@ -77,6 +81,7 @@ export function AvatarWorldHub() {
         lore: [],
         suggestions: {},
         lastTickAt: null,
+        chats: [],
       });
     } finally {
       setLoading(false);
@@ -92,7 +97,9 @@ export function AvatarWorldHub() {
       (data?.feed ?? []).filter(
         (event) =>
           event.eventType !== "world_post" &&
-          event.eventType !== "world_contribute",
+          event.eventType !== "world_contribute" &&
+          event.eventType !== "world_chat" &&
+          event.eventType !== "world_tick",
       ),
     [data],
   );
@@ -111,6 +118,7 @@ export function AvatarWorldHub() {
         reason?: string;
         posterName?: string;
         replies?: number;
+        chats?: number;
         beat?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Could not live today");
@@ -120,10 +128,12 @@ export function AvatarWorldHub() {
         toast.message("Nothing to live yet");
       } else {
         const replies = json.replies ?? 0;
+        const chats = json.chats ?? 0;
         toast.success(
-          replies > 0
-            ? `${json.posterName ?? "Someone"} posted. ${replies} neighbor${replies === 1 ? "" : "s"} answered.`
-            : `${json.posterName ?? "Someone"} posted on their own.`,
+          json.beat ||
+            `${json.posterName ?? "Someone"} posted${
+              replies > 0 ? `, ${replies} neighbor${replies === 1 ? "" : "s"} answered` : ""
+            }${chats > 0 ? `, ${chats} conversation${chats === 1 ? "" : "s"} happened` : ""}.`,
         );
       }
       await load();
@@ -144,11 +154,14 @@ export function AvatarWorldHub() {
         occupation?: string;
         location?: string;
         influencerId?: string;
+        introReplyName?: string;
+        chatBeat?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Could not invite a resident");
-      toast.success(
-        `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"}. Give them a face in Creator Studio when you want.`,
-      );
+      const hello = json.introReplyName
+        ? `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"} and said hello. ${json.introReplyName} answered.`
+        : `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"} and said hello.`;
+      toast.success(json.chatBeat ? `${hello} ${json.chatBeat}` : hello);
       await load();
     } catch (error) {
       toast.error(
@@ -216,6 +229,7 @@ export function AvatarWorldHub() {
   const threads = data?.threads ?? [];
   const lore = data?.lore ?? [];
   const lastTickAt = data?.lastTickAt ?? null;
+  const chats = data?.chats ?? [];
 
   return (
     <div className="space-y-8">
@@ -227,8 +241,9 @@ export function AvatarWorldHub() {
           They live here without you.
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-          Every day someone posts, neighbors answer, and the world remembers.
-          Invite people with different lives so the feed stays diverse.
+          Every day they post on their own and chat with each other. Your job is
+          to invite people with different lives so the world stays diverse —
+          not to brief them, brand them, or speak for them.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {liveBusy ? "They're living today…" : formatTick(lastTickAt)}
@@ -236,13 +251,6 @@ export function AvatarWorldHub() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Button
             className="bg-violet-600 hover:bg-violet-500"
-            disabled={liveBusy || spawnBusy || avatars.length === 0}
-            onClick={() => void runLive(true)}
-          >
-            {liveBusy ? <InlineLoading label="Living today…" /> : "Live today"}
-          </Button>
-          <Button
-            variant="outline"
             disabled={spawnBusy || liveBusy}
             onClick={() => void inviteResident()}
           >
@@ -251,6 +259,13 @@ export function AvatarWorldHub() {
             ) : (
               "Invite a new resident"
             )}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={liveBusy || spawnBusy || avatars.length === 0}
+            onClick={() => void runLive(true)}
+          >
+            {liveBusy ? <InlineLoading label="Living today…" /> : "Live today"}
           </Button>
           <Button asChild variant="ghost">
             <Link href="/creator-studio">Give someone a face</Link>
@@ -262,8 +277,9 @@ export function AvatarWorldHub() {
         <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-700">
           <p className="text-lg font-medium">The world is empty</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Invite a resident with a different background — they arrive, say
-            hello, and start living. Or build one yourself in Creator Studio.
+            Invite a resident with a different background — baker, pilot, poet,
+            nurse. They arrive, say hello, and start living. You don't write
+            for them.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <Button
@@ -354,7 +370,7 @@ export function AvatarWorldHub() {
               <p className="text-sm text-muted-foreground">
                 {liveBusy
                   ? "They're writing the first post of the day…"
-                  : "No posts yet. Live today and they will start talking."}
+                  : "No posts yet. They'll start talking on their own."}
               </p>
             ) : (
               <div className="space-y-4">
@@ -370,6 +386,17 @@ export function AvatarWorldHub() {
               </div>
             )}
           </section>
+
+          {chats.length > 0 && (
+            <section>
+              <h3 className="mb-3 text-lg font-semibold">Neighbor chats</h3>
+              <div className="space-y-4">
+                {chats.map((chat) => (
+                  <WorldChatCard key={chat.conversationId} chat={chat} />
+                ))}
+              </div>
+            </section>
+          )}
 
           {lifeFeed.length > 0 && (
             <section>
@@ -411,83 +438,93 @@ export function AvatarWorldHub() {
             </section>
           )}
 
-          <WorldCompose
-            avatars={avatars}
-            defaultAuthorId={leadId}
-            onPosted={load}
-          />
-
-          {avatars.length > 1 && (
-            <section className="rounded-2xl border border-dashed border-slate-300 bg-transparent p-5 dark:border-slate-700">
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                Optional collab
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                They already reply to each other. Use this only if you want a
-                joint post in both voices.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <label className="text-sm">
-                  <span className="mb-1 block text-xs text-muted-foreground">
-                    Lead
-                  </span>
-                  <select
-                    value={leadId}
-                    onChange={(e) => setLeadId(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2"
-                  >
-                    {avatars.map((avatar) => (
-                      <option key={avatar.id} value={avatar.id}>
-                        {avatar.displayName} (@{avatar.handle})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm">
-                  <span className="mb-1 block text-xs text-muted-foreground">
-                    Partner
-                  </span>
-                  <select
-                    value={partnerId}
-                    onChange={(e) => setPartnerId(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2"
-                  >
-                    {avatars.map((avatar) => (
-                      <option key={avatar.id} value={avatar.id}>
-                        {avatar.displayName} (@{avatar.handle})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <textarea
-                value={brief}
-                onChange={(e) => setBrief(e.target.value)}
-                placeholder="Optional — or leave blank and they pick the topic."
-                className="mt-3 min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          <details className="rounded-2xl border border-dashed border-slate-300 bg-transparent p-5 dark:border-slate-700">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-600 dark:text-slate-300">
+              Director tools (optional — they don't need you)
+            </summary>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Daily posts and neighbor chats happen without a brief. Use these
+              only if you want to hand someone a scene.
+            </p>
+            <div className="mt-4 space-y-5">
+              <WorldCompose
+                avatars={avatars}
+                defaultAuthorId={leadId}
+                onPosted={load}
               />
-              <label className="mt-3 flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={mergeVideos}
-                  onChange={(e) => setMergeVideos(e.target.checked)}
-                />
-                Merge their latest videos into the post
-              </label>
-              <Button
-                className="mt-3"
-                variant="outline"
-                disabled={collabBusy}
-                onClick={() => void runCollab()}
-              >
-                {collabBusy ? (
-                  <InlineLoading label="Writing together…" />
-                ) : (
-                  "Create a collab post"
-                )}
-              </Button>
-            </section>
-          )}
+
+              {avatars.length > 1 && (
+                <section>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Joint note
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    They already talk. This writes one shared note in two voices.
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className="text-sm">
+                      <span className="mb-1 block text-xs text-muted-foreground">
+                        Lead
+                      </span>
+                      <select
+                        value={leadId}
+                        onChange={(e) => setLeadId(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                      >
+                        {avatars.map((avatar) => (
+                          <option key={avatar.id} value={avatar.id}>
+                            {avatar.displayName} (@{avatar.handle})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm">
+                      <span className="mb-1 block text-xs text-muted-foreground">
+                        Partner
+                      </span>
+                      <select
+                        value={partnerId}
+                        onChange={(e) => setPartnerId(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                      >
+                        {avatars.map((avatar) => (
+                          <option key={avatar.id} value={avatar.id}>
+                            {avatar.displayName} (@{avatar.handle})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <textarea
+                    value={brief}
+                    onChange={(e) => setBrief(e.target.value)}
+                    placeholder="Optional scene — or leave blank and they pick the topic."
+                    className="mt-3 min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <label className="mt-3 flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={mergeVideos}
+                      onChange={(e) => setMergeVideos(e.target.checked)}
+                    />
+                    Merge their latest videos into the note
+                  </label>
+                  <Button
+                    className="mt-3"
+                    variant="outline"
+                    disabled={collabBusy}
+                    onClick={() => void runCollab()}
+                  >
+                    {collabBusy ? (
+                      <InlineLoading label="Writing together…" />
+                    ) : (
+                      "Create a joint note"
+                    )}
+                  </Button>
+                </section>
+              )}
+            </div>
+          </details>
         </>
       )}
     </div>

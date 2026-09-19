@@ -6,7 +6,7 @@ import { CreatorGate } from "@/components/creator-gate";
 
 export const metadata: Metadata = {
   title: "Avatar profile",
-  description: "Edit a living influencer profile in Avatar World.",
+  description: "A person living in Avatar World.",
 };
 
 export default async function AvatarWorldProfilePage({

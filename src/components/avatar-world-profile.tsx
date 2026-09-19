@@ -728,8 +728,8 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
             <p className="mb-3 text-sm font-medium">Threads they're in</p>
             {(detail.threads ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nothing from this life yet. Post above, then let another avatar
-                add their voice.
+                Nothing from this life yet. They post on their own — or nudge a
+                scene above if you want.
               </p>
             ) : (
               <div className="space-y-4">

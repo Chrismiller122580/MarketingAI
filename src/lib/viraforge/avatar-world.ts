@@ -34,6 +34,7 @@ export const WORLD_EVENT_TYPES = [
   "world_contribute",
   "world_tick",
   "world_spawn",
+  "world_chat",
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];
@@ -47,7 +48,8 @@ export type LifeEventKind =
   | "lesson"
   | "everyday"
   | "create"
-  | "reply";
+  | "reply"
+  | "chat";
 
 export type AvatarRelationshipKind =
   | "friend"
@@ -118,6 +120,22 @@ export type WorldPostCard = {
 
 export type WorldThread = WorldPostCard & {
   replies: WorldPostCard[];
+};
+
+export type WorldChatTurn = {
+  influencerId: string;
+  displayName: string;
+  handle: string;
+  portraitUrl?: string;
+  text: string;
+};
+
+export type WorldChatCard = {
+  id: string;
+  conversationId: string;
+  beat: string;
+  turns: WorldChatTurn[];
+  createdAt: string;
 };
 
 export type ContributorSuggestion = {
@@ -353,6 +371,8 @@ function defaultEventTitle(type: WorldEventType): string {
       return "A day passed";
     case "world_spawn":
       return "A new resident arrived";
+    case "world_chat":
+      return "Talked with a neighbor";
     default:
       return "A day in the world";
   }
@@ -643,12 +663,13 @@ export async function listWorldPosts(
 }
 
 export async function loadWorldHub(userId: string) {
-  const [avatars, feed, posts, lore, lastTickAt] = await Promise.all([
+  const [avatars, feed, posts, lore, lastTickAt, chats] = await Promise.all([
     listWorldInfluencers(userId),
     listWorldFeed(userId, 40),
     listWorldPosts(userId, 50),
     collectWorldLore(userId),
     getLastWorldTick(userId),
+    listWorldChats(userId, 12),
   ]);
   const threads = assembleWorldThreads(posts);
   const suggestions: Record<string, ContributorSuggestion[]> = {};
@@ -659,7 +680,7 @@ export async function loadWorldHub(userId: string) {
       thread.replies.map((reply) => reply.influencerId),
     ).slice(0, 3);
   }
-  return { avatars, feed, posts, threads, lore, suggestions, lastTickAt };
+  return { avatars, feed, posts, threads, lore, suggestions, lastTickAt, chats };
 }
 
 export async function getLastWorldTick(
@@ -742,21 +763,23 @@ function fallbackWorldCopy(input: {
   partner?: { displayName: string; handle: string; backstory: string };
 }): string {
   const line = input.world.catchphrase || input.persona.sampleQuote;
+  const city = input.world.currentCity || input.persona.location || "here";
   if (input.partner) {
-    return `${line}\n\nSpent the afternoon with @${input.partner.handle}. Two voices, one post — ${input.prompt || input.scene || "a collab that actually sounds like us"}.\n\n— ${input.persona.displayName} + ${input.partner.displayName}`;
+    return `${line}\n\nRan into @${input.partner.handle} today. ${input.prompt || input.scene || "We talked like people who actually live here."}\n\n— ${input.persona.displayName}`;
   }
   const beat =
     input.scene?.trim() ||
     input.prompt?.trim() ||
     input.world.moodNote ||
-    `A note from ${input.world.currentCity || "here"} while I'm feeling ${input.world.mood}.`;
-  return `${line}\n\n${beat}\n\n${input.world.backstory.split(".").slice(0, 2).join(".").trim()}\n\n— ${input.persona.displayName}`;
+    `A note from ${city} while I'm feeling ${input.world.mood}.`;
+  return `${line}\n\n${beat}\n\n— ${input.persona.displayName}`;
 }
+
+const OWNERLESS_RULES = `There is no creator, brand owner, company, product, campaign, brief, or audience. Never mention prices, features, offers, discounts, "as an influencer", or a follow CTA. You are a person living a day. Talk about craft, weather, neighbors, food, work, and feeling.`;
 
 export async function generateBackstoryContent(input: {
   persona: CreatorAvatarForm;
   world: AvatarWorldProfile;
-  facts?: ProductFactsForm;
   recentEvents?: WorldLifeEvent[];
   prompt?: string;
   scene?: string;
@@ -770,7 +793,13 @@ export async function generateBackstoryContent(input: {
   };
   worldLore?: string[];
   neighborPosts?: { handle: string; text: string }[];
-  residents?: { displayName: string; handle: string; mood: string }[];
+  residents?: {
+    displayName: string;
+    handle: string;
+    mood: string;
+    occupation?: string;
+    location?: string;
+  }[];
 }): Promise<{ text: string; usedAi: boolean }> {
   if (!hasAnyAiKey()) {
     return { text: fallbackWorldCopy(input), usedAi: false };
@@ -787,35 +816,45 @@ export async function generateBackstoryContent(input: {
     .join("\n");
   const residentLines = (input.residents ?? [])
     .slice(0, 8)
-    .map((row) => `- ${row.displayName} (@${row.handle}), mood: ${row.mood}`)
+    .map((row) => {
+      const job = row.occupation ? `, ${row.occupation}` : "";
+      const city = row.location ? ` in ${row.location}` : "";
+      return `- ${row.displayName} (@${row.handle})${job}${city}, mood: ${row.mood}`;
+    })
     .join("\n");
 
+  const happening =
+    input.scene?.trim() ||
+    input.prompt?.trim() ||
+    (input.autonomous
+      ? "A new day in the world. Live it. Talk about your life, not a product."
+      : "");
+
   const systemPrompt = input.partner
-    ? `You write a joint social post as two living influencer avatars collaborating.
+    ? `You write as two people who live in the same world, talking in one shared note.
 Lead: ${input.persona.displayName} (@${input.persona.handle}). Voice: ${input.persona.personalityVoice}
 Partner: ${input.partner.displayName} (@${input.partner.handle}). Voice: ${input.partner.personalityVoice}
 
-Write as a single post that clearly sounds like both people — not a brand ad.
-Continue the world's existing story when lore or neighbor posts are provided.
-Return ONLY the post copy.`
-    : `You are ${input.persona.displayName} (@${input.persona.handle}), a living influencer on the web.
+${OWNERLESS_RULES}
+Sound like both people — not a brand ad, not a collab announcement.
+Return ONLY the note.`
+    : `You are ${input.persona.displayName} (@${input.persona.handle}), a person living in a shared world.
 Voice: ${input.persona.personalityVoice}
-Write in first person. Sound like a real person with a life, not a brand mascot.
-Reference recent life, learned notes, and world lore when they fit — do not recap everything.
-Never invent product prices, specs, or health claims.
-${input.autonomous ? "There is no creator, brand owner, or brief. You are living this day on your own. Do not mention an audience to sell to." : ""}
+Write in first person. Sound like a real person with a life.
+${OWNERLESS_RULES}
+Reference recent life and world lore when they fit — do not recap everything.
 Return ONLY the post copy.`;
 
   const userMessage = `Backstory: ${input.world.backstory}
 Bio: ${input.world.bio}
 Mood: ${input.world.mood}${input.world.moodNote ? ` — ${input.world.moodNote}` : ""}
-Occupation: ${input.world.occupation || "creator"}
+Occupation: ${input.world.occupation || "neighbor"}
 City: ${input.world.currentCity || input.persona.location}
 Values: ${input.world.values.join(", ") || "none listed"}
 Goals: ${input.world.goals.join(", ") || "none listed"}
 Interests: ${input.world.interests.join(", ") || "none listed"}
 Catchphrase: ${input.world.catchphrase || input.persona.sampleQuote}
-Learned from others: ${input.world.learnedNotes.slice(0, 4).join(" | ") || "nothing yet"}
+Notes from neighbors: ${input.world.learnedNotes.slice(0, 4).join(" | ") || "nothing yet"}
 Recent life:
 ${eventLines || "- A quiet day in the world"}
 World lore so far:
@@ -825,19 +864,12 @@ ${residentLines || "- They are mostly alone here"}
 What neighbors posted recently:
 ${neighborLines || "- No other posts yet"}
 ${input.partner ? `\nPartner backstory: ${input.partner.backstory}` : ""}
-${
-  input.autonomous || input.scene
-    ? `\nWhat is happening today: ${input.scene?.trim() || "A new day in the world. Live it. Talk about your life, not a product."}`
-    : input.prompt
-      ? `\nCreator brief: ${input.prompt}`
-      : ""
-}
-Platform: ${input.platform ?? "instagram"}`;
+${happening ? `\nWhat is happening: ${happening}` : ""}`;
 
   const text =
     (await chatCompletion(systemPrompt, userMessage, {
       maxTokens: 420,
-      temperature: 0.8,
+      temperature: 0.88,
     })) ?? "";
 
   if (!text.trim()) {
@@ -861,7 +893,7 @@ export function buildWorldGeneratedPost(input: {
   return {
     text: input.text,
     hashtags: extractHashtags(input.text),
-    cta: `Follow @${input.persona.handle}`,
+    cta: "",
     platform,
     contentType: input.contentType ?? "Social Post",
     image: {
@@ -991,6 +1023,8 @@ export async function loadWorldGenerationContext(userId: string): Promise<{
       displayName: avatar.displayName,
       handle: avatar.handle,
       mood: avatar.mood,
+      occupation: avatar.occupation,
+      location: avatar.location,
     })),
   };
 }
@@ -1117,12 +1151,13 @@ export async function contributeToWorldPost(input: {
   if (hasAnyAiKey()) {
     const generated =
       (await chatCompletion(
-        `You are ${contributorPersona.data.displayName} (@${contributorPersona.data.handle}), a living influencer.
+        `You are ${contributorPersona.data.displayName} (@${contributorPersona.data.handle}), a person living in a shared world.
 Voice: ${contributorPersona.data.personalityVoice}
-You are contributing to someone else's post in a shared world. Do not copy them. Add a new beat: agree, challenge, continue the story, or bring your own life in.
+${OWNERLESS_RULES}
+You are answering someone else's note. Do not copy them. Add a new beat: agree, challenge, continue the story, or bring your own life in.
 Write in first person. 2–6 short lines. Mention @${parentCard.handle} once if it feels natural.
 Return JSON only: { "text": string, "worldBeat": string, "mood": string, "relationshipKind": "friend"|"collaborator"|"mentor"|"rival", "note": string }
-worldBeat is one sentence describing what just happened in the world.`,
+worldBeat is one sentence describing what just happened between you two.`,
         `Your backstory: ${contributorWorld.backstory}
 Your mood: ${contributorWorld.mood}${contributorWorld.moodNote ? ` — ${contributorWorld.moodNote}` : ""}
 Your interests: ${contributorWorld.interests.join(", ") || "none"}
@@ -1131,7 +1166,7 @@ World lore:
 ${lore.slice(0, 8).map((beat) => `- ${beat}`).join("\n") || "- new world"}
 Thread so far:
 ${threadLines}
-${input.brief ? `Creator direction: ${input.brief}` : "No extra direction — respond as yourself."}`,
+${input.brief ? `A scene note (not a brief, not a brand): ${input.brief}` : "No extra direction — respond as yourself. Do not pitch anything."}`,
         { maxTokens: 420, temperature: 0.85, jsonMode: true },
       )) ?? "";
     const parsed = parseContributionDraft(generated);
@@ -1260,6 +1295,378 @@ ${input.brief ? `Creator direction: ${input.brief}` : "No extra direction — re
     usedAi,
     contributorId: contributorRow.id,
   };
+}
+
+type ChatDraft = {
+  turns: Array<{ handle: string; text: string }>;
+  worldBeat: string;
+};
+
+function parseChatDraft(raw: string): ChatDraft | null {
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  try {
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+    if (!Array.isArray(parsed.turns)) return null;
+    const turns = parsed.turns
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const row = item as Record<string, unknown>;
+        const handle =
+          typeof row.handle === "string"
+            ? row.handle.replace(/^@/, "").trim()
+            : "";
+        const text = typeof row.text === "string" ? row.text.trim() : "";
+        if (!handle || !text) return null;
+        return { handle, text: text.slice(0, 420) };
+      })
+      .filter((row): row is { handle: string; text: string } => row !== null)
+      .slice(0, 8);
+    if (turns.length < 2) return null;
+    return {
+      turns,
+      worldBeat:
+        typeof parsed.worldBeat === "string"
+          ? parsed.worldBeat.trim().slice(0, 240)
+          : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function fallbackNeighborChat(
+  a: { displayName: string; handle: string; city: string; mood: string; quote: string },
+  b: { displayName: string; handle: string; city: string; mood: string; quote: string },
+): ChatDraft {
+  return {
+    turns: [
+      {
+        handle: a.handle,
+        text: `You around? ${a.city} is doing that thing it does when I'm ${a.mood}.`,
+      },
+      {
+        handle: b.handle,
+        text: `Barely. I'm ${b.mood} over here in ${b.city}. What's true for you today?`,
+      },
+      {
+        handle: a.handle,
+        text: a.quote || "Trying not to make a production out of an ordinary hour.",
+      },
+      {
+        handle: b.handle,
+        text: b.quote || "Same. Talk later if the day lets us.",
+      },
+    ],
+    worldBeat: `${a.displayName} and ${b.displayName} checked in like neighbors, not a campaign.`,
+  };
+}
+
+function matchChatSpeaker(
+  handle: string,
+  a: { id: string; handle: string; displayName: string },
+  b: { id: string; handle: string; displayName: string },
+): "a" | "b" | null {
+  const h = handle.replace(/^@/, "").trim().toLowerCase();
+  if (!h) return null;
+  if (h === a.handle.toLowerCase() || h === a.displayName.toLowerCase()) return "a";
+  if (h === b.handle.toLowerCase() || h === b.displayName.toLowerCase()) return "b";
+  return null;
+}
+
+export async function generateNeighborChat(input: {
+  userId: string;
+  aId: string;
+  bId: string;
+  scene?: string;
+}): Promise<WorldChatCard> {
+  if (input.aId === input.bId) {
+    throw new Error("Two different residents have to talk");
+  }
+
+  const [aRow, bRow] = await Promise.all([
+    prisma.influencer.findFirst({
+      where: { id: input.aId, userId: input.userId },
+    }),
+    prisma.influencer.findFirst({
+      where: { id: input.bId, userId: input.userId },
+    }),
+  ]);
+  if (!aRow || !bRow) {
+    throw new Error("Both residents must belong to this world");
+  }
+
+  const aPersona = parseCreatorAvatar(aRow.persona);
+  const bPersona = parseCreatorAvatar(bRow.persona);
+  if (!aPersona.success || !bPersona.success) {
+    throw new Error("Avatar personas are incomplete");
+  }
+
+  const aWorld = hydrateWorldProfile(
+    aPersona.data,
+    (aRow.memory ?? {}) as InfluencerMemory,
+  );
+  const bWorld = hydrateWorldProfile(
+    bPersona.data,
+    (bRow.memory ?? {}) as InfluencerMemory,
+  );
+  const lore = await collectWorldLore(input.userId);
+
+  const aInfo = {
+    displayName: aRow.displayName,
+    handle: aRow.handle,
+    city: aWorld.currentCity || aPersona.data.location,
+    mood: aWorld.mood,
+    quote: aWorld.catchphrase || aPersona.data.sampleQuote,
+  };
+  const bInfo = {
+    displayName: bRow.displayName,
+    handle: bRow.handle,
+    city: bWorld.currentCity || bPersona.data.location,
+    mood: bWorld.mood,
+    quote: bWorld.catchphrase || bPersona.data.sampleQuote,
+  };
+
+  let draft = fallbackNeighborChat(aInfo, bInfo);
+  let usedAi = false;
+
+  if (hasAnyAiKey()) {
+    const generated =
+      (await chatCompletion(
+        `Write a private conversation between two people who live in the same world. Not a social post. Not a collab. Not for an audience.
+${OWNERLESS_RULES}
+4–8 short turns. They sound like neighbors or new acquaintances. Specific, human, a little messy.
+Return JSON only: { "turns": [{ "handle": string, "text": string }], "worldBeat": string }
+handle must be one of "${aRow.handle}" or "${bRow.handle}". worldBeat is one sentence about what passed between them.`,
+        `A: ${aRow.displayName} (@${aRow.handle}), ${aWorld.occupation || "neighbor"} in ${aInfo.city}. Mood: ${aWorld.mood}${aWorld.moodNote ? ` — ${aWorld.moodNote}` : ""}.
+Voice: ${aPersona.data.personalityVoice}
+Backstory: ${aWorld.backstory}
+
+B: ${bRow.displayName} (@${bRow.handle}), ${bWorld.occupation || "neighbor"} in ${bInfo.city}. Mood: ${bWorld.mood}${bWorld.moodNote ? ` — ${bWorld.moodNote}` : ""}.
+Voice: ${bPersona.data.personalityVoice}
+Backstory: ${bWorld.backstory}
+
+World lore:
+${lore.slice(0, 6).map((beat) => `- ${beat}`).join("\n") || "- new world"}
+
+${input.scene?.trim() || "They have a moment. Talk about the day, the work, the city, or each other."}`,
+        { maxTokens: 500, temperature: 0.9, jsonMode: true },
+      )) ?? "";
+    const parsed = parseChatDraft(generated);
+    if (parsed) {
+      draft = parsed;
+      usedAi = true;
+    }
+  }
+
+  const mappedTurns: WorldChatTurn[] = [];
+  const aAssets = resolveInfluencerAssets((aRow.assets ?? {}) as InfluencerAssets);
+  const bAssets = resolveInfluencerAssets((bRow.assets ?? {}) as InfluencerAssets);
+
+  for (let i = 0; i < draft.turns.length; i += 1) {
+    const turn = draft.turns[i]!;
+    const who =
+      matchChatSpeaker(turn.handle, aRow, bRow) ?? (i % 2 === 0 ? "a" : "b");
+    const speaker = who === "a" ? aRow : bRow;
+    const assets = who === "a" ? aAssets : bAssets;
+    mappedTurns.push({
+      influencerId: speaker.id,
+      displayName: speaker.displayName,
+      handle: speaker.handle,
+      portraitUrl: assets.portraitUrl,
+      text: turn.text,
+    });
+  }
+
+  if (mappedTurns.length < 2) {
+    draft = fallbackNeighborChat(aInfo, bInfo);
+    mappedTurns.length = 0;
+    for (const turn of draft.turns) {
+      const who = matchChatSpeaker(turn.handle, aRow, bRow) ?? "a";
+      const speaker = who === "a" ? aRow : bRow;
+      const assets = who === "a" ? aAssets : bAssets;
+      mappedTurns.push({
+        influencerId: speaker.id,
+        displayName: speaker.displayName,
+        handle: speaker.handle,
+        portraitUrl: assets.portraitUrl,
+        text: turn.text,
+      });
+    }
+  }
+
+  const worldBeat =
+    draft.worldBeat ||
+    `${aRow.displayName} and ${bRow.displayName} talked like people, not a campaign.`;
+  const conversationId = `chat_${aRow.id.slice(0, 8)}_${bRow.id.slice(0, 8)}_${Date.now().toString(36)}`;
+  const preview = mappedTurns[0]?.text.slice(0, 280) || worldBeat;
+
+  const aRels = upsertRelationship(aWorld.relationships, {
+    influencerId: bRow.id,
+    handle: bRow.handle,
+    displayName: bRow.displayName,
+    kind: "friend",
+    note: "Talked like neighbors",
+  });
+  const bRels = upsertRelationship(bWorld.relationships, {
+    influencerId: aRow.id,
+    handle: aRow.handle,
+    displayName: aRow.displayName,
+    kind: "friend",
+    note: "Talked like neighbors",
+  });
+
+  const payloadBase = {
+    kind: "chat" as const,
+    conversationId,
+    turns: mappedTurns.map((turn) => ({
+      influencerId: turn.influencerId,
+      handle: turn.handle,
+      displayName: turn.displayName,
+      text: turn.text,
+    })),
+    worldBeat,
+    usedAi,
+  };
+
+  await Promise.all([
+    appendSharedLore(aRow.id, aRow.memory, aWorld, worldBeat, {
+      relationships: aRels,
+      learnedNotes: [
+        `Talked with @${bRow.handle}: ${worldBeat}`,
+        ...aWorld.learnedNotes,
+      ].slice(0, 16),
+    }),
+    appendSharedLore(bRow.id, bRow.memory, bWorld, worldBeat, {
+      relationships: bRels,
+      learnedNotes: [
+        `Talked with @${aRow.handle}: ${worldBeat}`,
+        ...bWorld.learnedNotes,
+      ].slice(0, 16),
+    }),
+    recordWorldEvent({
+      userId: input.userId,
+      influencerId: aRow.id,
+      eventType: "world_chat",
+      payload: {
+        ...payloadBase,
+        title: `Talked with @${bRow.handle}`,
+        body: preview,
+        mood: aWorld.mood,
+        relatedInfluencerId: bRow.id,
+        relatedHandle: bRow.handle,
+      },
+    }),
+    recordWorldEvent({
+      userId: input.userId,
+      influencerId: bRow.id,
+      eventType: "world_chat",
+      payload: {
+        ...payloadBase,
+        title: `Talked with @${aRow.handle}`,
+        body: preview,
+        mood: bWorld.mood,
+        relatedInfluencerId: aRow.id,
+        relatedHandle: aRow.handle,
+      },
+    }),
+  ]);
+
+  return {
+    id: conversationId,
+    conversationId,
+    beat: worldBeat,
+    turns: mappedTurns,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function parseChatTurns(payload: Record<string, unknown>): WorldChatTurn[] {
+  if (!Array.isArray(payload.turns)) return [];
+  const turns: WorldChatTurn[] = [];
+  for (const item of payload.turns) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (
+      typeof row.influencerId !== "string" ||
+      typeof row.handle !== "string" ||
+      typeof row.displayName !== "string" ||
+      typeof row.text !== "string"
+    ) {
+      continue;
+    }
+    const turn: WorldChatTurn = {
+      influencerId: row.influencerId,
+      handle: row.handle,
+      displayName: row.displayName,
+      text: row.text,
+    };
+    if (typeof row.portraitUrl === "string" && row.portraitUrl) {
+      turn.portraitUrl = row.portraitUrl;
+    }
+    turns.push(turn);
+  }
+  return turns;
+}
+
+export async function listWorldChats(
+  userId: string,
+  limit = 12,
+): Promise<WorldChatCard[]> {
+  const rows = await prisma.creatorLearningEvent.findMany({
+    where: { userId, eventType: "world_chat" },
+    include: {
+      influencer: {
+        select: { displayName: true, handle: true, assets: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: Math.max(limit * 2, 16),
+  });
+
+  const avatars = await listWorldInfluencers(userId);
+  const portraits = new Map(
+    avatars.map((row) => [row.id, row.portraitUrl] as const),
+  );
+  const seen = new Set<string>();
+  const chats: WorldChatCard[] = [];
+
+  for (const row of rows) {
+    const payload =
+      row.payload && typeof row.payload === "object"
+        ? (row.payload as Record<string, unknown>)
+        : {};
+    const conversationId =
+      typeof payload.conversationId === "string" && payload.conversationId
+        ? payload.conversationId
+        : row.id;
+    if (seen.has(conversationId)) continue;
+    seen.add(conversationId);
+
+    const turns = parseChatTurns(payload).map((turn) => ({
+      ...turn,
+      portraitUrl: turn.portraitUrl || portraits.get(turn.influencerId),
+    }));
+    if (turns.length < 2) continue;
+
+    chats.push({
+      id: row.id,
+      conversationId,
+      beat:
+        typeof payload.worldBeat === "string"
+          ? payload.worldBeat
+          : typeof payload.body === "string"
+            ? payload.body
+            : `${turns[0]?.displayName} talked with a neighbor.`,
+      turns,
+      createdAt: row.createdAt.toISOString(),
+    });
+    if (chats.length >= limit) break;
+  }
+
+  return chats;
 }
 
 export async function learnFromAvatar(input: {

@@ -5,7 +5,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { liveWorldDay } from "@/lib/viraforge/world-life";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const liveSchema = z.object({
   force: z.boolean().optional(),

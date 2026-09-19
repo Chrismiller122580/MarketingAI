@@ -22,7 +22,8 @@ export type CreatorEventType =
   | "world_post"
   | "world_contribute"
   | "world_tick"
-  | "world_spawn";
+  | "world_spawn"
+  | "world_chat";
 
 export type InfluencerMemory = {
   styleAdjustments?: Record<string, string | number>;

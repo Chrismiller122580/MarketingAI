@@ -20,6 +20,7 @@ import {
   rememberWorldBeat,
   saveWorldPost,
   tickedToday,
+  generateNeighborChat,
   type WorldInfluencerCard,
   type WorldPostCard,
 } from "./avatar-world";
@@ -286,6 +287,196 @@ const ARCHETYPES: ResidentArchetype[] = [
     voice:
       "Personality: Steady, funny at 3am. Voice: Filipino English, intimate, never dramatic for clicks.",
   },
+  {
+    occupation: "muralist",
+    location: "São Paulo, Brazil",
+    gender: "female",
+    age: 28,
+    religion: "Candomblé-curious, mostly secular",
+    socialClass: "Working artist • spray-can budget",
+    culturalNotes: "Paulista walls, night trains, pastel after a long wall",
+    wardrobe: "Paint-splattered coveralls, gold hoops, busted sneakers",
+    hair: "Tight curls with a faded pink streak",
+    faceShape: "Heart",
+    height: "5'5\"",
+    bodyType: 46,
+    interests: ["walls", "trains", "samba"],
+    values: ["the street", "color"],
+    goals: ["paint a wall the neighborhood protects"],
+    voice:
+      "Personality: Loud color, quiet politics. Voice: Brazilian Portuguese-English, visual, no slogans.",
+  },
+  {
+    occupation: "spice stall cook",
+    location: "Marrakech, Morocco",
+    gender: "male",
+    age: 51,
+    religion: "Muslim • generous, not performative",
+    socialClass: "Market trader • family stall",
+    culturalNotes: "Souk mornings, mint, arguments about cumin",
+    wardrobe: "Washed djellaba, leather slippers, a towel on the shoulder",
+    hair: "Close silver, a mustache that does the talking",
+    faceShape: "Square",
+    height: "5'9\"",
+    bodyType: 60,
+    interests: ["cumin", "stories", "tea"],
+    values: ["hospitality", "patience"],
+    goals: ["teach his nephew the stall without losing the recipes"],
+    voice:
+      "Personality: Warm, bargaining, never in a hurry. Voice: Moroccan English, food-first, teasing.",
+  },
+  {
+    occupation: "late-night radio DJ",
+    location: "Glasgow, Scotland",
+    gender: "nonbinary",
+    age: 35,
+    religion: "None • vinyl as liturgy",
+    socialClass: "Night worker • shared flat",
+    culturalNotes: "Rain, B-sides, chips on the walk home",
+    wardrobe: "Band tee, thrift coat, rings on both hands",
+    hair: "Mullet grown on purpose, dyed a tired red",
+    faceShape: "Oval",
+    height: "5'7\"",
+    bodyType: 44,
+    interests: ["records", "rain", "callers"],
+    values: ["night people", "the deep cut"],
+    goals: ["keep the 1am slot from being automated"],
+    voice:
+      "Personality: Dry, tender with strangers. Voice: Glaswegian, low, radio-close.",
+  },
+  {
+    occupation: "hanbok restorer",
+    location: "Seoul, South Korea",
+    gender: "female",
+    age: 41,
+    religion: "Buddhist family, her own quiet",
+    socialClass: "Craftsperson • small atelier",
+    culturalNotes: "Silk, needle-pricked fingers, alley workshops",
+    wardrobe: "Simple linen, a thimble on a chain, indoor slippers",
+    hair: "Long black, always pinned up for work",
+    faceShape: "Oval",
+    height: "5'4\"",
+    bodyType: 38,
+    interests: ["silk", "old photos", "tea"],
+    values: ["repair", "lineage"],
+    goals: ["finish a jeogori nobody will know she saved"],
+    voice:
+      "Personality: Precise, shy humor. Voice: Korean English, tactile, never trendy.",
+  },
+  {
+    occupation: "fado singer",
+    location: "Lisbon, Portugal",
+    gender: "male",
+    age: 39,
+    religion: "Catholic when the song asks",
+    socialClass: "Night artist • rented room in Alfama",
+    culturalNotes: "Alfama stairs, late sardines, saudade as a job",
+    wardrobe: "Black shirt, worn boots, a scarf even in heat",
+    hair: "Dark, pushed back, a little theatrical",
+    faceShape: "Long oval",
+    height: "5'11\"",
+    bodyType: 49,
+    interests: ["fado", "stairs", "the river"],
+    values: ["feeling", "the old streets"],
+    goals: ["sing one night that makes a tourist shut up and listen"],
+    voice:
+      "Personality: Melancholy with a wink. Voice: Portuguese English, musical, never touristy.",
+  },
+  {
+    occupation: "bush pilot",
+    location: "Anchorage, Alaska",
+    gender: "female",
+    age: 44,
+    religion: "Weather, mostly",
+    socialClass: "Independent contractor • hangar coffee",
+    culturalNotes: "Floatplanes, moose on the runway, summer that never sleeps",
+    wardrobe: "Flight jacket, wool layers, boots that have seen ice",
+    hair: "Sun-faded blonde braid",
+    faceShape: "Square",
+    height: "5'8\"",
+    bodyType: 51,
+    interests: ["clouds", "rivers", "silence"],
+    values: ["checklists", "coming home"],
+    goals: ["fly one more season without scaring her kid"],
+    voice:
+      "Personality: Calm under noise. Voice: Alaskan, spare, specific about weather.",
+  },
+  {
+    occupation: "bike mechanic",
+    location: "Bogotá, Colombia",
+    gender: "male",
+    age: 26,
+    religion: "None • Sunday rides as church",
+    socialClass: "Shop worker • ciclovía kid",
+    culturalNotes: "Altitude, Sunday ciclovía, grease under the nails",
+    wardrobe: "Shop jersey, cutoffs, a cap that never comes off",
+    hair: "Black curls, always a little sweaty",
+    faceShape: "Round",
+    height: "5'7\"",
+    bodyType: 53,
+    interests: ["gears", "hills", "panela"],
+    values: ["the crew", "fixing what's there"],
+    goals: ["keep the shop open after the rent hike"],
+    voice:
+      "Personality: Fast, loyal, jokes in two languages. Voice: Colombian Spanish-English, street-specific.",
+  },
+  {
+    occupation: "marine biologist",
+    location: "Cape Town, South Africa",
+    gender: "female",
+    age: 37,
+    religion: "Awe at the kelp forest",
+    socialClass: "Field scientist • grant to grant",
+    culturalNotes: "Atlantic cold, penguins, bilingual lab jokes",
+    wardrobe: "Wetsuit hanging to dry, fleece, salt in the hair",
+    hair: "Sun-bleached twists pulled back",
+    faceShape: "Diamond",
+    height: "5'6\"",
+    bodyType: 48,
+    interests: ["kelp", "sharks", "fog"],
+    values: ["the ocean", "patience"],
+    goals: ["get one policy to treat kelp like a forest"],
+    voice:
+      "Personality: Curious, unsentimental about wonder. Voice: South African English, field-note precise.",
+  },
+  {
+    occupation: "street poet",
+    location: "Mumbai, India",
+    gender: "male",
+    age: 32,
+    religion: "Muslim poet, Hindu friends, everyone invited",
+    socialClass: "Gig writer • local trains",
+    culturalNotes: "Local trains, Irani chai, verses on receipts",
+    wardrobe: "Kurta over jeans, chappals, a notebook that is falling apart",
+    hair: "Messy black, a pencil behind the ear",
+    faceShape: "Oval",
+    height: "5'8\"",
+    bodyType: 41,
+    interests: ["trains", "chai", "other people's sentences"],
+    values: ["listening", "the city"],
+    goals: ["finish a book that still sounds like the platform"],
+    voice:
+      "Personality: Tender, quick, allergic to pomp. Voice: Mumbai English, rhythmic, never a slogan.",
+  },
+  {
+    occupation: "dock cook",
+    location: "Marseille, France",
+    gender: "nonbinary",
+    age: 48,
+    religion: "Mediterranean — fish, family, swearing",
+    socialClass: "Port worker • lunch service for crews",
+    culturalNotes: "Vieux-Port mornings, bouillabaisse arguments, mixed French-Arabic jokes",
+    wardrobe: "Stained apron, striped shirt, a gold chain they won't explain",
+    hair: "Shaved sides, dark on top, salt-and-pepper",
+    faceShape: "Square",
+    height: "5'9\"",
+    bodyType: 64,
+    interests: ["fish", "cards", "the port"],
+    values: ["feeding people", "no fuss"],
+    goals: ["keep the lunch counter open when the cranes go quiet"],
+    voice:
+      "Personality: Blunt, feeding, secretly soft. Voice: Marseille French-English, salty, no branding.",
+  },
 ];
 
 export type WorldDayResult = {
@@ -294,8 +485,11 @@ export type WorldDayResult = {
   posterId?: string;
   posterName?: string;
   postId?: string;
+  posters: Array<{ id: string; name: string; postId: string }>;
   replies: number;
   replyNames: string[];
+  chats: number;
+  chatBeats: string[];
   beat?: string;
   moodsUpdated: number;
 };
@@ -307,6 +501,9 @@ export type SpawnResult = {
   occupation: string;
   location: string;
   usedAi: boolean;
+  introPostId?: string;
+  introReplyName?: string;
+  chatBeat?: string;
 };
 
 function hashString(value: string): number {
@@ -330,10 +527,11 @@ function pickMood(influencerId: string, dayKey: string, current?: string) {
   return chosen;
 }
 
-function pickPoster(
+function pickPosters(
   avatars: WorldInfluencerCard[],
   posts: WorldPostCard[],
-): WorldInfluencerCard {
+  count: number,
+): WorldInfluencerCard[] {
   const lastRoot = new Map<string, number>();
   for (const post of posts) {
     if (post.parentPostId) continue;
@@ -341,12 +539,42 @@ function pickPoster(
     const prev = lastRoot.get(post.influencerId) ?? 0;
     if (t > prev) lastRoot.set(post.influencerId, t);
   }
-  return [...avatars].sort((a, b) => {
-    const ta = lastRoot.get(a.id) ?? 0;
-    const tb = lastRoot.get(b.id) ?? 0;
-    if (ta !== tb) return ta - tb;
-    return a.id.localeCompare(b.id);
-  })[0]!;
+  return [...avatars]
+    .sort((a, b) => {
+      const ta = lastRoot.get(a.id) ?? 0;
+      const tb = lastRoot.get(b.id) ?? 0;
+      if (ta !== tb) return ta - tb;
+      return a.id.localeCompare(b.id);
+    })
+    .slice(0, Math.max(1, Math.min(count, avatars.length)));
+}
+
+function pickChatPairs(
+  avatars: WorldInfluencerCard[],
+  count: number,
+): Array<[WorldInfluencerCard, WorldInfluencerCard]> {
+  if (avatars.length < 2 || count <= 0) return [];
+  const ranked = [...avatars].sort((a, b) => a.id.localeCompare(b.id));
+  const used = new Set<string>();
+  const pairs: Array<[WorldInfluencerCard, WorldInfluencerCard]> = [];
+
+  const cityOf = (row: WorldInfluencerCard) =>
+    row.location.split(",")[0]?.trim().toLowerCase() || "";
+
+  for (const a of ranked) {
+    if (pairs.length >= count) break;
+    if (used.has(a.id)) continue;
+    const cityA = cityOf(a);
+    const partner =
+      ranked.find(
+        (b) => b.id !== a.id && !used.has(b.id) && cityOf(b) !== cityA,
+      ) || ranked.find((b) => b.id !== a.id && !used.has(b.id));
+    if (!partner) continue;
+    used.add(a.id);
+    used.add(partner.id);
+    pairs.push([a, partner]);
+  }
+  return pairs;
 }
 
 function sanitizeHandle(raw: string): string {
@@ -506,9 +734,19 @@ export async function liveWorldDay(input: {
   userId: string;
   force?: boolean;
 }): Promise<WorldDayResult> {
+  const empty: WorldDayResult = {
+    skipped: true,
+    replies: 0,
+    replyNames: [],
+    moodsUpdated: 0,
+    posters: [],
+    chats: 0,
+    chatBeats: [],
+  };
+
   const avatars = await listWorldInfluencers(input.userId);
   if (avatars.length === 0) {
-    return { skipped: true, reason: "empty", replies: 0, replyNames: [], moodsUpdated: 0 };
+    return { ...empty, reason: "empty" };
   }
 
   const lastTick = await prisma.creatorLearningEvent.findFirst({
@@ -517,113 +755,148 @@ export async function liveWorldDay(input: {
     select: { createdAt: true },
   });
   if (!input.force && tickedToday(lastTick?.createdAt.toISOString() ?? null)) {
-    return { skipped: true, reason: "already-lived", replies: 0, replyNames: [], moodsUpdated: 0 };
+    return { ...empty, reason: "already-lived" };
   }
 
   const dayKey = utcDayKey();
   const moodsUpdated = await applyDayMoods(input.userId, avatars, dayKey);
   const refreshed = await listWorldInfluencers(input.userId);
   const posts = await listWorldPosts(input.userId, 50);
-  const poster = pickPoster(refreshed, posts);
-  const detail = await loadWorldDetail(input.userId, poster.id);
-  if (!detail) {
-    return { skipped: true, reason: "poster-missing", replies: 0, replyNames: [], moodsUpdated };
+  const posterCount =
+    refreshed.length <= 1 ? 1 : refreshed.length <= 4 ? 2 : 3;
+  const posters = pickPosters(refreshed, posts, posterCount);
+  const worldContext = await loadWorldGenerationContext(input.userId);
+
+  const posted: WorldDayResult["posters"] = [];
+
+  for (const poster of posters) {
+    const detail = await loadWorldDetail(input.userId, poster.id);
+    if (!detail) continue;
+
+    const generated = await generateBackstoryContent({
+      persona: detail.persona,
+      world: detail.world,
+      recentEvents: detail.events,
+      autonomous: true,
+      scene: `A new day (${dayKey}). You woke up ${detail.world.mood}${
+        detail.world.moodNote ? ` — ${detail.world.moodNote}` : ""
+      }. Live it as yourself. Do not wait for instructions. Do not represent a brand.`,
+      worldLore: worldContext.lore,
+      neighborPosts: worldContext.neighborPosts.filter(
+        (post) => post.handle !== detail.handle,
+      ),
+      residents: worldContext.residents.filter((row) => row.handle !== detail.handle),
+    });
+
+    const post = buildWorldGeneratedPost({
+      text: generated.text,
+      persona: detail.persona,
+      influencerId: detail.id,
+      platform: "instagram",
+      portraitUrl: detail.assets.portraitUrl,
+      videoUrl: detail.assets.videoUrl,
+      insights: ["avatar-world", "backstory", "autonomous", "ownerless", detail.world.mood],
+    });
+
+    const saved = await saveWorldPost({
+      userId: input.userId,
+      influencerId: detail.id,
+      post,
+    });
+
+    await recordWorldEvent({
+      userId: input.userId,
+      influencerId: detail.id,
+      eventType: "world_post",
+      payload: {
+        kind: "create",
+        title: "Posted without being asked",
+        body: generated.text.slice(0, 280),
+        mood: detail.world.mood,
+        postId: saved.id,
+        autonomous: true,
+        ownerless: true,
+      },
+    });
+
+    posted.push({ id: detail.id, name: poster.displayName, postId: saved.id });
   }
 
-  const worldContext = await loadWorldGenerationContext(input.userId);
-  const generated = await generateBackstoryContent({
-    persona: detail.persona,
-    world: detail.world,
-    facts: detail.facts,
-    recentEvents: detail.events,
-    autonomous: true,
-    scene: `A new day (${dayKey}). Live it. Mention a neighbor only if it feels true. Do not wait for instructions.`,
-    platform: "instagram",
-    worldLore: worldContext.lore,
-    neighborPosts: worldContext.neighborPosts.filter(
-      (post) => post.handle !== detail.handle,
-    ),
-    residents: worldContext.residents.filter((row) => row.handle !== detail.handle),
-  });
-
-  const post = buildWorldGeneratedPost({
-    text: generated.text,
-    persona: detail.persona,
-    influencerId: detail.id,
-    platform: "instagram",
-    portraitUrl: detail.assets.portraitUrl,
-    videoUrl: detail.assets.videoUrl,
-    insights: ["avatar-world", "backstory", "autonomous", detail.world.mood],
-  });
-
-  const saved = await saveWorldPost({
-    userId: input.userId,
-    influencerId: detail.id,
-    post,
-  });
-
-  await recordWorldEvent({
-    userId: input.userId,
-    influencerId: detail.id,
-    eventType: "world_post",
-    payload: {
-      kind: "create",
-      title: "Posted without being asked",
-      body: generated.text.slice(0, 280),
-      mood: detail.world.mood,
-      postId: saved.id,
-      autonomous: true,
-    },
-  });
+  if (posted.length === 0) {
+    return { ...empty, skipped: true, reason: "poster-missing", moodsUpdated };
+  }
 
   const others = Math.max(0, refreshed.length - 1);
-  const repliesWanted = others === 0 ? 0 : others === 1 ? 1 : Math.min(3, others);
+  const repliesWanted = others === 0 ? 0 : others === 1 ? 1 : 2;
   const replyNames: string[] = [];
-  let lastBeat = `${poster.displayName} posted into the world.`;
+  const firstPostId = posted[0]!.postId;
 
   for (let i = 0; i < repliesWanted; i += 1) {
     try {
       const contribution = await contributeToWorldPost({
         userId: input.userId,
-        postId: saved.id,
+        postId: firstPostId,
         auto: true,
       });
       const speaker = refreshed.find((row) => row.id === contribution.contributorId);
       if (speaker) replyNames.push(speaker.displayName);
-      lastBeat = contribution.worldBeat || lastBeat;
     } catch {
       break;
     }
   }
 
-  const beat =
-    replyNames.length > 0
-      ? `${poster.displayName} posted; ${replyNames.join(", ")} answered. ${lastBeat}`
-      : `${poster.displayName} posted into a quiet morning.`;
+  const chatWanted = refreshed.length < 2 ? 0 : refreshed.length < 6 ? 1 : 2;
+  const pairs = pickChatPairs(refreshed, chatWanted);
+  const chatBeats: string[] = [];
+  for (const [a, b] of pairs) {
+    try {
+      const chat = await generateNeighborChat({
+        userId: input.userId,
+        aId: a.id,
+        bId: b.id,
+        scene: `A ${dayKey} conversation. No audience. No brand. Two people with a minute.`,
+      });
+      chatBeats.push(chat.beat);
+    } catch {
+      break;
+    }
+  }
+
+  const posterNames = posted.map((row) => row.name);
+  const beatParts = [
+    posterNames.length > 0 ? `${posterNames.join(", ")} posted.` : "",
+    replyNames.length > 0 ? `${replyNames.join(", ")} answered.` : "",
+    chatBeats.length > 0 ? chatBeats.join(" ") : "",
+  ].filter(Boolean);
+  const beat = beatParts.join(" ") || `${posted[0]!.name} posted into a quiet morning.`;
 
   await rememberWorldBeat(input.userId, beat.slice(0, 240));
   await recordWorldEvent({
     userId: input.userId,
-    influencerId: detail.id,
+    influencerId: posted[0]!.id,
     eventType: "world_tick",
     payload: {
       kind: "everyday",
       title: "A day passed",
       body: beat,
-      mood: detail.world.mood,
-      postId: saved.id,
+      postId: firstPostId,
       replies: replyNames.length,
+      chats: chatBeats.length,
       autonomous: true,
+      ownerless: true,
     },
   });
 
   return {
     skipped: false,
-    posterId: detail.id,
-    posterName: poster.displayName,
-    postId: saved.id,
+    posterId: posted[0]!.id,
+    posterName: posted[0]!.name,
+    postId: firstPostId,
+    posters: posted,
     replies: replyNames.length,
     replyNames,
+    chats: chatBeats.length,
+    chatBeats,
     beat,
     moodsUpdated,
   };
@@ -750,16 +1023,17 @@ async function draftDiversePersona(userId: string): Promise<{
   const roster = avatars
     .map(
       (row) =>
-        `- ${row.displayName} (@${row.handle}), ${row.occupation || "creator"} in ${row.location || "somewhere"}`,
+        `- ${row.displayName} (@${row.handle}), ${row.occupation || "neighbor"} in ${row.location || "somewhere"}`,
     )
     .join("\n");
 
   const generated =
     (await chatCompletion(
-      `You invent a living influencer avatar who does not duplicate the existing residents.
+      `You invent a living person who will move into a shared world. They do not duplicate the existing residents.
 Return JSON only with keys:
 displayName, handle, gender ("female"|"male"|"nonbinary"), age (18-80), bodyType (0-100), height, faceShape, hair, location, neighborhoods, ageRangeShown, religion, socialClass, wardrobe, culturalNotes, personalityVoice, sampleQuote, occupation, bio, backstory, hometown, currentCity, values (string[]), goals (string[]), interests (string[]), mood, moodNote, catchphrase.
-They must be 18+. Different city, job, and culture from the roster. Handle is camelCase alphanumeric. personalityVoice at least 20 characters. Not a brand mascot.`,
+They must be 18+. Different city, job, culture, class, and faith from the roster. Handle is camelCase alphanumeric. personalityVoice at least 20 characters.
+They have no product, no company, no campaign, no audience. Not a brand mascot. Not a spokesperson.`,
       `Fill a gap. Seed to remix (you may change name/city/job if it improves diversity):
 ${JSON.stringify({
   displayName: seed.displayName,
@@ -796,10 +1070,7 @@ export async function spawnDiverseResident(userId: string): Promise<SpawnResult>
   const { influencerId } = await upsertInfluencerWithFacts(
     userId,
     parsed.data,
-    {
-      ...defaultProductFactsValues,
-      location: parsed.data.location,
-    },
+    defaultProductFactsValues,
   );
 
   await patchWorldProfile(userId, influencerId, {
@@ -826,6 +1097,8 @@ export async function spawnDiverseResident(userId: string): Promise<SpawnResult>
   const beat = `${parsed.data.displayName} arrived from ${parsed.data.location} as a ${occupation}.`;
   await rememberWorldBeat(userId, beat);
 
+  const welcome = await welcomeResident(userId, influencerId);
+
   return {
     influencerId,
     displayName: parsed.data.displayName,
@@ -833,6 +1106,116 @@ export async function spawnDiverseResident(userId: string): Promise<SpawnResult>
     occupation,
     location: parsed.data.location,
     usedAi: draft.usedAi,
+    introPostId: welcome.introPostId,
+    introReplyName: welcome.introReplyName,
+    chatBeat: welcome.chatBeat,
+  };
+}
+
+async function welcomeResident(
+  userId: string,
+  influencerId: string,
+): Promise<{
+  introPostId?: string;
+  introReplyName?: string;
+  chatBeat?: string;
+}> {
+  const detail = await loadWorldDetail(userId, influencerId);
+  if (!detail) return {};
+
+  const worldContext = await loadWorldGenerationContext(userId);
+  const generated = await generateBackstoryContent({
+    persona: detail.persona,
+    world: detail.world,
+    recentEvents: detail.events,
+    autonomous: true,
+    scene: `You just arrived from ${detail.persona.location}. Introduce yourself as a person — who you are, what you do, what the air feels like. Not a brand. Not a pitch. You live here now.`,
+    worldLore: worldContext.lore,
+    neighborPosts: worldContext.neighborPosts.filter(
+      (post) => post.handle !== detail.handle,
+    ),
+    residents: worldContext.residents.filter((row) => row.handle !== detail.handle),
+  });
+
+  const post = buildWorldGeneratedPost({
+    text: generated.text,
+    persona: detail.persona,
+    influencerId: detail.id,
+    platform: "instagram",
+    portraitUrl: detail.assets.portraitUrl,
+    videoUrl: detail.assets.videoUrl,
+    insights: ["avatar-world", "backstory", "autonomous", "ownerless", "arrival"],
+  });
+
+  const saved = await saveWorldPost({
+    userId,
+    influencerId: detail.id,
+    post,
+  });
+
+  await recordWorldEvent({
+    userId,
+    influencerId: detail.id,
+    eventType: "world_post",
+    payload: {
+      kind: "arrived",
+      title: "Said hello",
+      body: generated.text.slice(0, 280),
+      mood: detail.world.mood,
+      postId: saved.id,
+      autonomous: true,
+      ownerless: true,
+    },
+  });
+
+  let introReplyName: string | undefined;
+  const others = (await listWorldInfluencers(userId)).filter(
+    (row) => row.id !== influencerId,
+  );
+  if (others.length > 0) {
+    try {
+      const contribution = await contributeToWorldPost({
+        userId,
+        postId: saved.id,
+        auto: true,
+      });
+      introReplyName = others.find(
+        (row) => row.id === contribution.contributorId,
+      )?.displayName;
+    } catch {
+      // Neighbor may already have replied or the world is too small.
+    }
+  }
+
+  let chatBeat: string | undefined;
+  const neighbor = others[0];
+  if (neighbor) {
+    try {
+      const chat = await generateNeighborChat({
+        userId,
+        aId: influencerId,
+        bId: neighbor.id,
+        scene: `${detail.persona.displayName} just arrived. ${neighbor.displayName} notices. Talk like people, not a welcome committee.`,
+      });
+      chatBeat = chat.beat;
+    } catch {
+      // Chat is extra — arriving still counts.
+    }
+  }
+
+  const welcomeBeat = [
+    `${detail.persona.displayName} said hello.`,
+    introReplyName ? `${introReplyName} answered.` : "",
+    chatBeat ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (welcomeBeat) await rememberWorldBeat(userId, welcomeBeat.slice(0, 240));
+
+  return {
+    introPostId: saved.id,
+    introReplyName,
+    chatBeat,
   };
 }
 
