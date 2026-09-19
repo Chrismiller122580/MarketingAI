@@ -21,6 +21,7 @@ import { isEnterprisePlusPlan } from "@/lib/plans";
 import { PUBLIC_ERRORS } from "@/lib/public-errors";
 import { assertFreeGenerationsAllowed, consumeGenerations } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { loadWinningCopyHints } from "@/lib/winning-copy";
 import { hasVoiceProvider } from "@/lib/ai-voice";
 import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
 import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
@@ -118,6 +119,7 @@ export async function POST(request: Request) {
     }
 
     const promptPreferences = await getPromptPreferences(userId as string);
+    const winningCopy = await loadWinningCopyHints(userId as string);
     const site = body.site as SiteData;
 
     let influencerContext;
@@ -197,6 +199,7 @@ export async function POST(request: Request) {
       influencerVisualMode: visualMode,
       influencerMotionTypes: motionTypes,
       generateFreshMotion,
+      winningCopy,
     };
 
     const post = await generateSmartPost(generateRequest);

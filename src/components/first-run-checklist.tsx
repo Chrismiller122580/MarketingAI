@@ -60,9 +60,9 @@ export function FirstRunChecklist() {
       },
       {
         id: "post",
-        label: "Generate and save your first post",
-        hint: "Free includes 15 posts this month from your crawled pages.",
-        href: "/content",
+        label: "Generate this week's pack",
+        hint: "One tap on the dashboard builds about 5 posts from unused pages. Free includes 15 this month.",
+        href: "/dashboard",
         done: hasPost,
       },
       {

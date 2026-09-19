@@ -89,6 +89,7 @@ function buildSystemPrompt(
   const platformHint = platformCopyHint(platform);
   const typeHint = CONTENT_TYPE_INSTRUCTIONS[contentType];
   const userPrefs = formatPromptPreferences(settings.promptPreferences);
+  const winning = request.winningCopy?.promptBlock?.trim();
   const angle = request.contentAngle ?? "auto";
   const uniqueness = buildUniquenessInstructions(
     request.existingPosts ?? [],
@@ -110,6 +111,7 @@ function buildSystemPrompt(
 Brand: ${request.site.brand.name}. Voice: ${voice}. Audience: ${audience}.
 ${businessCtx ? `Business context: ${businessCtx}. ` : ""}
 ${userPrefs ? `${userPrefs} ` : ""}
+${winning ? `What already works: ${winning} ` : ""}
 Format: ${typeHint}
 Platform style: ${platformHint}
 Stay under ${charLimit} characters. ${hashtagRule}

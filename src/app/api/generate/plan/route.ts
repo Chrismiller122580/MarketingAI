@@ -3,6 +3,7 @@ import { planCampaign } from "@/lib/campaign-planner";
 import type { BatchGenerateRequest } from "@/lib/types";
 import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { loadWinningCopyHints, preferWinningPlatform } from "@/lib/winning-copy";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -26,16 +27,26 @@ export async function POST(request: Request) {
       );
     }
 
+    const winningCopy = await loadWinningCopyHints(userId as string);
+    const platforms = preferWinningPlatform(
+      body.platforms ??
+        body.settings?.defaultPlatforms ??
+        ["instagram", "linkedin", "twitter"],
+      winningCopy?.topPlatform,
+    );
+
     const planRequest: BatchGenerateRequest = {
       site: body.site,
       settings: body.settings,
       prompt: body.prompt ?? "",
-      platforms: body.platforms,
+      platforms,
       maxPosts: Math.min(body.maxPosts ?? 9, 20),
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
       varyAngles: body.varyAngles,
       focusPagePaths: body.focusPagePaths,
+      winningCopy,
+      spreadDaily: body.spreadDaily,
     };
 
     const plan = await planCampaign(planRequest);

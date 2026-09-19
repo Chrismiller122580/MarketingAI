@@ -1,10 +1,12 @@
 "use client";
 
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BrandLogo } from "./brand-logo";
 import { MenuButton } from "./menu-button";
+import { useCreatorAccess } from "@/hooks/use-creator-access";
 import {
   NavIconAdmin,
   NavIconAnalytics,
@@ -18,17 +20,57 @@ import {
   NavIconWorld,
 } from "./nav-icons";
 
-const navItems = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+};
+
+const marketingItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: NavIconDashboard },
   { href: "/campaigns", label: "Campaigns", icon: NavIconCampaigns },
   { href: "/content", label: "Content Studio", icon: NavIconContent },
-  { href: "/creator-studio", label: "Creator Studio", icon: NavIconCreatorStudio },
-  { href: "/avatar-world", label: "Avatar World", icon: NavIconWorld },
   { href: "/posts", label: "Post Library", icon: NavIconPosts },
   { href: "/analytics", label: "Analytics", icon: NavIconAnalytics },
   { href: "/billing", label: "Billing", icon: NavIconBilling },
   { href: "/settings", label: "Settings", icon: NavIconSettings },
 ];
+
+const creatorItems: NavItem[] = [
+  { href: "/creator-studio", label: "Creator Studio", icon: NavIconCreatorStudio },
+  { href: "/avatar-world", label: "Avatar World", icon: NavIconWorld },
+];
+
+function NavLink({
+  item,
+  pathname,
+  onClick,
+}: {
+  item: NavItem;
+  pathname: string;
+  onClick: () => void;
+}) {
+  const isActive =
+    item.href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(item.href);
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+        isActive
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+      }`}
+    >
+      <Icon className="h-4 w-4 shrink-0 opacity-70" />
+      {item.label}
+    </Link>
+  );
+}
 
 export function Sidebar({
   mobileOpen = false,
@@ -40,10 +82,7 @@ export function Sidebar({
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
-
-  const items = isAdmin
-    ? [...navItems, { href: "/admin", label: "Admin", icon: NavIconAdmin }]
-    : navItems;
+  const { allowed: showCreator } = useCreatorAccess();
 
   const handleNavClick = () => {
     if (onClose) onClose();
@@ -70,29 +109,46 @@ export function Sidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3 md:p-4">
-        {items.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
-          const Icon = item.icon;
+        <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          Marketing
+        </p>
+        {marketingItems.map((item) => (
+          <NavLink
+            key={item.href}
+            item={item}
+            pathname={pathname}
+            onClick={handleNavClick}
+          />
+        ))}
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
+        {showCreator && (
+          <>
+            <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Creator
+            </p>
+            {creatorItems.map((item) => (
+              <NavLink
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                onClick={handleNavClick}
+              />
+            ))}
+          </>
+        )}
+
+        {isAdmin && (
+          <>
+            <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Admin
+            </p>
+            <NavLink
+              item={{ href: "/admin", label: "Admin", icon: NavIconAdmin }}
+              pathname={pathname}
               onClick={handleNavClick}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                isActive
-                  ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0 opacity-70" />
-              {item.label}
-            </Link>
-          );
-        })}
+            />
+          </>
+        )}
       </nav>
 
       <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-800">

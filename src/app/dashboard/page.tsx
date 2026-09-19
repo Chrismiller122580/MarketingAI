@@ -5,9 +5,10 @@ import { DomainInput } from "@/components/domain-input";
 import { QuickActions } from "@/components/quick-actions";
 import { StatsCards } from "@/components/stats-cards";
 import { ContentCalendar } from "@/components/content-calendar";
-import { InfluencersPanel } from "@/components/influencers-panel";
+import { DashboardInfluencers } from "@/components/dashboard-influencers";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { FirstRunChecklist } from "@/components/first-run-checklist";
+import { ThisWeekPack } from "@/components/this-week-pack";
 
 export default function DashboardPage() {
   return (
@@ -18,7 +19,8 @@ export default function DashboardPage() {
         </Suspense>
         <FirstRunChecklist />
         <DomainInput variant="dashboard" />
-        <InfluencersPanel />
+        <ThisWeekPack />
+        <DashboardInfluencers />
         <QuickActions />
         <StatsCards />
         <ContentStrategyPanel />

@@ -7,6 +7,7 @@ import type {
   Platform,
   SiteData,
   SitePage,
+  WinningCopyHints,
 } from "./types";
 
 export type CampaignPlanItem = {
@@ -31,6 +32,11 @@ const PLATFORMS: Platform[] = [
   "pinterest",
   "email",
 ];
+
+function formatWinningForPlanner(hints?: WinningCopyHints | null): string {
+  if (!hints?.promptBlock) return "";
+  return `What already works (match energy, do not copy):\n${hints.promptBlock}`;
+}
 
 function resolvePage(site: SiteData, path: string): SitePage | undefined {
   const normalized = path.startsWith("/") ? path : `/${path}`;
@@ -181,6 +187,7 @@ export async function planCampaign(
     focusPagePaths,
   } = request;
 
+  const winningCopy = request.winningCopy ?? null;
   const history = analyzePostHistory(existingPosts);
   const freshPages = rankPagesByFreshness(site, history.pageCounts, focusPagePaths);
 
@@ -202,6 +209,8 @@ export async function planCampaign(
       ? `Already posted pages (prefer fresh ones): ${[...history.usedPages].slice(0, 8).join(", ")}`
       : "No prior posts — full library is fresh.";
 
+  const winningBlock = formatWinningForPlanner(winningCopy);
+
   const systemPrompt = `You are a content strategist. Plan a social media campaign calendar as JSON only.
 Return: { "theme": string, "items": [{ "pagePath": string, "platform": string, "angle": string, "dayOffset": number, "brief": string }] }
 Rules:
@@ -212,7 +221,9 @@ Rules:
 - Never repeat the same angle twice in one campaign
 - Stagger dayOffset from 0 upward
 - brief is 1 sentence creative direction with a specific hook idea
-- Exactly ${maxPosts} items`;
+- Exactly ${maxPosts} items
+${winningCopy?.topPlatform ? `- Lean toward ${winningCopy.topPlatform} when it is in the allowed platforms` : ""}
+${winningCopy?.topPage ? `- Include ${winningCopy.topPage} at least once if it is in the page list` : ""}`;
 
   const userMessage = `Brand: ${site.brand.name}
 Voice: ${formatVoiceGuide(site.brand)}
@@ -220,6 +231,7 @@ Campaign goal: ${prompt || site.brand.businessModel?.conversionGoal || "engageme
 Content themes: ${themes}
 Target platforms: ${platforms.join(", ")}
 ${usedPages}
+${winningBlock}
 
 Pages:
 ${pageList}`;

@@ -30,6 +30,7 @@ import {
   hasActiveVisualTargeting,
 } from "./visual-targeting";
 import { generateInfluencerSiteContent } from "./viraforge/influencer-content";
+import { calendarDatePlus } from "./week-pack";
 import type {
   BatchGenerateRequest,
   ContentType,
@@ -118,6 +119,7 @@ async function pickPage(
   sourcePageUrl?: string,
   prompt = "",
   contentType: ContentType = "Social Post",
+  boostPath?: string,
 ): Promise<SitePage> {
   if (sourcePageUrl) {
     return site.pages.find((p) => p.url === sourcePageUrl) ?? site.pages[0];
@@ -126,14 +128,31 @@ async function pickPage(
   const query = [prompt, contentType].filter(Boolean).join(" — ");
   if (query.trim()) {
     const semantic = await rankPagesBySimilarity(site.pages, query);
-    if (semantic[0] && semantic[0].score > 0.3) return semantic[0].page;
+    if (semantic[0] && semantic[0].score > 0.3) {
+      if (
+        boostPath &&
+        semantic[0].page.path !== boostPath &&
+        semantic[0].score < 0.45
+      ) {
+        const boosted = semantic.find((r) => r.page.path === boostPath);
+        if (boosted && boosted.score > 0.22) return boosted.page;
+      }
+      return semantic[0].page;
+    }
 
     const scored = site.pages.map((page) => ({
       page,
-      score: scorePageRelevance(page, prompt, contentType),
+      score:
+        scorePageRelevance(page, prompt, contentType) +
+        (boostPath && page.path === boostPath ? 22 : 0),
     }));
     scored.sort((a, b) => b.score - a.score);
     if (scored[0] && scored[0].score > 0) return scored[0].page;
+  }
+
+  if (boostPath) {
+    const boosted = site.pages.find((p) => p.path === boostPath);
+    if (boosted) return boosted;
   }
 
   return site.pages.find((p) => p.path === "/") ?? site.pages[0];
@@ -653,7 +672,13 @@ export async function generateSmartPost(
       ? pickFreshAngle(existingPosts, 0, request.contentAngle)
       : request.contentAngle;
   const angleRequest = { ...request, contentAngle };
-  const page = await pickPage(site, sourcePageUrl, prompt, contentType);
+  const page = await pickPage(
+    site,
+    sourcePageUrl,
+    prompt,
+    contentType,
+    request.winningCopy?.topPage,
+  );
   const relatedPages = await getRelatedPages(site, page, prompt, contentType);
 
   let text =
@@ -800,6 +825,12 @@ export async function generateSmartPost(
   }
   insights.push(`Uniqueness score: ${uniqueness.score}/100 — ${uniqueness.tips[0]}`);
 
+  if (request.winningCopy?.hasMetrics && request.winningCopy.topPlatform) {
+    insights.push(
+      `Hook style learned from your top ${request.winningCopy.topPlatform} posts.`,
+    );
+  }
+
   if (isStory && request.storyMedia !== "video") {
     const { width, height } = getVisualCanvasSize(effectivePlatform, contentType);
     const draftPost: GeneratedPost = {
@@ -855,6 +886,11 @@ export async function generateCampaignPack(
   } = request;
 
   const plan = await planCampaign(request);
+  if (request.spreadDaily) {
+    plan.items.forEach((item, i) => {
+      item.dayOffset = i;
+    });
+  }
   const posts: SavedPost[] = [];
   const history = [
     ...(request.existingPosts ?? []),
@@ -890,6 +926,7 @@ export async function generateCampaignPack(
       visualTargeting: request.visualTargeting,
       contentAngle,
       existingPosts: history,
+      winningCopy: request.winningCopy,
     });
 
     const scheduled = new Date();
@@ -901,7 +938,9 @@ export async function generateCampaignPack(
         ...post,
         id: `${Date.now()}-${index}`,
         createdAt: new Date().toISOString(),
-        scheduledFor: scheduled.toISOString().split("T")[0],
+        scheduledFor: request.spreadDaily
+          ? calendarDatePlus(item.dayOffset)
+          : scheduled.toISOString().split("T")[0],
         insights: [
           `Campaign: ${plan.theme} (${plan.source === "ai" ? "AI-planned" : "smart calendar"}).`,
           `Angle: ${item.angle} on ${item.platform}.`,

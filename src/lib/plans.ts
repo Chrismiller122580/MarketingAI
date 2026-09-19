@@ -47,3 +47,26 @@ export function sessionIsPaid(user?: {
       : new Date(user.subscriptionEndsAt);
   return !Number.isNaN(d.getTime()) && d.getTime() > Date.now();
 }
+
+/** Published posts needed on a paid plan to unlock Creator tools without Plus. */
+export const CREATOR_PUBLISHED_UNLOCK = 3;
+
+/**
+ * Creator Studio + Avatar World: Enterprise Plus and admins always.
+ * Paid plans unlock after a few published posts so power users aren't walled off.
+ * Free stays on the marketing engine.
+ */
+export function canUseCreatorTools(
+  user?: {
+    plan?: string | null;
+    role?: string | null;
+    subscriptionEndsAt?: Date | string | null;
+  } | null,
+  extras?: { publishedCount?: number },
+): boolean {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  if (!sessionIsPaid(user)) return false;
+  if (isEnterprisePlusPlan(user.plan)) return true;
+  return (extras?.publishedCount ?? 0) >= CREATOR_PUBLISHED_UNLOCK;
+}

@@ -56,7 +56,7 @@ export function analyzeContentGaps(
   }
   if (underusedPages.length >= 3) {
     recommendations.push(
-      `${underusedPages.length} crawled pages have zero posts — run a campaign pack to cover them.`,
+      `${underusedPages.length} crawled pages have zero posts — generate this week's pack to cover them.`,
     );
   }
   for (const platform of missingPlatforms) {
@@ -71,7 +71,7 @@ export function analyzeContentGaps(
   }
   if (posts.length === 0) {
     recommendations.push(
-      "Generate your first campaign pack to build a week of content from your site.",
+      "Generate this week's pack on the dashboard to fill unused pages fast.",
     );
   }
   if (posts.filter((p) => p.publishStatus === "published").length === 0 && posts.length > 3) {

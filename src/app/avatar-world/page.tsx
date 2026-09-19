@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import { AvatarWorldHub } from "@/components/avatar-world-hub";
+import { CreatorGate } from "@/components/creator-gate";
 
 export const metadata: Metadata = {
   title: "Avatar World",
@@ -11,7 +12,9 @@ export const metadata: Metadata = {
 export default function AvatarWorldPage() {
   return (
     <AppShell>
-      <AvatarWorldHub />
+      <CreatorGate title="Avatar World">
+        <AvatarWorldHub />
+      </CreatorGate>
     </AppShell>
   );
 }

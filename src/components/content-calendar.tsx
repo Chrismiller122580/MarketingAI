@@ -154,7 +154,7 @@ export function ContentCalendar() {
       <div className="rounded-xl border border-dashed border-slate-300 bg-white dark:bg-slate-900 p-8 text-center">
         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No posts yet</p>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Generate content, then drag posts onto the calendar to schedule.
+          Generate this week's pack on the dashboard, then drag posts onto the calendar to schedule.
         </p>
       </div>
     );

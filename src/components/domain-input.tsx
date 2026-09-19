@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import { sessionIsPaid } from "@/lib/plans";
+import { useCreatorAccess } from "@/hooks/use-creator-access";
 import { InlineLoading } from "./loading-indicator";
 
 function formatRelativeDate(iso: string): string {
@@ -43,6 +44,7 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
     savedSites,
   } = useSite();
   const { data: session } = useSession();
+  const { allowed: showCreator } = useCreatorAccess();
   const paid = sessionIsPaid(
     session?.user as {
       plan?: string;
@@ -199,12 +201,14 @@ export function DomainInput({ compact = false, variant = "default" }: DomainInpu
             >
               {site.brand.tone}
             </span>
-            <Link
-              href={`/creator-studio?domain=${encodeURIComponent(site.domain)}`}
-              className="ml-auto rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500"
-            >
-              Create site-smart avatar →
-            </Link>
+            {showCreator && (
+              <Link
+                href={`/creator-studio?domain=${encodeURIComponent(site.domain)}`}
+                className="ml-auto rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500"
+              >
+                Create site-smart avatar →
+              </Link>
+            )}
           </div>
         </div>
       )}

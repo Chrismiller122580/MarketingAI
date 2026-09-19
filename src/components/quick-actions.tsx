@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useSite } from "@/context/site-context";
 import { usePosts } from "@/context/posts-context";
+import { useCreatorAccess } from "@/hooks/use-creator-access";
 
 export function QuickActions() {
   const { site } = useSite();
   const { posts } = usePosts();
+  const { allowed: showCreator } = useCreatorAccess();
 
   if (!site) {
     return (
@@ -31,7 +33,7 @@ export function QuickActions() {
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">
               3
             </span>
-            Generate posts with images or a full campaign pack
+            Generate this week's pack — or a single post in Content Studio
           </li>
         </ol>
       </div>
@@ -90,16 +92,18 @@ export function QuickActions() {
           {posts.length} saved post{posts.length !== 1 ? "s" : ""}
         </p>
       </Link>
-      <Link
-        href={`/creator-studio?domain=${encodeURIComponent(site.domain)}`}
-        className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-5 shadow-sm transition hover:border-violet-300 hover:shadow-md dark:border-violet-900/50 dark:from-violet-950/30 dark:to-fuchsia-950/20"
-      >
-        <p className="text-2xl">✧</p>
-        <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Creator Studio</p>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Site-smart avatar from {site.brand.name}
-        </p>
-      </Link>
+      {showCreator && (
+        <Link
+          href={`/creator-studio?domain=${encodeURIComponent(site.domain)}`}
+          className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-5 shadow-sm transition hover:border-violet-300 hover:shadow-md dark:border-violet-900/50 dark:from-violet-950/30 dark:to-fuchsia-950/20"
+        >
+          <p className="text-2xl">✧</p>
+          <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Creator Studio</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Site-smart avatar from {site.brand.name}
+          </p>
+        </Link>
+      )}
     </div>
   );
 }

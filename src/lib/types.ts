@@ -112,6 +112,25 @@ export type PostHistorySnapshot = {
   platform: Platform;
 };
 
+export type WinningCopyExample = {
+  hook: string;
+  platform: Platform;
+  page?: string;
+  angle?: string;
+  length: number;
+  engagements: number;
+};
+
+export type WinningCopyHints = {
+  topPlatform?: Platform;
+  topPage?: string;
+  preferredLength?: number;
+  winningAngles: string[];
+  examples: WinningCopyExample[];
+  promptBlock: string;
+  hasMetrics: boolean;
+};
+
 export type UniquenessReport = {
   score: number;
   tips: string[];
@@ -328,6 +347,8 @@ export type GenerateRequest = {
   generateFreshMotion?: boolean;
   /** @deprecated Use generateFreshMotion */
   generateFreshTalkMotion?: boolean;
+  /** Top-performing posts used as few-shot style hints. */
+  winningCopy?: WinningCopyHints | null;
 };
 
 export type VideoJobStatus = {
@@ -352,6 +373,10 @@ export type BatchGenerateRequest = {
   varyAngles?: boolean;
   /** When set, campaign planning only rotates across these page paths. */
   focusPagePaths?: string[];
+  /** Top-performing posts used as few-shot style hints. */
+  winningCopy?: WinningCopyHints | null;
+  /** Spread items one per calendar day starting today (this-week pack). */
+  spreadDaily?: boolean;
 };
 
 export type PublishRequest = {

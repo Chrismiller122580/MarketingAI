@@ -10,6 +10,7 @@ import {
   remainingFreeGenerations,
 } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { loadWinningCopyHints, preferWinningPlatform } from "@/lib/winning-copy";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -45,6 +46,13 @@ export async function POST(request: Request) {
       : requested;
 
     const promptPreferences = await getPromptPreferences(userId);
+    const winningCopy = await loadWinningCopyHints(userId);
+    const platforms = preferWinningPlatform(
+      body.platforms ??
+        body.settings?.defaultPlatforms ??
+        ["instagram", "linkedin", "twitter"],
+      winningCopy?.topPlatform,
+    );
 
     const batchRequest: BatchGenerateRequest = {
       site: body.site,
@@ -53,7 +61,7 @@ export async function POST(request: Request) {
         promptPreferences: promptPreferences ?? body.settings?.promptPreferences,
       },
       prompt: body.prompt ?? "",
-      platforms: body.platforms,
+      platforms,
       maxPosts,
       preferAiImage: body.preferAiImage,
       visualTargeting: body.visualTargeting,
@@ -61,6 +69,8 @@ export async function POST(request: Request) {
       existingPosts: body.existingPosts,
       varyAngles: body.varyAngles,
       focusPagePaths: body.focusPagePaths,
+      winningCopy,
+      spreadDaily: body.spreadDaily,
     };
 
     const result = await generateCampaignPack(batchRequest);

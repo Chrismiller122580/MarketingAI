@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
 import { ViraForgeCreatorStudio } from "@/components/viraforge-creator-studio";
+import { CreatorGate } from "@/components/creator-gate";
 
 export const metadata: Metadata = {
   title: "Creator Studio",
@@ -17,9 +18,11 @@ export const metadata: Metadata = {
 export default function CreatorStudioPage() {
   return (
     <AppShell>
-      <Suspense>
-        <ViraForgeCreatorStudio />
-      </Suspense>
+      <CreatorGate title="Creator Studio">
+        <Suspense>
+          <ViraForgeCreatorStudio />
+        </Suspense>
+      </CreatorGate>
     </AppShell>
   );
 }
