@@ -18,7 +18,7 @@ type InfluencerRow = {
 
 function InfluencerSkeleton() {
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-center">
+    <li className="flex flex-col gap-3 rounded-lg border border-border p-3">
       <LoadingSkeleton className="h-20 w-16 shrink-0 rounded-md" />
       <div className="min-w-0 flex-1 space-y-2">
         <LoadingSkeleton className="h-4 w-40" />
@@ -76,8 +76,8 @@ export function InfluencersPanel() {
   }
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card p-4 sm:p-6">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-w-0 overflow-x-hidden rounded-xl border border-border bg-card p-4 sm:p-6">
+      <div className="mb-4 flex flex-col gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold text-foreground">
@@ -93,23 +93,27 @@ export function InfluencersPanel() {
             AI personas that learn from your inputs and locked product facts.
           </p>
         </div>
-        <div className="flex w-full min-w-0 flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+        <div className="grid min-w-0 grid-cols-2 gap-2">
           <Button
             asChild
             size="sm"
             variant="outline"
             disabled={loading}
-            className="flex-1 sm:flex-none"
+            className="min-w-0"
           >
-            <Link href="/avatar-world">Avatar World</Link>
+            <Link href="/avatar-world" className="truncate text-center">
+              Avatar World
+            </Link>
           </Button>
           <Button
             asChild
             size="sm"
-            className="flex-1 bg-violet-600 hover:bg-violet-500 sm:flex-none"
+            className="min-w-0 bg-violet-600 hover:bg-violet-500"
             disabled={loading}
           >
-            <Link href="/creator-studio">+ New influencer</Link>
+            <Link href="/creator-studio" className="truncate text-center">
+              + New influencer
+            </Link>
           </Button>
         </div>
       </div>
@@ -119,7 +123,7 @@ export function InfluencersPanel() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <InlineLoading label="Loading influencers…" />
           </div>
-          <ul className="grid gap-3 md:grid-cols-2">
+          <ul className="grid gap-3">
             <InfluencerSkeleton />
             <InfluencerSkeleton />
           </ul>
@@ -129,14 +133,14 @@ export function InfluencersPanel() {
           No influencers yet. Open Creator Studio to build your first persona.
         </p>
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid min-w-0 gap-3 lg:grid-cols-2">
           {influencers.map((inf) => (
             <li
               key={inf.id}
-              className="flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-center"
+              className="flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3"
             >
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-md bg-muted sm:h-20 sm:w-16">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-md bg-muted">
                   {inf.assets?.videoUrl ? (
                     <video
                       src={inf.assets.videoUrl}
@@ -159,8 +163,10 @@ export function InfluencersPanel() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-foreground">
-                    {inf.displayName}{" "}
-                    <span className="text-muted-foreground">@{inf.handle}</span>
+                    {inf.displayName}
+                  </p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    @{inf.handle}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {inf.productFacts?.name ?? "No product linked"} · Updated{" "}
@@ -168,8 +174,8 @@ export function InfluencersPanel() {
                   </p>
                 </div>
               </div>
-              <div className="grid w-full grid-cols-3 gap-1.5 sm:flex sm:w-auto sm:shrink-0 sm:flex-col md:flex-row">
-                <Button asChild variant="outline" size="sm" className="min-w-0">
+              <div className="grid w-full min-w-0 grid-cols-3 gap-1.5">
+                <Button asChild variant="outline" size="sm" className="min-w-0 shrink">
                   <Link
                     href={`/avatar-world/${inf.id}`}
                     className="block w-full truncate text-center"
@@ -177,7 +183,7 @@ export function InfluencersPanel() {
                     World
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="sm" className="min-w-0">
+                <Button asChild variant="outline" size="sm" className="min-w-0 shrink">
                   <Link
                     href={`/creator-studio?influencer=${inf.id}`}
                     className="block w-full truncate text-center"
@@ -189,7 +195,7 @@ export function InfluencersPanel() {
                   type="button"
                   variant="destructive"
                   size="sm"
-                  className="min-w-0"
+                  className="min-w-0 shrink"
                   disabled={deletingId === inf.id}
                   aria-label={`Delete ${inf.displayName}`}
                   onClick={() => void handleDelete(inf)}

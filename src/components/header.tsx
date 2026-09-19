@@ -80,7 +80,7 @@ export function Header({
               open={mobileOpen}
               onClick={onMenuClick}
               label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
-              className="md:hidden"
+              className="lg:hidden"
             />
           )}
           <div className="min-w-0">

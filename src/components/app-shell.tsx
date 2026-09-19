@@ -32,14 +32,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppLoader>
-      <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      <div className="flex min-h-screen overflow-x-hidden bg-slate-50 dark:bg-slate-950">
         {/* Sidebar: desktop static | mobile slide-in drawer */}
         <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
 
         {/* Backdrop for mobile drawer */}
         {mobileOpen && (
           <div
-            className="fixed inset-0 z-40 bg-black/40 md:hidden"
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <Header onMenuClick={toggleMobile} mobileOpen={mobileOpen} />
-          <main className="flex-1 overflow-y-auto p-4 pb-[env(safe-area-inset-bottom)] md:p-8">
+          <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 pb-[env(safe-area-inset-bottom)] md:p-8">
             {children}
           </main>
         </div>

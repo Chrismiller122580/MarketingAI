@@ -12,7 +12,7 @@ import { FirstRunChecklist } from "@/components/first-run-checklist";
 export default function DashboardPage() {
   return (
     <AppShell>
-      <div className="space-y-8">
+      <div className="min-w-0 space-y-8">
         <Suspense>
           <EmailVerificationBanner />
         </Suspense>
