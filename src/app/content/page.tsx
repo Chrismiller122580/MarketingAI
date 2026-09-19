@@ -13,6 +13,10 @@ export default function ContentPage() {
         <DomainInput />
         <ContentStrategyPanel />
         <AvatarPresentPanel />
+        <p className="px-1 text-center text-xs text-slate-500 dark:text-slate-400">
+          Present writes the influencer package. Content Studio below formats and
+          publishes it — Walk & talk is the default shot, not only close-up.
+        </p>
         <Suspense>
           <ContentGenerator />
         </Suspense>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { pollUntilComplete } from "@/hooks/use-generation-poll";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Mic, Presentation, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +11,16 @@ import { Button } from "@/components/ui/button";
 import { useSite } from "@/context/site-context";
 import { ENTERPRISE_PLUS_LABEL, isEnterprisePlusPlan } from "@/lib/plans";
 import type { Platform } from "@/lib/types";
+import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
+import {
+  DEFAULT_PRESENT_MOTION_TYPES,
+  MOTION_ACTIONS,
+  toggleMotionTypeSelection,
+} from "@/lib/viraforge/motion-actions";
+import {
+  writePresentHandoff,
+  type PresentHandoffClip,
+} from "@/lib/viraforge/present-handoff";
 import { InlineLoading } from "./loading-indicator";
 import { CrawledPagePicker } from "./crawled-page-picker";
 import { recommendSourcePage } from "@/lib/crawled-page-utils";
@@ -18,14 +29,18 @@ type InfluencerOption = {
   id: string;
   displayName: string;
   handle: string;
+  portraitUrl?: string;
   hasPortrait: boolean;
 };
+
+type PresentClip = PresentHandoffClip & { videoUrl?: string };
 
 type PresentResult = {
   content?: { text: string };
   script?: string;
+  motionTypes?: InfluencerMotionType[];
+  clips?: PresentClip[];
   motionJobId?: string;
-  motionVideoUrl?: string;
   contentStudioUrl?: string;
   creatorStudioUrl?: string;
   talkError?: string;
@@ -40,6 +55,7 @@ type MotionPollData = {
 };
 
 export function AvatarPresentPanel() {
+  const router = useRouter();
   const { data: session } = useSession();
   const { site } = useSite();
 
@@ -51,35 +67,69 @@ export function AvatarPresentPanel() {
   const [selectedInfluencer, setSelectedInfluencer] = useState("");
   const [selectedPage, setSelectedPage] = useState("/");
   const [platform, setPlatform] = useState<Platform>("instagram");
-  const [talkNow, setTalkNow] = useState(true);
+  const [selectedMotionTypes, setSelectedMotionTypes] = useState<
+    InfluencerMotionType[]
+  >(DEFAULT_PRESENT_MOTION_TYPES);
+  const [renderMotion, setRenderMotion] = useState(true);
+  const [motionCapabilities, setMotionCapabilities] = useState<
+    Record<InfluencerMotionType, boolean> | null
+  >(null);
   const [loading, setLoading] = useState(false);
   const [motionPolling, setMotionPolling] = useState(false);
   const [result, setResult] = useState<PresentResult | null>(null);
 
-  const pollPresentMotion = useCallback(async (jobId: string) => {
+  const pollPresentMotion = useCallback(async (clips: PresentClip[]) => {
+    const pending = clips.filter((clip) => clip.motionJobId);
+    if (pending.length === 0) return;
+
     setMotionPolling(true);
-    const data = await pollUntilComplete<MotionPollData>({
-      url: `/api/creator-studio/motion/status/${jobId}`,
-      isReady: (payload) => payload.status === "ready" && !!payload.videoUrl,
-      isFailed: (payload) => payload.status === "failed",
-      immediate: true,
-    });
-
+    const finished = await Promise.all(
+      pending.map(async (clip) => {
+        const data = await pollUntilComplete<MotionPollData>({
+          url: `/api/creator-studio/motion/status/${clip.motionJobId}`,
+          isReady: (payload) => payload.status === "ready" && !!payload.videoUrl,
+          isFailed: (payload) => payload.status === "failed",
+          immediate: true,
+        });
+        return {
+          ...clip,
+          videoUrl:
+            data?.status === "ready" ? data.videoUrl : clip.videoUrl,
+          error: data?.status === "failed" ? data.error : undefined,
+        };
+      }),
+    );
     setMotionPolling(false);
-    if (data?.status === "ready" && data.videoUrl) {
-      setResult((prev) =>
-        prev ? { ...prev, motionVideoUrl: data.videoUrl } : prev,
-      );
-      toast.success("Talk clip ready");
-      return;
-    }
 
-    if (data?.status === "failed") {
-      toast.error(data.error ?? "Talk clip failed");
-    } else {
-      toast.error("Talk clip timed out — check Creator Studio later");
+    setResult((prev) => (prev ? { ...prev, clips: finished } : prev));
+
+    const readyCount = finished.filter((clip) => clip.videoUrl).length;
+    const failed = finished.find((clip) => clip.error);
+    if (readyCount > 0) {
+      toast.success(
+        readyCount === 1
+          ? "Motion clip ready"
+          : `${readyCount} motion clips ready`,
+      );
+    }
+    if (failed) {
+      toast.error(failed.error ?? "A motion clip failed");
+    } else if (readyCount === 0) {
+      toast.error("Motion clip timed out — it will keep rendering in Creator Studio");
     }
   }, []);
+
+  useEffect(() => {
+    if (!hasAccess) return;
+    fetch("/api/creator-studio/capabilities")
+      .then((res) => (res.ok ? res.json() : null))
+      .then(
+        (data: { motionTypes?: Record<InfluencerMotionType, boolean> } | null) => {
+          if (data?.motionTypes) setMotionCapabilities(data.motionTypes);
+        },
+      )
+      .catch(() => {});
+  }, [hasAccess]);
 
   useEffect(() => {
     if (!hasAccess) return;
@@ -100,6 +150,7 @@ export function AvatarPresentPanel() {
             id: i.id,
             displayName: i.displayName,
             handle: i.handle,
+            portraitUrl: i.assets?.portraitUrl,
             hasPortrait: !!i.assets?.portraitUrl,
           }));
           setInfluencers(options);
@@ -123,6 +174,38 @@ export function AvatarPresentPanel() {
     setSelectedPage(recommended?.path ?? site.pages[0].path);
   }, [site?.domain, site?.pages.length]);
 
+  function handoffToStudio(data: PresentResult, inf: InfluencerOption) {
+    if (!site || !data.content?.text) return;
+    writePresentHandoff({
+      influencerId: inf.id,
+      displayName: inf.displayName,
+      handle: inf.handle,
+      portraitUrl: inf.portraitUrl,
+      domain: site.domain,
+      pagePath: selectedPage,
+      platform,
+      draftText: data.content.text,
+      script: data.script,
+      motionTypes: data.motionTypes ?? selectedMotionTypes,
+      clips: (data.clips ?? []).map((clip) => ({
+        motionType: clip.motionType,
+        motionJobId: clip.motionJobId,
+        voiceAudioUrl: clip.voiceAudioUrl,
+        script: clip.script,
+      })),
+      createdAt: new Date().toISOString(),
+    });
+    const href =
+      data.contentStudioUrl ??
+      `/content?influencer=${encodeURIComponent(inf.id)}`;
+    router.replace(href, { scroll: false });
+    requestAnimationFrame(() => {
+      document
+        .getElementById("content-studio")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   async function handlePresent() {
     if (!site || !selectedInfluencer) return;
 
@@ -143,7 +226,8 @@ export function AvatarPresentPanel() {
           domain: site.domain,
           pagePath: selectedPage,
           platform,
-          talkNow,
+          talkNow: renderMotion,
+          motionTypes: selectedMotionTypes,
           site,
         }),
       });
@@ -151,14 +235,16 @@ export function AvatarPresentPanel() {
       if (!res.ok) throw new Error(data.error ?? "Presentation failed");
 
       setResult(data);
-      if (data.motionJobId) {
-        toast.success("Avatar is presenting — talk clip rendering");
-        void pollPresentMotion(data.motionJobId);
+      const labels = (data.motionTypes ?? selectedMotionTypes).join(" + ");
+      if (data.clips?.length) {
+        toast.success(`Avatar is presenting — rendering ${labels}`);
+        void pollPresentMotion(data.clips);
       } else if (data.talkSkipped || data.talkError) {
-        toast.warning(data.talkSkipped ?? data.talkError ?? "Talk skipped");
+        toast.warning(data.talkSkipped ?? data.talkError ?? "Motion skipped");
       } else {
         toast.success("Draft and script ready");
       }
+      if (inf) handoffToStudio(data, inf);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not present page");
     } finally {
@@ -175,8 +261,8 @@ export function AvatarPresentPanel() {
           Avatar presents this page
         </h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          One-click pipeline: fact-locked post draft, spoken script, optional
-          talk clip, then handoff to Content Studio. Requires{" "}
+          One-click pipeline: fact-locked post, spoken script, Walk & talk or
+          close-up clip, then handoff to Content Studio. Requires{" "}
           {ENTERPRISE_PLUS_LABEL}.
         </p>
         <Button asChild size="sm" className="mt-4 bg-violet-600 hover:bg-violet-500">
@@ -210,9 +296,8 @@ export function AvatarPresentPanel() {
           </h2>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Draft fact-locked copy in your influencer&apos;s voice, generate a
-          spoken script, optionally render a talk clip — then publish via Content
-          Studio.
+          Your influencer writes the post, speaks the script, and walks the
+          page — then Content Studio below wraps it for publish.
         </p>
       </div>
 
@@ -267,16 +352,57 @@ export function AvatarPresentPanel() {
           compact
         />
 
+        <div>
+          <p className="text-sm font-medium">Shot</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pick up to 2. Walk & talk is the default for presenting a page —
+            close-up Talk is still here when you want a talking head.
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {MOTION_ACTIONS.map((action) => {
+              const selected = selectedMotionTypes.includes(action.type);
+              const enabled = motionCapabilities?.[action.type] ?? true;
+              return (
+                <button
+                  key={action.type}
+                  type="button"
+                  disabled={!enabled || !renderMotion}
+                  onClick={() =>
+                    setSelectedMotionTypes((prev) =>
+                      toggleMotionTypeSelection(prev, action.type),
+                    )
+                  }
+                  className={`rounded-lg border px-2.5 py-2 text-left transition ${
+                    selected
+                      ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30"
+                      : enabled
+                        ? "border-border bg-background hover:border-violet-300"
+                        : "cursor-not-allowed border-border/60 opacity-50"
+                  }`}
+                >
+                  <p className="text-xs font-semibold text-foreground">
+                    {action.label}
+                    {selected ? " ✓" : ""}
+                  </p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+                    {action.description}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
-            checked={talkNow}
-            onChange={(e) => setTalkNow(e.target.checked)}
+            checked={renderMotion}
+            onChange={(e) => setRenderMotion(e.target.checked)}
             className="rounded border-border text-violet-600"
           />
           <span className="text-sm text-foreground">
             <Mic className="mr-1 inline h-3.5 w-3.5" />
-            Render talk clip after drafting (lip-sync video)
+            Render motion clip(s) with lip-sync where needed
           </span>
         </label>
 
@@ -290,7 +416,7 @@ export function AvatarPresentPanel() {
             <InlineLoading
               label={
                 motionPolling
-                  ? "Rendering talk clip…"
+                  ? "Rendering motion clip…"
                   : "Avatar is presenting this page…"
               }
             />
@@ -318,18 +444,38 @@ export function AvatarPresentPanel() {
                 </p>
               </>
             )}
-            {result.motionVideoUrl && (
-              <video
-                src={result.motionVideoUrl}
-                controls
-                playsInline
-                className="mt-3 w-full max-w-sm rounded-lg border border-border"
-              />
+            {result.clips?.some((clip) => clip.videoUrl) && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {result.clips
+                  .filter((clip) => clip.videoUrl)
+                  .map((clip) => (
+                    <div key={clip.motionJobId}>
+                      <p className="mb-1 text-xs font-medium capitalize text-foreground">
+                        {clip.motionType.replace("-", " ")}
+                      </p>
+                      <video
+                        src={clip.videoUrl}
+                        controls
+                        playsInline
+                        className="w-full rounded-lg border border-border"
+                      />
+                    </div>
+                  ))}
+              </div>
             )}
             <div className="flex flex-wrap gap-2 border-t border-border pt-3">
               {result.contentStudioUrl && (
-                <Button asChild size="sm" variant="default">
-                  <Link href={result.contentStudioUrl}>Open in Content Studio</Link>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const inf = influencers.find(
+                      (item) => item.id === selectedInfluencer,
+                    );
+                    if (inf) handoffToStudio(result, inf);
+                  }}
+                >
+                  Use in Content Studio
                 </Button>
               )}
               {result.creatorStudioUrl && (

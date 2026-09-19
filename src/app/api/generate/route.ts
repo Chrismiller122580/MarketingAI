@@ -251,8 +251,8 @@ export async function POST(request: Request) {
           ...post.insights,
           clips.length > 1
             ? `Rendering ${clips.length} influencer clips (${labels}) — companion voice tracks appear as each clip finishes.`
-            : primary.motionType === "talk"
-              ? "Rendering influencer talk clip with lip-sync — voiceover is ready below."
+            : primary.motionType === "talk" || primary.motionType === "walk-talk"
+              ? `Rendering influencer ${primary.motionType.replace("-", " ")} with lip-sync — voiceover is ready below.`
               : `Rendering ${primary.motionType} motion clip — AI script and voice paired where available.`,
         ];
       }
@@ -262,7 +262,13 @@ export async function POST(request: Request) {
       }
     }
 
-    if (triggersVideoGeneration(contentType, storyMedia)) {
+    const usingInfluencerVideo =
+      generateFreshMotion ||
+      (visualMode === "saved" &&
+        useInfluencerPortrait &&
+        !!influencerContext?.assets.videoUrl);
+
+    if (triggersVideoGeneration(contentType, storyMedia) && !usingInfluencerVideo) {
       const durationSec = body.videoDuration === 10 ? 10 : 5;
       const videoRl = checkRateLimit(userId as string, "video");
       if (!videoRl.allowed) {

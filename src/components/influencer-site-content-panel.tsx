@@ -328,7 +328,7 @@ export function InfluencerSiteContentPanel({
           className="w-full border-violet-500/40 text-violet-700 hover:bg-violet-500/10 dark:text-violet-300"
         >
           <Link
-            href={`/content?influencer=${encodeURIComponent(influencerId)}&domain=${encodeURIComponent(selectedDomain)}&page=${encodeURIComponent(selectedPage)}`}
+            href={`/content?influencer=${encodeURIComponent(influencerId)}&domain=${encodeURIComponent(selectedDomain)}&page=${encodeURIComponent(selectedPage)}&motion=walk-talk`}
           >
             <ArrowUpRight className="mr-2 h-4 w-4" />
             Open in Content Studio (full pipeline)

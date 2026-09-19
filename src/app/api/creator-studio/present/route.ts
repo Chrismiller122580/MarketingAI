@@ -10,27 +10,40 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
-import { createInfluencerMotionJob } from "@/lib/influencer-motion-jobs";
 import { generateInfluencerSiteContent } from "@/lib/viraforge/influencer-content";
 import { generateInfluencerScript } from "@/lib/viraforge/influencer-script";
-import { hasElevenLabs } from "@/lib/viraforge/elevenlabs";
 import {
   mergeInfluencerAssets,
+  resolveInfluencerAssets,
   type InfluencerAssets,
+  type InfluencerMotionType,
 } from "@/lib/viraforge/influencer-assets";
-import { startInfluencerMotion } from "@/lib/viraforge/influencer-motion";
-import { resolveMotionVoiceId } from "@/lib/viraforge/motion-voice";
-import { prepareMotionPortrait } from "@/lib/viraforge/influencer-renders";
-import {
-  buildPersonalizationContext,
-  recordCreatorEvent,
-} from "@/lib/viraforge/learning";
+import { recordCreatorEvent } from "@/lib/viraforge/learning";
 import {
   buildFactPinpoints,
   mergeFactsWithSite,
 } from "@/lib/viraforge/site-facts-extractor";
-import { hasReplicate } from "@/lib/replicate-client";
+import {
+  canGenerateFreshMotion,
+  startContentStudioMotionClips,
+} from "@/lib/viraforge/content-studio-motion";
+import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
+import {
+  DEFAULT_PRESENT_MOTION_TYPES,
+  normalizeMotionTypeSelection,
+} from "@/lib/viraforge/motion-actions";
+import { buildContentStudioHandoffUrl } from "@/lib/viraforge/present-handoff";
 import type { Platform, SiteData } from "@/lib/types";
+
+const motionTypeSchema = z.enum([
+  "talk",
+  "walk-talk",
+  "walk",
+  "spin",
+  "jump",
+  "wave",
+  "point",
+]);
 
 const presentSchema = z.object({
   influencerId: z.string().min(1),
@@ -47,6 +60,7 @@ const presentSchema = z.object({
     ])
     .default("instagram"),
   talkNow: z.boolean().optional(),
+  motionTypes: z.array(motionTypeSchema).max(2).optional(),
   site: z.unknown().optional(),
 });
 
@@ -75,7 +89,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const { influencerId, domain, pagePath, platform, talkNow } = parsed.data;
+    const {
+      influencerId,
+      domain,
+      pagePath,
+      platform,
+      talkNow,
+    } = parsed.data;
+    const motionTypes = normalizeMotionTypeSelection(
+      (parsed.data.motionTypes as InfluencerMotionType[] | undefined) ??
+        DEFAULT_PRESENT_MOTION_TYPES,
+    );
+    const renderMotion = talkNow !== false;
     let site = parsed.data.site as SiteData | undefined;
 
     const influencer = await prisma.influencer.findFirst({
@@ -95,7 +120,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid persona data" }, { status: 500 });
     }
 
-    const assets = (influencer.assets ?? {}) as InfluencerAssets;
+    const assets = resolveInfluencerAssets(
+      (influencer.assets ?? {}) as InfluencerAssets,
+    );
     if (!assets.portraitUrl) {
       return NextResponse.json(
         { error: "Generate a portrait before presenting pages" },
@@ -126,13 +153,17 @@ export async function POST(request: Request) {
       site.pages.find((p) => p.path === pagePath) ?? site.pages[0];
 
     const locked = factsFromRecord(influencer.productFacts);
-
     const mergedFacts = mergeFactsWithSite(locked, site, page);
     const pinpoints = buildFactPinpoints(locked, site, page);
-    const personalization = await buildPersonalizationContext(
+    const context = await loadInfluencerGenerateContext(
       authResult,
       influencerId,
+      site,
+      page,
     );
+    if (!context) {
+      return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
+    }
 
     const content = await generateInfluencerSiteContent({
       persona: persona.data,
@@ -141,7 +172,7 @@ export async function POST(request: Request) {
       site,
       page,
       platform: platform as Platform,
-      personalization: personalization || undefined,
+      personalization: context.personalization,
     });
 
     const scriptResult = await generateInfluencerScript({
@@ -150,111 +181,78 @@ export async function POST(request: Request) {
       scene: "pitch",
       siteDomain: site.domain,
       draftText: content.text,
-      personalization: personalization || undefined,
+      personalization: context.personalization,
     });
 
-    let motionJobId: string | undefined;
+    const contentStudioUrl = buildContentStudioHandoffUrl({
+      influencerId,
+      domain: site.domain,
+      pagePath: page.path,
+      platform: platform as Platform,
+      motionTypes,
+    });
+    const creatorStudioUrl = `/creator-studio?influencer=${encodeURIComponent(influencerId)}`;
 
-    if (talkNow) {
-      if (!hasReplicate() || !hasElevenLabs()) {
-        return NextResponse.json(
-          {
-            error:
-              "Talking clips aren't available right now.",
-            content,
-            script: scriptResult.script,
-            contentStudioUrl: buildContentStudioUrl(
-              influencerId,
-              site.domain,
-              page.path,
-            ),
-          },
-          { status: 503 },
-        );
-      }
+    let clips:
+      | Array<{
+          motionType: InfluencerMotionType;
+          motionJobId: string;
+          voiceAudioUrl?: string;
+          script?: string;
+        }>
+      | undefined;
+    let talkError: string | undefined;
+    let talkSkipped: string | undefined;
 
-      const motionRl = checkRateLimit(authResult, "motion");
-      if (!motionRl.allowed) {
-        return NextResponse.json({
-          content,
-          script: scriptResult.script,
-          contentStudioUrl: buildContentStudioUrl(
-            influencerId,
-            site.domain,
-            page.path,
-          ),
-          talkSkipped: `Motion rate limit — retry in ~${motionRl.retryAfterSeconds}s`,
+    if (renderMotion) {
+      if (!canGenerateFreshMotion(motionTypes)) {
+        talkError = "Those motion clips aren't available right now.";
+      } else {
+        const motionResult = await startContentStudioMotionClips({
+          userId: authResult,
+          influencer: context,
+          motionTypes,
+          draftText: content.text,
+          siteDomain: site.domain,
         });
-      }
-
-      const portrait = await prepareMotionPortrait(
-        authResult,
-        influencerId,
-        assets.portraitUrl,
-      );
-
-      const started = await startInfluencerMotion(
-        "talk",
-        portrait,
-        persona.data,
-        scriptResult.script,
-        resolveMotionVoiceId(assets.voiceId),
-      );
-
-      if ("error" in started) {
-        return NextResponse.json({
-          content,
-          script: scriptResult.script,
-          contentStudioUrl: buildContentStudioUrl(
+        clips = motionResult.clips;
+        if ("error" in motionResult) {
+          if (motionResult.error.toLowerCase().includes("rate limit")) {
+            talkSkipped = motionResult.error;
+          } else {
+            talkError = motionResult.error;
+          }
+        } else if (clips?.[0]) {
+          const primary = clips[0];
+          await prisma.influencer.update({
+            where: { id: influencerId },
+            data: {
+              assets: mergeInfluencerAssets(assets, {
+                motionType: primary.motionType,
+                motionJobId: primary.motionJobId,
+                motionStatus: "processing",
+                ...(primary.voiceAudioUrl
+                  ? {
+                      voiceAudioUrl: primary.voiceAudioUrl,
+                      lastScript: primary.script ?? scriptResult.script,
+                    }
+                  : {}),
+              }),
+            },
+          });
+          await recordCreatorEvent(
+            authResult,
+            "generate",
+            {
+              motionType: primary.motionType,
+              jobId: primary.motionJobId,
+              source: "present",
+              motionTypes,
+            },
             influencerId,
-            site.domain,
-            page.path,
-          ),
-          talkError: started.error,
-        });
+          );
+        }
       }
-
-      const job = await createInfluencerMotionJob({
-        userId: authResult,
-        influencerId,
-        predictionId: started.predictionId,
-        motionType: "talk",
-        voiceAudioUrl: started.voiceAudioUrl,
-        voiceId: started.voiceId,
-        script: scriptResult.script,
-        metadata: {
-          lipsyncStage: started.needsLipsync ? "pending" : "done",
-          plateDurationSec: started.plateDurationSec,
-          audioDurationSec: started.audioDurationSec,
-        },
-      });
-
-      motionJobId = job.jobId;
-
-      const nextAssets = mergeInfluencerAssets(assets, {
-        motionType: "talk",
-        motionJobId: job.jobId,
-        motionStatus: "processing",
-        ...(started.voiceAudioUrl
-          ? {
-              voiceAudioUrl: started.voiceAudioUrl,
-              voiceId: started.voiceId,
-              lastScript: scriptResult.script,
-            }
-          : {}),
-      });
-
-      await prisma.influencer.update({
-        where: { id: influencerId },
-        data: { assets: nextAssets },
-      });
-
-      await recordCreatorEvent(
-        authResult,
-        "generate",
-        { motionType: "talk", jobId: job.jobId, source: "present" },
-        influencerId,
-      );
     }
 
     await recordCreatorEvent(
@@ -265,38 +263,30 @@ export async function POST(request: Request) {
         domain: site.domain,
         pagePath: page.path,
         citedCount: content.citedFacts.length,
+        motionTypes,
+        clipCount: clips?.length ?? 0,
       },
       influencerId,
     );
 
+    const spokenScript =
+      clips?.find((clip) => clip.script)?.script ?? scriptResult.script;
+
     return NextResponse.json({
       content,
-      script: scriptResult.script,
+      script: spokenScript,
       scriptValidation: scriptResult.validation,
-      motionJobId,
-      contentStudioUrl: buildContentStudioUrl(
-        influencerId,
-        site.domain,
-        page.path,
-      ),
-      creatorStudioUrl: `/creator-studio?influencer=${encodeURIComponent(influencerId)}`,
+      motionTypes,
+      clips: clips ?? [],
+      motionJobId: clips?.[0]?.motionJobId,
+      contentStudioUrl,
+      creatorStudioUrl,
+      ...(talkError ? { talkError } : {}),
+      ...(talkSkipped ? { talkSkipped } : {}),
     });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Presentation failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
-
-function buildContentStudioUrl(
-  influencerId: string,
-  domain: string,
-  pagePath: string,
-): string {
-  const params = new URLSearchParams({
-    influencer: influencerId,
-    domain,
-    page: pagePath,
-  });
-  return `/content?${params.toString()}`;
 }

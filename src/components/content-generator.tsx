@@ -39,9 +39,18 @@ import { CrawledPagePicker } from "./crawled-page-picker";
 import { recommendSourcePage } from "@/lib/crawled-page-utils";
 import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
 import {
+  DEFAULT_PRESENT_MOTION_TYPES,
   MAX_CONTENT_STUDIO_MOTION_CLIPS,
   MOTION_ACTIONS,
+  parseMotionTypesParam,
+  toggleMotionTypeSelection,
 } from "@/lib/viraforge/motion-actions";
+import {
+  PRESENT_HANDOFF_EVENT,
+  clearPresentHandoff,
+  readPresentHandoff,
+  type PresentHandoff,
+} from "@/lib/viraforge/present-handoff";
 
 type AttachedInfluencer = {
   id: string;
@@ -135,10 +144,15 @@ export function ContentGenerator() {
   >("fresh");
   const [selectedMotionTypes, setSelectedMotionTypes] = useState<
     InfluencerMotionType[]
-  >(["talk"]);
+  >(DEFAULT_PRESENT_MOTION_TYPES);
   const [motionCapabilities, setMotionCapabilities] = useState<
     Record<InfluencerMotionType, boolean> | null
   >(null);
+  const [studioInfluencers, setStudioInfluencers] = useState<
+    AttachedInfluencer[]
+  >([]);
+  const [handoffBanner, setHandoffBanner] = useState<string | null>(null);
+  const handoffAppliedRef = useRef<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const postHistory = posts.map((p) => ({
@@ -151,13 +165,22 @@ export function ContentGenerator() {
   const isReel = contentType === "Reel";
   const isStory = contentType === "Story";
   const isStoryVideo = isStory && storyMedia === "video";
-  const willGenerateVideo = triggersVideoGeneration(contentType, storyMedia);
+  const willUseInfluencerClips =
+    !!attachedInfluencer &&
+    useInfluencerPortrait &&
+    influencerVisualMode === "fresh" &&
+    selectedMotionTypes.length > 0;
+  const willGenerateVideo =
+    triggersVideoGeneration(contentType, storyMedia) && !willUseInfluencerClips;
   const usesAiVisuals = isVideoContent || isStory || preferAiImage;
 
   const missingProvider =
-    (isReel && !aiCaps?.aiVideoAvailable) ||
-    (isStory && storyMedia === "image" && !aiCaps?.aiImageAvailable) ||
-    (isStoryVideo && !aiCaps?.aiVideoAvailable);
+    (isReel && !willUseInfluencerClips && !aiCaps?.aiVideoAvailable) ||
+    (isStory &&
+      storyMedia === "image" &&
+      !willUseInfluencerClips &&
+      !aiCaps?.aiImageAvailable) ||
+    (isStoryVideo && !willUseInfluencerClips && !aiCaps?.aiVideoAvailable);
 
   useEffect(() => {
     fetch("/api/creator-studio/capabilities")
@@ -197,6 +220,42 @@ export function ContentGenerator() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/creator-studio/influencers")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: {
+        influencers?: Array<{
+          id: string;
+          persona?: { displayName?: string; handle?: string };
+          assets?: {
+            portraitUrl?: string;
+            videoUrl?: string;
+            motionStatus?: string;
+            motionType?: string;
+          };
+        }>;
+      } | null) => {
+        if (!data?.influencers) return;
+        setStudioInfluencers(
+          data.influencers.map((match) => {
+            const persona = match.persona ?? {};
+            const hasMotionClip =
+              match.assets?.motionStatus === "ready" && !!match.assets?.videoUrl;
+            return {
+              id: match.id,
+              displayName: persona.displayName ?? "Influencer",
+              handle: persona.handle ?? "creator",
+              portraitUrl: match.assets?.portraitUrl,
+              motionVideoUrl: match.assets?.videoUrl,
+              motionType: match.assets?.motionType,
+              hasMotionClip,
+            };
+          }),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const type = searchParams.get("type");
     if (type === "video") {
       Promise.resolve().then(() => setContentType("Video Ad"));
@@ -220,57 +279,54 @@ export function ContentGenerator() {
     if (angle) {
       Promise.resolve().then(() => setContentAngle(angle as ContentAngle));
     }
+    const platformParam = searchParams.get("platform");
+    if (
+      platformParam &&
+      platforms.some((item) => item.value === platformParam)
+    ) {
+      Promise.resolve().then(() => setPlatform(platformParam as Platform));
+    }
   }, [searchParams]);
 
   useEffect(() => {
-    const influencerId = searchParams.get("influencer");
+    const handoff = readPresentHandoff();
+    const influencerId =
+      searchParams.get("influencer") || handoff?.influencerId || "";
     if (!influencerId) {
-      Promise.resolve().then(() => setAttachedInfluencer(null));
       return;
     }
 
-    let cancelled = false;
-    fetch("/api/creator-studio/influencers")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: {
-        influencers?: Array<{
-          id: string;
-          persona?: { displayName?: string; handle?: string };
-          assets?: {
-            portraitUrl?: string;
-            videoUrl?: string;
-            motionStatus?: string;
-            motionType?: string;
-          };
-        }>;
-      } | null) => {
-        if (cancelled || !data?.influencers) return;
-        const match = data.influencers.find((i) => i.id === influencerId);
-        if (!match) return;
-        const persona = match.persona ?? {};
-        const hasMotionClip =
-          match.assets?.motionStatus === "ready" && !!match.assets?.videoUrl;
-        setAttachedInfluencer({
-          id: match.id,
-          displayName: persona.displayName ?? "Influencer",
-          handle: persona.handle ?? "creator",
-          portraitUrl: match.assets?.portraitUrl,
-          motionVideoUrl: match.assets?.videoUrl,
-          motionType: match.assets?.motionType,
-          hasMotionClip,
-        });
-        setUseInfluencerPortrait(true);
-        setInfluencerVisualMode(
-          hasMotionClip && !hasEnterprisePlus ? "saved" : "fresh",
-        );
-        setSelectedMotionTypes(["talk"]);
-      })
-      .catch(() => {});
+    const match =
+      studioInfluencers.find((item) => item.id === influencerId) ??
+      (handoff?.influencerId === influencerId
+        ? {
+            id: influencerId,
+            displayName: handoff.displayName ?? "Influencer",
+            handle: handoff.handle ?? "creator",
+            portraitUrl: handoff.portraitUrl,
+            hasMotionClip: false,
+          }
+        : null);
+    if (!match) return;
 
-    return () => {
-      cancelled = true;
-    };
-  }, [searchParams, hasEnterprisePlus]);
+    setAttachedInfluencer(match);
+    setUseInfluencerPortrait(true);
+    const motionFromUrl = parseMotionTypesParam(searchParams.get("motion"));
+    setSelectedMotionTypes(
+      handoff?.motionTypes?.length
+        ? handoff.motionTypes
+        : motionFromUrl.length > 0
+          ? motionFromUrl
+          : DEFAULT_PRESENT_MOTION_TYPES,
+    );
+    setInfluencerVisualMode(
+      handoff?.clips.length
+        ? "fresh"
+        : match.hasMotionClip && !hasEnterprisePlus
+          ? "saved"
+          : "fresh",
+    );
+  }, [searchParams, studioInfluencers, hasEnterprisePlus]);
 
   useEffect(() => {
     const domainParam = searchParams.get("domain");
@@ -294,9 +350,131 @@ export function ContentGenerator() {
     setAttachedInfluencer(null);
     setUseInfluencerPortrait(true);
     setInfluencerVisualMode("fresh");
-    setSelectedMotionTypes(["talk"]);
+    setSelectedMotionTypes(DEFAULT_PRESENT_MOTION_TYPES);
+    setHandoffBanner(null);
+    handoffAppliedRef.current = null;
+    clearPresentHandoff();
     router.replace("/content");
   }
+
+  function attachInfluencer(influencer: AttachedInfluencer) {
+    setAttachedInfluencer(influencer);
+    setUseInfluencerPortrait(true);
+    setInfluencerVisualMode(
+      influencer.hasMotionClip && !hasEnterprisePlus ? "saved" : "fresh",
+    );
+    setSelectedMotionTypes(DEFAULT_PRESENT_MOTION_TYPES);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("influencer", influencer.id);
+    if (site?.domain) params.set("domain", site.domain);
+    router.replace(`/content?${params.toString()}`, { scroll: false });
+  }
+
+  function extractHashtagsFromText(text: string): string[] {
+    return Array.from(text.matchAll(/#[A-Za-z0-9_]+/g)).map((match) => match[0]);
+  }
+
+  async function applyPresentHandoff(handoff: PresentHandoff) {
+    if (!site) return;
+    const key = `${handoff.influencerId}:${handoff.createdAt}`;
+    if (handoffAppliedRef.current === key) return;
+    handoffAppliedRef.current = key;
+
+    const page =
+      site.pages.find((p) => p.path === handoff.pagePath) ??
+      site.pages.find((p) => p.url === handoff.pagePath) ??
+      site.pages[0];
+    if (page) setSelectedPage(page.url);
+    setPlatform(handoff.platform);
+    if (handoff.platform === "instagram") {
+      setContentType("Reel");
+    }
+    setSelectedMotionTypes(handoff.motionTypes);
+    setUseInfluencerPortrait(true);
+    setInfluencerVisualMode("fresh");
+    setHandoffBanner(
+      `Loaded from Avatar presents — ${handoff.motionTypes.join(" + ")} on ${handoff.pagePath || "/"}. Publish this draft or generate a rewrite.`,
+    );
+
+    const [primary, ...rest] = handoff.clips;
+    const generated: GeneratedPost = {
+      text: handoff.draftText,
+      hashtags: extractHashtagsFromText(handoff.draftText),
+      cta: `${handoff.domain}${handoff.pagePath === "/" ? "" : handoff.pagePath}`,
+      platform: handoff.platform === "instagram" ? "instagram" : handoff.platform,
+      contentType: handoff.platform === "instagram" ? "Reel" : "Social Post",
+      image: {
+        url: attachedInfluencer?.portraitUrl || handoff.portraitUrl || "",
+        source: "influencer",
+        alt: `${handoff.displayName ?? "Influencer"} presenting ${page?.title ?? "page"}`,
+        originalUrl: attachedInfluencer?.portraitUrl || handoff.portraitUrl,
+        aspectRatio: "9:16",
+        ...(primary
+          ? {
+              motionType: primary.motionType,
+              motionJobId: primary.motionJobId,
+              videoStatus: "processing" as const,
+              ...(primary.voiceAudioUrl
+                ? {
+                    audioUrl: primary.voiceAudioUrl,
+                    voiceoverScript: primary.script ?? handoff.script,
+                  }
+                : {}),
+              ...(rest.length > 0
+                ? {
+                    supplementalClips: rest.map((clip) => ({
+                      motionType: clip.motionType,
+                      motionJobId: clip.motionJobId,
+                      videoStatus: "processing" as const,
+                      ...(clip.voiceAudioUrl
+                        ? {
+                            audioUrl: clip.voiceAudioUrl,
+                            voiceoverScript: clip.script,
+                          }
+                        : {}),
+                    })),
+                  }
+                : {}),
+            }
+          : {}),
+      },
+      insights: [
+        "Loaded from Avatar presents this page — fact-locked influencer copy.",
+        handoff.clips.length > 0
+          ? `Rendering ${handoff.clips.map((clip) => clip.motionType).join(" + ")} from the presentation.`
+          : "No motion clip was started — generate in Studio to render one.",
+      ],
+      sourcePage: page?.path,
+      characterCount: handoff.draftText.length,
+      createdAt: new Date().toISOString(),
+    };
+
+    setPost(generated);
+    try {
+      const saved = await savePost(generated);
+      setSavedPost(saved);
+      if (collectMotionJobIds(generated.image).length > 0) {
+        pollMotionClips(generated, saved);
+      }
+    } catch {
+      /* preview still shown */
+    }
+  }
+
+  useEffect(() => {
+    if (!site) return;
+    const apply = () => {
+      const handoff = readPresentHandoff();
+      if (!handoff) return;
+      if (handoff.domain && handoff.domain !== site.domain) return;
+      void applyPresentHandoff(handoff);
+    };
+    apply();
+    window.addEventListener(PRESENT_HANDOFF_EVENT, apply);
+    return () => window.removeEventListener(PRESENT_HANDOFF_EVENT, apply);
+    // applyPresentHandoff is stable enough for this page session
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [site?.domain]);
 
   useEffect(() => {
     if (isInstagramFormat(contentType)) {
@@ -459,15 +637,7 @@ export function ContentGenerator() {
   }
 
   function toggleMotionType(type: InfluencerMotionType) {
-    setSelectedMotionTypes((prev) => {
-      if (prev.includes(type)) {
-        return prev.length === 1 ? prev : prev.filter((t) => t !== type);
-      }
-      if (prev.length >= MAX_CONTENT_STUDIO_MOTION_CLIPS) {
-        return [...prev.slice(1), type];
-      }
-      return [...prev, type];
-    });
+    setSelectedMotionTypes((prev) => toggleMotionTypeSelection(prev, type));
   }
 
   async function pollVideoStatus(
@@ -678,18 +848,20 @@ export function ContentGenerator() {
   }
 
   return (
-    <div className="space-y-6">
+    <div id="content-studio" className="space-y-6">
       <LoadingOverlay
         show={loading}
         label={loadingStage || "Generating content…"}
         sublabel={
-          isVideoContent
-            ? isReel
-              ? "Building Reel caption, cover, and vertical video render"
-              : "Building script, image, and starting video render"
-            : isStory
-              ? "Creating full-screen Story visual and short copy"
-              : "Smart-matching pages, visuals, and dual AI copy"
+          willUseInfluencerClips
+            ? `Coordinating ${selectedMotionTypes.join(" + ")} from the influencer portrait`
+            : isVideoContent
+              ? isReel
+                ? "Building Reel caption, cover, and vertical video render"
+                : "Building script, image, and starting video render"
+              : isStory
+                ? "Creating full-screen Story visual and short copy"
+                : "Smart-matching pages, visuals, and dual AI copy"
         }
       />
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
@@ -698,11 +870,13 @@ export function ContentGenerator() {
             AI Content Studio
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {site
-              ? site.brand.businessModel
-                ? `${site.brand.businessModel.type.toUpperCase()} · ${site.brand.businessModel.market.toUpperCase()} — smart copy + ${isVideoContent ? "vertical video" : isStory ? "Stories" : "images"} from ${site.pages.length} pages`
-                : `Smart copy + ${isVideoContent ? "vertical video" : isStory ? "Stories" : "images"} from ${site.pages.length} pages and ${site.images.length} images`
-              : "Crawl a domain to unlock intelligent content generation"}
+            {attachedInfluencer
+              ? `Wrap ${attachedInfluencer.displayName}'s presentation as a publishable ${isReel ? "Reel" : isStory ? "Story" : "post"}.`
+              : site
+                ? site.brand.businessModel
+                  ? `${site.brand.businessModel.type.toUpperCase()} · ${site.brand.businessModel.market.toUpperCase()} — smart copy + ${isVideoContent ? "vertical video" : isStory ? "Stories" : "images"} from ${site.pages.length} pages`
+                  : `Smart copy + ${isVideoContent ? "vertical video" : isStory ? "Stories" : "images"} from ${site.pages.length} pages and ${site.images.length} images`
+                : "Crawl a domain to unlock intelligent content generation"}
           </p>
         </div>
 
@@ -713,6 +887,42 @@ export function ContentGenerator() {
               <strong>Reel</strong> or <strong>Story</strong> for Instagram
               vertical formats, or <strong>Video Ad</strong> for short AI video
               ads (5–10 seconds).
+            </div>
+          )}
+
+          {site && !attachedInfluencer && studioInfluencers.length > 0 && (
+            <div className="rounded-lg border border-violet-200 bg-violet-50/50 px-4 py-3 dark:border-violet-900/50 dark:bg-violet-950/20">
+              <label
+                htmlFor="studio-influencer"
+                className="text-sm font-medium text-slate-800 dark:text-slate-200"
+              >
+                Link an influencer
+              </label>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Same avatars as Avatar presents. Walk & talk is the default
+                shot — or run Present above to load a finished draft.
+              </p>
+              <select
+                id="studio-influencer"
+                className="mt-2 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm dark:border-violet-800 dark:bg-slate-900"
+                defaultValue=""
+                onChange={(e) => {
+                  const next = studioInfluencers.find(
+                    (item) => item.id === e.target.value,
+                  );
+                  if (next) attachInfluencer(next);
+                }}
+              >
+                <option value="" disabled>
+                  Choose influencer…
+                </option>
+                {studioInfluencers.map((inf) => (
+                  <option key={inf.id} value={inf.id}>
+                    {inf.displayName} (@{inf.handle})
+                    {!inf.portraitUrl ? " — needs portrait" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
@@ -733,7 +943,7 @@ export function ContentGenerator() {
                   )}
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                      Linked from Creator Studio
+                      Linked influencer
                     </p>
                     <p className="truncate text-sm text-slate-600 dark:text-slate-400">
                       {attachedInfluencer.displayName} · @
@@ -743,9 +953,11 @@ export function ContentGenerator() {
                       <p className="mt-1 text-xs text-violet-700 dark:text-violet-300">
                         {ENTERPRISE_PLUS_LABEL}: fact-locked influencer copy from
                         crawled pages.
-                        {willGenerateVideo && aiCaps?.aiVoiceAvailable
-                          ? " Reel voiceover uses the influencer’s ElevenLabs voice when set."
-                          : ""}
+                        {willUseInfluencerClips
+                          ? " Fresh clips use the avatar’s voice and lip-sync — not a generic AI b-roll."
+                          : willGenerateVideo && aiCaps?.aiVoiceAvailable
+                            ? " Reel voiceover uses the influencer’s ElevenLabs voice when set."
+                            : ""}
                       </p>
                     ) : (
                       <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
@@ -768,8 +980,12 @@ export function ContentGenerator() {
                   Detach
                 </button>
               </div>
-              {!isVideoContent && !isStory && (
-                <div className="mt-3 space-y-3">
+              {handoffBanner && (
+                <p className="mt-3 rounded-lg border border-violet-200 bg-white/70 px-3 py-2 text-xs text-violet-800 dark:border-violet-800 dark:bg-slate-900/60 dark:text-violet-200">
+                  {handoffBanner}
+                </p>
+              )}
+              <div className="mt-3 space-y-3">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -875,8 +1091,8 @@ export function ContentGenerator() {
                         attachedInfluencer.motionType !== "talk" && (
                           <p className="text-xs text-amber-700 dark:text-amber-300">
                             Saved clip is {attachedInfluencer.motionType} — no
-                            synced voiceover. Switch to fresh clips for Talk, Wave,
-                            or Point with AI voice.
+                            synced voiceover. Switch to fresh clips for Walk &
+                            talk or Talk.
                           </p>
                         )}
                     </div>
@@ -888,7 +1104,6 @@ export function ContentGenerator() {
                     </p>
                   )}
                 </div>
-              )}
             </div>
           )}
 
