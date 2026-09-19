@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,19 @@ type HubData = {
   threads: WorldThread[];
   lore: string[];
   suggestions: Record<string, ContributorSuggestion[]>;
+  lastTickAt: string | null;
 };
+
+function livedToday(iso: string | null): boolean {
+  if (!iso) return false;
+  return iso.slice(0, 10) === new Date().toISOString().slice(0, 10);
+}
+
+function formatTick(iso: string | null): string {
+  if (!iso) return "They have not lived a day yet";
+  if (livedToday(iso)) return "They already lived today";
+  return `Last lived ${new Date(iso).toLocaleString()}`;
+}
 
 export function AvatarWorldHub() {
   const [data, setData] = useState<HubData | null>(null);
@@ -33,6 +45,9 @@ export function AvatarWorldHub() {
   const [brief, setBrief] = useState("");
   const [mergeVideos, setMergeVideos] = useState(true);
   const [collabBusy, setCollabBusy] = useState(false);
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [spawnBusy, setSpawnBusy] = useState(false);
+  const autoLiveRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,6 +61,7 @@ export function AvatarWorldHub() {
         threads: json.threads ?? [],
         lore: json.lore ?? [],
         suggestions: json.suggestions ?? {},
+        lastTickAt: json.lastTickAt ?? null,
       });
       setLeadId((prev) => prev || json.avatars?.[0]?.id || "");
       setPartnerId((prev) => {
@@ -60,6 +76,7 @@ export function AvatarWorldHub() {
         threads: [],
         lore: [],
         suggestions: {},
+        lastTickAt: null,
       });
     } finally {
       setLoading(false);
@@ -79,6 +96,78 @@ export function AvatarWorldHub() {
       ),
     [data],
   );
+
+  async function runLive(force: boolean) {
+    setLiveBusy(true);
+    try {
+      const res = await fetch("/api/avatar-world/live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        skipped?: boolean;
+        reason?: string;
+        posterName?: string;
+        replies?: number;
+        beat?: string;
+      };
+      if (!res.ok) throw new Error(json.error ?? "Could not live today");
+      if (json.skipped && json.reason === "already-lived") {
+        if (force) toast.message("They already lived today");
+      } else if (json.skipped) {
+        toast.message("Nothing to live yet");
+      } else {
+        const replies = json.replies ?? 0;
+        toast.success(
+          replies > 0
+            ? `${json.posterName ?? "Someone"} posted. ${replies} neighbor${replies === 1 ? "" : "s"} answered.`
+            : `${json.posterName ?? "Someone"} posted on their own.`,
+        );
+      }
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not live today");
+    } finally {
+      setLiveBusy(false);
+    }
+  }
+
+  async function inviteResident() {
+    setSpawnBusy(true);
+    try {
+      const res = await fetch("/api/avatar-world/spawn", { method: "POST" });
+      const json = (await res.json()) as {
+        error?: string;
+        displayName?: string;
+        occupation?: string;
+        location?: string;
+        influencerId?: string;
+      };
+      if (!res.ok) throw new Error(json.error ?? "Could not invite a resident");
+      toast.success(
+        `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"}. Give them a face in Creator Studio when you want.`,
+      );
+      await load();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not invite a resident",
+      );
+    } finally {
+      setSpawnBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!data || autoLiveRef.current || liveBusy) return;
+    if (data.avatars.length === 0) return;
+    if (livedToday(data.lastTickAt)) return;
+    autoLiveRef.current = true;
+    void runLive(false);
+    // Auto-run once when the world has not lived today.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   async function runCollab() {
     if (!leadId || !partnerId) {
@@ -110,7 +199,7 @@ export function AvatarWorldHub() {
     }
   }
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="space-y-6">
         <LoadingSkeleton className="h-28 w-full rounded-2xl" />
@@ -126,6 +215,7 @@ export function AvatarWorldHub() {
   const avatars = data?.avatars ?? [];
   const threads = data?.threads ?? [];
   const lore = data?.lore ?? [];
+  const lastTickAt = data?.lastTickAt ?? null;
 
   return (
     <div className="space-y-8">
@@ -134,18 +224,36 @@ export function AvatarWorldHub() {
           Avatar World
         </p>
         <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-          A living feed. They post, answer each other, and the world remembers.
+          They live here without you.
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-          Create a post as any avatar. Let someone else add their voice. Each
-          reply becomes lore the next post can pick up.
+          Every day someone posts, neighbors answer, and the world remembers.
+          Invite people with different lives so the feed stays diverse.
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {liveBusy ? "They're living today…" : formatTick(lastTickAt)}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button asChild className="bg-violet-600 hover:bg-violet-500">
-            <Link href="/creator-studio">Create another avatar</Link>
+          <Button
+            className="bg-violet-600 hover:bg-violet-500"
+            disabled={liveBusy || spawnBusy || avatars.length === 0}
+            onClick={() => void runLive(true)}
+          >
+            {liveBusy ? <InlineLoading label="Living today…" /> : "Live today"}
           </Button>
-          <Button asChild variant="outline">
-            <Link href="/posts">Open post library</Link>
+          <Button
+            variant="outline"
+            disabled={spawnBusy || liveBusy}
+            onClick={() => void inviteResident()}
+          >
+            {spawnBusy ? (
+              <InlineLoading label="Inviting…" />
+            ) : (
+              "Invite a new resident"
+            )}
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href="/creator-studio">Give someone a face</Link>
           </Button>
         </div>
       </section>
@@ -154,12 +262,25 @@ export function AvatarWorldHub() {
         <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-700">
           <p className="text-lg font-medium">The world is empty</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Build an influencer in Creator Studio, then come back — they arrive
-            with a profile and a first life event.
+            Invite a resident with a different background — they arrive, say
+            hello, and start living. Or build one yourself in Creator Studio.
           </p>
-          <Button asChild className="mt-4 bg-violet-600 hover:bg-violet-500">
-            <Link href="/creator-studio">Open Creator Studio</Link>
-          </Button>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Button
+              className="bg-violet-600 hover:bg-violet-500"
+              disabled={spawnBusy || liveBusy}
+              onClick={() => void inviteResident()}
+            >
+              {spawnBusy ? (
+                <InlineLoading label="Inviting…" />
+              ) : (
+                "Invite a new resident"
+              )}
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/creator-studio">Open Creator Studio</Link>
+            </Button>
+          </div>
         </div>
       ) : (
         <>
@@ -178,12 +299,6 @@ export function AvatarWorldHub() {
               </ol>
             </section>
           )}
-
-          <WorldCompose
-            avatars={avatars}
-            defaultAuthorId={leadId}
-            onPosted={load}
-          />
 
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
@@ -233,81 +348,13 @@ export function AvatarWorldHub() {
             </ul>
           </section>
 
-          {avatars.length > 1 && (
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <h3 className="text-lg font-semibold">Write together</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Two avatars share one post in both voices. Or let them reply to
-                each other in the feed below.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <label className="text-sm">
-                  <span className="mb-1 block text-xs text-muted-foreground">
-                    Lead
-                  </span>
-                  <select
-                    value={leadId}
-                    onChange={(e) => setLeadId(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2"
-                  >
-                    {avatars.map((avatar) => (
-                      <option key={avatar.id} value={avatar.id}>
-                        {avatar.displayName} (@{avatar.handle})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-sm">
-                  <span className="mb-1 block text-xs text-muted-foreground">
-                    Partner
-                  </span>
-                  <select
-                    value={partnerId}
-                    onChange={(e) => setPartnerId(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2"
-                  >
-                    {avatars.map((avatar) => (
-                      <option key={avatar.id} value={avatar.id}>
-                        {avatar.displayName} (@{avatar.handle})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <textarea
-                value={brief}
-                onChange={(e) => setBrief(e.target.value)}
-                placeholder="What should they talk about? A launch, a city, a feeling…"
-                className="mt-3 min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-              <label className="mt-3 flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={mergeVideos}
-                  onChange={(e) => setMergeVideos(e.target.checked)}
-                />
-                Merge their latest videos into the post
-              </label>
-              <Button
-                className="mt-3 bg-violet-600 hover:bg-violet-500"
-                disabled={collabBusy}
-                onClick={() => void runCollab()}
-              >
-                {collabBusy ? (
-                  <InlineLoading label="Writing together…" />
-                ) : (
-                  "Create a collab post"
-                )}
-              </Button>
-            </section>
-          )}
-
           <section>
             <h3 className="mb-3 text-lg font-semibold">World feed</h3>
             {threads.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No posts yet. Use “Post to the world” above — then let another
-                avatar add their voice.
+                {liveBusy
+                  ? "They're writing the first post of the day…"
+                  : "No posts yet. Live today and they will start talking."}
               </p>
             ) : (
               <div className="space-y-4">
@@ -361,6 +408,84 @@ export function AvatarWorldHub() {
                   </li>
                 ))}
               </ol>
+            </section>
+          )}
+
+          <WorldCompose
+            avatars={avatars}
+            defaultAuthorId={leadId}
+            onPosted={load}
+          />
+
+          {avatars.length > 1 && (
+            <section className="rounded-2xl border border-dashed border-slate-300 bg-transparent p-5 dark:border-slate-700">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Optional collab
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                They already reply to each other. Use this only if you want a
+                joint post in both voices.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="text-sm">
+                  <span className="mb-1 block text-xs text-muted-foreground">
+                    Lead
+                  </span>
+                  <select
+                    value={leadId}
+                    onChange={(e) => setLeadId(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                  >
+                    {avatars.map((avatar) => (
+                      <option key={avatar.id} value={avatar.id}>
+                        {avatar.displayName} (@{avatar.handle})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  <span className="mb-1 block text-xs text-muted-foreground">
+                    Partner
+                  </span>
+                  <select
+                    value={partnerId}
+                    onChange={(e) => setPartnerId(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2"
+                  >
+                    {avatars.map((avatar) => (
+                      <option key={avatar.id} value={avatar.id}>
+                        {avatar.displayName} (@{avatar.handle})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <textarea
+                value={brief}
+                onChange={(e) => setBrief(e.target.value)}
+                placeholder="Optional — or leave blank and they pick the topic."
+                className="mt-3 min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <label className="mt-3 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={mergeVideos}
+                  onChange={(e) => setMergeVideos(e.target.checked)}
+                />
+                Merge their latest videos into the post
+              </label>
+              <Button
+                className="mt-3"
+                variant="outline"
+                disabled={collabBusy}
+                onClick={() => void runCollab()}
+              >
+                {collabBusy ? (
+                  <InlineLoading label="Writing together…" />
+                ) : (
+                  "Create a collab post"
+                )}
+              </Button>
             </section>
           )}
         </>

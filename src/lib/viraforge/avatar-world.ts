@@ -32,6 +32,8 @@ export const WORLD_EVENT_TYPES = [
   "world_merge",
   "world_post",
   "world_contribute",
+  "world_tick",
+  "world_spawn",
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];
@@ -347,6 +349,10 @@ function defaultEventTitle(type: WorldEventType): string {
       return "Published a post";
     case "world_contribute":
       return "Added to a post";
+    case "world_tick":
+      return "A day passed";
+    case "world_spawn":
+      return "A new resident arrived";
     default:
       return "A day in the world";
   }
@@ -637,11 +643,12 @@ export async function listWorldPosts(
 }
 
 export async function loadWorldHub(userId: string) {
-  const [avatars, feed, posts, lore] = await Promise.all([
+  const [avatars, feed, posts, lore, lastTickAt] = await Promise.all([
     listWorldInfluencers(userId),
     listWorldFeed(userId, 40),
     listWorldPosts(userId, 50),
     collectWorldLore(userId),
+    getLastWorldTick(userId),
   ]);
   const threads = assembleWorldThreads(posts);
   const suggestions: Record<string, ContributorSuggestion[]> = {};
@@ -652,7 +659,47 @@ export async function loadWorldHub(userId: string) {
       thread.replies.map((reply) => reply.influencerId),
     ).slice(0, 3);
   }
-  return { avatars, feed, posts, threads, lore, suggestions };
+  return { avatars, feed, posts, threads, lore, suggestions, lastTickAt };
+}
+
+export async function getLastWorldTick(
+  userId: string,
+): Promise<string | null> {
+  const row = await prisma.creatorLearningEvent.findFirst({
+    where: { userId, eventType: "world_tick" },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  return row?.createdAt.toISOString() ?? null;
+}
+
+export function tickedToday(iso: string | null, now = new Date()): boolean {
+  if (!iso) return false;
+  const then = new Date(iso);
+  return (
+    then.getUTCFullYear() === now.getUTCFullYear() &&
+    then.getUTCMonth() === now.getUTCMonth() &&
+    then.getUTCDate() === now.getUTCDate()
+  );
+}
+
+export async function rememberWorldBeat(
+  userId: string,
+  beat: string,
+): Promise<void> {
+  if (!beat.trim()) return;
+  const rows = await prisma.influencer.findMany({
+    where: { userId },
+    take: 50,
+  });
+  for (const row of rows) {
+    const persona = parseCreatorAvatar(row.persona);
+    const world = hydrateWorldProfile(
+      persona.success ? persona.data : defaultCreatorAvatarValues,
+      (row.memory ?? {}) as InfluencerMemory,
+    );
+    await appendSharedLore(row.id, row.memory, world, beat.trim());
+  }
 }
 
 export async function patchWorldProfile(
@@ -691,13 +738,15 @@ function fallbackWorldCopy(input: {
   persona: CreatorAvatarForm;
   world: AvatarWorldProfile;
   prompt?: string;
+  scene?: string;
   partner?: { displayName: string; handle: string; backstory: string };
 }): string {
   const line = input.world.catchphrase || input.persona.sampleQuote;
   if (input.partner) {
-    return `${line}\n\nSpent the afternoon with @${input.partner.handle}. Two voices, one post — ${input.prompt || "a collab that actually sounds like us"}.\n\n— ${input.persona.displayName} + ${input.partner.displayName}`;
+    return `${line}\n\nSpent the afternoon with @${input.partner.handle}. Two voices, one post — ${input.prompt || input.scene || "a collab that actually sounds like us"}.\n\n— ${input.persona.displayName} + ${input.partner.displayName}`;
   }
   const beat =
+    input.scene?.trim() ||
     input.prompt?.trim() ||
     input.world.moodNote ||
     `A note from ${input.world.currentCity || "here"} while I'm feeling ${input.world.mood}.`;
@@ -710,6 +759,8 @@ export async function generateBackstoryContent(input: {
   facts?: ProductFactsForm;
   recentEvents?: WorldLifeEvent[];
   prompt?: string;
+  scene?: string;
+  autonomous?: boolean;
   platform?: Platform;
   partner?: {
     displayName: string;
@@ -752,6 +803,7 @@ Voice: ${input.persona.personalityVoice}
 Write in first person. Sound like a real person with a life, not a brand mascot.
 Reference recent life, learned notes, and world lore when they fit — do not recap everything.
 Never invent product prices, specs, or health claims.
+${input.autonomous ? "There is no creator, brand owner, or brief. You are living this day on your own. Do not mention an audience to sell to." : ""}
 Return ONLY the post copy.`;
 
   const userMessage = `Backstory: ${input.world.backstory}
@@ -773,7 +825,13 @@ ${residentLines || "- They are mostly alone here"}
 What neighbors posted recently:
 ${neighborLines || "- No other posts yet"}
 ${input.partner ? `\nPartner backstory: ${input.partner.backstory}` : ""}
-${input.prompt ? `\nCreator brief: ${input.prompt}` : ""}
+${
+  input.autonomous || input.scene
+    ? `\nWhat is happening today: ${input.scene?.trim() || "A new day in the world. Live it. Talk about your life, not a product."}`
+    : input.prompt
+      ? `\nCreator brief: ${input.prompt}`
+      : ""
+}
 Platform: ${input.platform ?? "instagram"}`;
 
   const text =

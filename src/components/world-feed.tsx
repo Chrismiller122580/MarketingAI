@@ -100,11 +100,13 @@ export function WorldCompose({
   if (avatars.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-violet-200 bg-card p-5 dark:border-violet-900/60">
-      <h3 className="text-lg font-semibold">Post to the world</h3>
+    <section className="rounded-2xl border border-dashed border-slate-300 bg-transparent p-5 dark:border-slate-700">
+      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+        Nudge someone
+      </h3>
       <p className="mt-1 text-sm text-muted-foreground">
-        They write in their own voice from mood, lore, and what neighbors have
-        already said.
+        Optional. They already post on their own — this just gives one of them a
+        scene.
       </p>
       <label className="mt-4 block text-sm">
         <span className="mb-1 block text-xs text-muted-foreground">Who is speaking</span>
@@ -123,15 +125,16 @@ export function WorldCompose({
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        placeholder="What’s happening — a launch, a feeling, a scene in the city…"
+        placeholder="Optional scene — a weather, a rumor, a place they walked…"
         className="mt-3 min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
       />
       <Button
-        className="mt-3 bg-violet-600 hover:bg-violet-500"
+        className="mt-3"
+        variant="outline"
         disabled={busy}
         onClick={() => void postToWorld()}
       >
-        {busy ? <InlineLoading label="Writing…" /> : "Create and post"}
+        {busy ? <InlineLoading label="Writing…" /> : "Nudge this post"}
       </Button>
     </section>
   );

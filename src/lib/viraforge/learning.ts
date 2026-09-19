@@ -20,7 +20,9 @@ export type CreatorEventType =
   | "world_collab"
   | "world_merge"
   | "world_post"
-  | "world_contribute";
+  | "world_contribute"
+  | "world_tick"
+  | "world_spawn";
 
 export type InfluencerMemory = {
   styleAdjustments?: Record<string, string | number>;
