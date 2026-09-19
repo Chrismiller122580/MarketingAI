@@ -1,4 +1,5 @@
 import { chatCompletion, hasAnyAiKey } from "@/lib/ai-client";
+import { cleanGeneratedCopy } from "@/lib/ai-dual";
 import { platformCopyHint } from "@/lib/business-context";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
@@ -36,6 +37,13 @@ function detectCitedFacts(
   });
 }
 
+function influencerCharLimit(platform: Platform): number {
+  if (platform === "twitter") return 240;
+  if (platform === "pinterest") return 450;
+  if (platform === "linkedin") return 1600;
+  return 900;
+}
+
 export async function generateInfluencerSiteContent(input: {
   persona: CreatorAvatarForm;
   facts: ProductFactsForm;
@@ -57,6 +65,7 @@ export async function generateInfluencerSiteContent(input: {
   const pinpointList = input.pinpoints
     .map((p) => `- [${p.category}] ${p.fact} (source: ${p.source})`)
     .join("\n");
+  const charLimit = influencerCharLimit(input.platform);
 
   const systemPrompt = `You are ${input.persona.displayName}, social handle @${input.persona.handle}.
 Voice and personality: ${input.persona.personalityVoice}
@@ -64,11 +73,13 @@ Sample tone: "${input.persona.sampleQuote}"
 
 Write as this influencer promoting content for the crawled website ${input.site.domain}.
 Platform: ${input.platform}. Style: ${platformHint}
+Stay under ${charLimit} characters.
 
 STRICT RULES:
 - ONLY cite product facts from the verified list below. Never invent specs, prices, health claims, or benefits.
 - Weave in 2–4 specific verified facts naturally (name, price, features, location, hours, ingredients).
 - Sound like the influencer's authentic voice — not generic marketing.
+- Open with a hook that works without context. No "Excited to share", "Let me tell you", or "Okay so".
 - Include a soft CTA pointing to ${input.site.domain}${input.page.path === "/" ? "" : input.page.path}
 - Return ONLY the post copy. No explanations.
 ${input.personalization ? `\n${input.personalization}` : ""}`;
@@ -90,15 +101,16 @@ ${input.brief ? `\nCampaign brief: ${input.brief}` : ""}`;
       temperature: 0.65,
     })) ?? "";
 
-  if (!text.trim()) {
+  const cleaned = cleanGeneratedCopy(text);
+  if (!cleaned) {
     throw new Error("AI returned empty content");
   }
 
-  const validation = validateQuoteAgainstFacts(text, input.facts);
-  const citedFacts = detectCitedFacts(text, input.pinpoints);
+  const validation = validateQuoteAgainstFacts(cleaned, input.facts);
+  const citedFacts = detectCitedFacts(cleaned, input.pinpoints);
 
   return {
-    text: text.trim(),
+    text: cleaned,
     platform: input.platform,
     citedFacts,
     validation,

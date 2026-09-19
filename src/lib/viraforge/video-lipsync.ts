@@ -1,15 +1,37 @@
 import { createModelPrediction } from "@/lib/replicate-client";
 import { ensureReplicateInputUrl } from "@/lib/media-url";
 
-const LIPSYNC_MODELS = ["sync/lipsync-2", "kwaivgi/kling-lip-sync"] as const;
+const LIPSYNC_MODELS = ["kwaivgi/kling-lip-sync", "sync/lipsync-2"] as const;
+
+export type VideoLipsyncOptions = {
+  motionType?: string;
+  plateDurationSec?: number;
+  audioDurationSec?: number;
+};
+
+function pickSyncMode(options?: VideoLipsyncOptions): string {
+  const plate = options?.plateDurationSec;
+  const audio = options?.audioDurationSec;
+  if (
+    typeof plate === "number" &&
+    typeof audio === "number" &&
+    Number.isFinite(plate) &&
+    Number.isFinite(audio) &&
+    audio <= plate + 0.4
+  ) {
+    return "cut_off";
+  }
+  return options?.motionType === "talk" ? "bounce" : "loop";
+}
 
 /**
- * Re-lip an existing video (walk plate, not a still) to approved voice audio.
- * Prefers Sync Labs on Replicate; falls back to Kling lip-sync.
+ * Re-lip a Kling (or other) plate to approved voice audio.
+ * Prefers Kling lip-sync on Kling footage, then Sync Labs lipsync-2.
  */
 export async function startVideoLipsync(
   videoUrl: string,
   audioUrl: string,
+  options?: VideoLipsyncOptions,
 ): Promise<{ predictionId: string } | { error: string }> {
   let video: string;
   let audio: string;
@@ -24,28 +46,22 @@ export async function startVideoLipsync(
     return { error: message };
   }
 
-  const syncResult = await createModelPrediction("sync/lipsync-2", {
-    video,
-    audio,
-    sync_mode: "loop",
-    temperature: 0.4,
-  });
-  if (!("error" in syncResult)) return syncResult;
-
-  const retryable = /not found|404|unavailable|unrecognized/i.test(
-    syncResult.error,
-  );
-  if (!retryable) {
-    // Still try Kling — some Sync errors are model-availability only.
-  }
-
   const klingResult = await createModelPrediction("kwaivgi/kling-lip-sync", {
     video_url: video,
     audio_file: audio,
   });
   if (!("error" in klingResult)) return klingResult;
 
+  const syncResult = await createModelPrediction("sync/lipsync-2", {
+    video,
+    audio,
+    sync_mode: pickSyncMode(options),
+    temperature: 0.5,
+    active_speaker: false,
+  });
+  if (!("error" in syncResult)) return syncResult;
+
   return {
-    error: `Lip-sync unavailable (${LIPSYNC_MODELS.join(", ")}): ${klingResult.error}`,
+    error: `Lip-sync unavailable (${LIPSYNC_MODELS.join(", ")}): ${klingResult.error}; ${syncResult.error}`,
   };
 }

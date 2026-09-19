@@ -27,18 +27,67 @@ const PROVIDER_LABELS: Record<AiProvider, string> = {
   xai: "Grok 3 mini",
 };
 
+const CONTENT_TYPE_INSTRUCTIONS: Record<ContentType, string> = {
+  "Social Post":
+    "Hook in line 1. Then 2–4 short paragraphs. One CTA. Hashtags only at the end if the platform uses them.",
+  "Email Copy":
+    "Line 1 must be `Subject: ...`. Then 2 short paragraphs and one CTA. No 'Hi there' or 'Hope this finds you'.",
+  "Ad Headline":
+    "One line, 40–80 characters. No hashtags, no URL, no sentence dump.",
+  "Blog Intro":
+    "80–140 words. Specific and useful. No 'In today's world'. End ready to continue into the article.",
+  "Product Description":
+    "Benefit-led opener, then 3 concrete features from the page. Do not invent specs or prices.",
+  "Video Ad":
+    "Spoken-style caption: hook, one proof point, CTA. Under 70 words. Write how it would be said out loud.",
+  Reel:
+    "First line is the on-screen hook (max 8 words). Then 1–2 short lines and a CTA. 3–5 hashtags at the end.",
+  Story:
+    "1–2 lines max plus a swipe/tap CTA. No hashtag dump.",
+};
+
+function copyCharLimit(platform: Platform, contentType: ContentType): number {
+  if (contentType === "Ad Headline") return 80;
+  if (contentType === "Story") return 140;
+  if (contentType === "Reel") return 420;
+  if (contentType === "Video Ad") return 500;
+  if (contentType === "Blog Intro") return 900;
+  if (contentType === "Product Description") return 800;
+  if (contentType === "Email Copy") return 1400;
+  if (platform === "twitter") return 240;
+  if (platform === "pinterest") return 450;
+  if (platform === "linkedin") return 1800;
+  return 900;
+}
+
+export function cleanGeneratedCopy(text: string): string {
+  let out = text.trim();
+  out = out.replace(/^```(?:[\w-]+)?\s*/i, "").replace(/\s*```$/i, "");
+  out = out.replace(/^["'“”]+|["'“”]+$/g, "").trim();
+  out = out.replace(
+    /^(here(?:'s| is) (?:a |the )?(?:post|caption|copy|ad|email|script|headline)[:\s-]*)/i,
+    "",
+  );
+  out = out.replace(/^\*\*|\*\*$/g, "").trim();
+  return out.trim();
+}
+
 function buildSystemPrompt(
   request: GenerateRequest,
   settings: UserSettings,
   platform: Platform,
   contentType: ContentType,
 ): string {
-  const voice = formatVoiceGuide(request.site.brand);
+  const settingsVoice = settings.brandVoice?.trim();
+  const voice =
+    formatVoiceGuide(request.site.brand) ||
+    settingsVoice ||
+    "Professional yet approachable.";
   const audience =
     request.site.brand.synthesis?.audiencePersona || settings.targetAudience;
   const businessCtx = formatBusinessContext(request.site.brand);
   const platformHint = platformCopyHint(platform);
-
+  const typeHint = CONTENT_TYPE_INSTRUCTIONS[contentType];
   const userPrefs = formatPromptPreferences(settings.promptPreferences);
   const angle = request.contentAngle ?? "auto";
   const uniqueness = buildUniquenessInstructions(
@@ -46,15 +95,27 @@ function buildSystemPrompt(
     angle,
     request.site,
   );
+  const charLimit = copyCharLimit(platform, contentType);
+  const hashtagRule = settings.includeHashtags
+    ? contentType === "Ad Headline" ||
+      contentType === "Email Copy" ||
+      platform === "email"
+      ? "No hashtags."
+      : platform === "twitter"
+        ? "At most 2 hashtags, at the end."
+        : "3–5 relevant hashtags at the end, never in the hook."
+    : "Do not include hashtags.";
 
   return `You are an expert marketing copywriter specializing in ${contentType} for ${platform}.
 Brand: ${request.site.brand.name}. Voice: ${voice}. Audience: ${audience}.
 ${businessCtx ? `Business context: ${businessCtx}. ` : ""}
 ${userPrefs ? `${userPrefs} ` : ""}
+Format: ${typeHint}
 Platform style: ${platformHint}
+Stay under ${charLimit} characters. ${hashtagRule}
 ${uniqueness}
 ${angle !== "auto" ? `Required creative angle: ${getAngleLabel(angle)}.` : "Pick the freshest creative angle that stands out from typical posts."}
-Write scroll-stopping copy that feels original — never generic. Return only the final copy — no explanations.`;
+First line must work as a standalone hook. No "Excited to announce", "In today's world", "Looking for", or generic marketing filler. Ground claims in the page facts. One CTA. Return only the final copy — no explanations.`;
 }
 
 function buildUserMessage(
@@ -63,19 +124,26 @@ function buildUserMessage(
   page: SitePage,
   relatedPages?: SitePage[],
 ): string {
+  const headings = page.headings.slice(0, 6).join(" · ");
   const relatedBlock =
     relatedPages && relatedPages.length > 0
       ? `\n\nRelated site content for factual grounding:\n${relatedPages
           .map(
             (p) =>
-              `- ${p.title}: ${p.description || p.excerpt.slice(0, 150)}`,
+              `- ${p.title}: ${p.description || p.excerpt.slice(0, 220)}`,
           )
           .join("\n")}`
       : "";
+  const keywords = request.site.brand.keywords.slice(0, 8).join(", ");
+  const pain = request.site.brand.businessModel?.painPoints.slice(0, 3).join("; ");
 
   return `Page: ${page.title}
-Description: ${page.description || page.excerpt.slice(0, 200)}
-Draft:
+URL path: ${page.path}
+Description: ${page.description || page.excerpt.slice(0, 420)}
+${headings ? `Headings: ${headings}` : ""}
+${keywords ? `Brand keywords: ${keywords}` : ""}
+${pain ? `Customer pains to speak to: ${pain}` : ""}
+Rewrite this draft into stronger ${request.contentType} copy — do not paste it back:
 ${draft}${request.prompt ? `\nCampaign brief: ${request.prompt}` : ""}${relatedBlock}`;
 }
 
@@ -113,7 +181,7 @@ async function pickRecommendation(
         messages: [
           {
             role: "system",
-            content: `You are a marketing director. Pick the best copy variant for ${request.platform}. Business goal: ${goal}. Audience: ${settings.targetAudience}. Prefer the more original, scroll-stopping hook — avoid generic marketing language. Reply with only "A" or "B".`,
+            content: `You are a marketing director. Pick the best copy variant for ${request.platform} ${request.contentType}. Business goal: ${goal}. Audience: ${settings.targetAudience}. Prefer the more original, scroll-stopping hook, specific facts over vague claims, and a single clear CTA. Reply with only "A" or "B".`,
           },
           { role: "user", content: variantBlock },
         ],
@@ -177,9 +245,10 @@ export async function enhanceWithDualAi(
     .filter((r): r is { provider: AiProvider; text: string } => !!r.text)
     .map((r) => ({
       provider: r.provider,
-      text: r.text,
+      text: cleanGeneratedCopy(r.text),
       label: PROVIDER_LABELS[r.provider],
-    }));
+    }))
+    .filter((v) => v.text.length > 0);
 
   if (variants.length === 0) return { variants: [] };
 

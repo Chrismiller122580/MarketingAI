@@ -50,7 +50,7 @@ async function probeVideoDurationSec(videoPath: string): Promise<number> {
 }
 
 /**
- * Mux approved voice audio into SadTalker video and align duration to the audio
+ * Mux approved voice audio into the talking-head video and align duration to the audio
  * so lip-sync playback stays locked in the preview and exports.
  */
 export async function muxTalkVideoWithVoice(
@@ -81,9 +81,9 @@ export async function muxTalkVideoWithVoice(
     const trimSec = audioDurationSec;
 
     const filter =
-      padSec > 0.1
-        ? `[0:v]fps=25,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${padSec.toFixed(3)}[v]`
-        : `[0:v]fps=25,setpts=PTS-STARTPTS,trim=duration=${trimSec.toFixed(3)},setpts=PTS-STARTPTS[v]`;
+      padSec > 0.12
+        ? `[0:v]setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${padSec.toFixed(3)}[v];[1:a]aresample=async=1:first_pts=0[a]`
+        : `[0:v]setpts=PTS-STARTPTS,trim=duration=${trimSec.toFixed(3)},setpts=PTS-STARTPTS[v];[1:a]aresample=async=1:first_pts=0[a]`;
 
     await execFileAsync(
       ffmpegPath,
@@ -98,13 +98,13 @@ export async function muxTalkVideoWithVoice(
         "-map",
         "[v]",
         "-map",
-        "1:a:0",
+        "[a]",
         "-c:v",
         "libx264",
         "-preset",
         "fast",
         "-crf",
-        "23",
+        "20",
         "-pix_fmt",
         "yuv420p",
         "-c:a",

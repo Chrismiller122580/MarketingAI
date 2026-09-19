@@ -11,6 +11,7 @@ import { prepareMotionPortrait } from "./influencer-renders";
 import { startInfluencerMotion } from "./influencer-motion";
 import { resolveMotionVoiceId } from "./motion-voice";
 import {
+  isSpokenMotion,
   motionScriptScene,
   normalizeMotionTypeSelection,
 } from "./motion-actions";
@@ -25,7 +26,7 @@ export type ContentStudioMotionClipResult = {
 
 export function canGenerateMotionType(motionType: InfluencerMotionType): boolean {
   if (!hasReplicate()) return false;
-  if (motionType === "talk") return hasElevenLabs();
+  if (motionType === "talk" || motionType === "walk-talk") return hasElevenLabs();
   return true;
 }
 
@@ -77,7 +78,7 @@ export async function startContentStudioMotionClip(input: {
   if (!canGenerateMotionType(input.motionType)) {
     return {
       error:
-        input.motionType === "talk"
+        input.motionType === "talk" || input.motionType === "walk-talk"
           ? "Talking clips aren't available right now."
           : "Motion clips aren't available right now.",
     };
@@ -112,7 +113,7 @@ export async function startContentStudioMotionClip(input: {
   const talkIndex = input.talkIndex ?? 0;
   let script: string | undefined;
 
-  if (input.motionType === "talk") {
+  if (input.motionType === "talk" || input.motionType === "walk-talk") {
     const scriptResult = await resolveTalkScript({
       influencer: input.influencer,
       draftText: input.draftText,
@@ -146,12 +147,13 @@ export async function startContentStudioMotionClip(input: {
     }
   }
 
+  const spoken = isSpokenMotion(input.motionType);
   const started = await startInfluencerMotion(
     input.motionType,
     portrait,
     input.influencer.persona,
-    input.motionType === "talk" ? script : undefined,
-    input.motionType === "talk"
+    spoken ? script : undefined,
+    spoken
       ? resolveMotionVoiceId(input.influencer.assets.voiceId)
       : undefined,
   );
@@ -163,7 +165,7 @@ export async function startContentStudioMotionClip(input: {
   let companionVoiceUrl = started.voiceAudioUrl;
   if (
     script &&
-    input.motionType !== "talk" &&
+    !spoken &&
     hasElevenLabs() &&
     !companionVoiceUrl
   ) {
@@ -191,6 +193,11 @@ export async function startContentStudioMotionClip(input: {
     voiceAudioUrl: companionVoiceUrl,
     voiceId: started.voiceId,
     script,
+    metadata: {
+      lipsyncStage: started.needsLipsync ? "pending" : "done",
+      plateDurationSec: started.plateDurationSec,
+      audioDurationSec: started.audioDurationSec,
+    },
   });
 
   return {

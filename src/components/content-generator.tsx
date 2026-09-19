@@ -818,7 +818,7 @@ export function ContentGenerator() {
                         <>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
                             Pick up to {MAX_CONTENT_STUDIO_MOTION_CLIPS} motions — AI
-                            writes matched scripts (18–28 words for Talk), voice, and
+                            writes matched scripts (16–24 words for Talk), voice, and
                             lip-sync where needed.
                           </p>
                           {selectedMotionTypes.includes("talk") && (

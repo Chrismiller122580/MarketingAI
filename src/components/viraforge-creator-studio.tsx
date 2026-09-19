@@ -2090,9 +2090,9 @@ export function ViraForgeCreatorStudio() {
           {activeTab === "motion" && (
             <div className="space-y-5">
               <p className="text-xs text-muted-foreground">
-                Turn the saved portrait into motion clips. Talk uses ElevenLabs
-                voice + SadTalker lip-sync. Walk, spin, and jump use Kling
-                image-to-video via Replicate.
+                Turn the saved portrait into motion clips. Talk and Walk & talk
+                use ElevenLabs voice, a Kling performance plate, then lip-sync.
+                Walk, spin, and jump use Kling image-to-video.
               </p>
 
               {!previewImage && (
@@ -2165,7 +2165,7 @@ export function ViraForgeCreatorStudio() {
                     setMotionScript(e.target.value);
                     setApprovedTalkPreview(null);
                   }}
-                  placeholder="Script for Talk clips — 18–28 words, must match verified product facts"
+                  placeholder="Script for Talk clips — 16–24 words, must match verified product facts"
                 />
                 {talkPreflight && (
                   <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 text-xs">

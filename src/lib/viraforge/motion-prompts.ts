@@ -11,6 +11,23 @@ function subjectLabel(persona: CreatorAvatarForm): string {
       : "person";
 }
 
+export function buildTalkCloseupPrompt(persona: CreatorAvatarForm): string {
+  const subject = subjectLabel(persona);
+
+  return [
+    `Photorealistic ${subject}, age ${persona.age}, talking to camera in a studio close-up.`,
+    `Wardrobe: ${persona.wardrobe}`,
+    `Mood: ${persona.personalityVoice.slice(0, 120)}.`,
+    "Tight head-and-shoulders framing, eyes on lens, natural blinks.",
+    "Continuously speaking: jaw drops on vowels, lips close on M/B/P, teeth briefly visible, not a frozen smile.",
+    "Subtle head nods and micro-expressions, no walking, no spinning, no looking away.",
+    "Maintain consistent face from the reference portrait.",
+    "Soft key light, shallow bokeh, no text, no watermarks, no subtitles.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function buildWalkTalkPrompt(persona: CreatorAvatarForm): string {
   const subject = subjectLabel(persona);
   const city = persona.location.split("+")[0]?.trim() || persona.location;
@@ -24,7 +41,7 @@ export function buildWalkTalkPrompt(persona: CreatorAvatarForm): string {
     "Medium shot, waist-up to mid-thigh, not a tight face close-up.",
     "Handheld vlog camera tracking beside them as they walk a city sidewalk.",
     "Natural arm swing, confident pace, looking toward camera while talking.",
-    "Mouth slightly open mid-sentence so later lip-sync has a usable mouth.",
+    "Mouth opening and closing mid-sentence so later lip-sync has a usable talking mouth, not a closed smile.",
     "Maintain consistent face and body from the reference portrait.",
     "Natural daylight, cinematic, shallow street bokeh, no text, no watermarks.",
   ]

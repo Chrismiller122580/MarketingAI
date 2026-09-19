@@ -7,8 +7,12 @@ import {
 } from "@/lib/influencer-motion-jobs";
 import { getPredictionStatus } from "@/lib/replicate-client";
 import { finalizeInfluencerRender } from "@/lib/viraforge/influencer-renders";
-import { muxTalkVideoWithVoice } from "@/lib/viraforge/talk-video-mux";
-import { uploadBytesToBlob } from "@/lib/media-url";
+import { isSpokenMotion } from "@/lib/viraforge/motion-actions";
+import {
+  muxSpokenVoice,
+  needsSpokenLipsync,
+  startSpokenLipsyncStage,
+} from "@/lib/viraforge/spoken-motion-finish";
 
 export const maxDuration = 120;
 export const runtime = "nodejs";
@@ -25,14 +29,16 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Motion job not found" }, { status: 404 });
   }
 
+  const spoken = isSpokenMotion(job.motionType);
+
   if (job.status === "ready" && job.videoUrl) {
     return NextResponse.json({
       status: "ready",
       videoUrl: resolveDisplayMediaUrl(job.videoUrl),
       motionType: job.motionType,
-      audioEmbeddedInVideo: job.motionType === "talk",
+      audioEmbeddedInVideo: spoken,
       voiceAudioUrl:
-        job.motionType === "talk"
+        spoken
           ? undefined
           : job.voiceAudioUrl
             ? resolveDisplayMediaUrl(job.voiceAudioUrl)
@@ -59,22 +65,41 @@ export async function GET(_request: Request, context: RouteContext) {
 
   if (prediction.status === "ready" && prediction.outputUrl) {
     let videoUrl = prediction.outputUrl;
-    let audioEmbeddedInVideo = false;
+    const meta = job.metadata ?? {};
+    const lipsyncStage = meta.lipsyncStage;
 
-    if (job.motionType === "talk" && job.voiceAudioUrl) {
+    if (needsSpokenLipsync(job) && lipsyncStage !== "running") {
+      const advanced = await startSpokenLipsyncStage(job, prediction.outputUrl);
+      if (!("error" in advanced)) {
+        return NextResponse.json({
+          status: "processing",
+          motionType: job.motionType,
+          voiceAudioUrl: job.voiceAudioUrl
+            ? resolveDisplayMediaUrl(job.voiceAudioUrl)
+            : undefined,
+        });
+      }
+      // Lip-sync model unavailable — mux voice onto the plate instead of failing.
+      videoUrl =
+        typeof meta.plateVideoUrl === "string"
+          ? meta.plateVideoUrl
+          : prediction.outputUrl;
+    }
+
+    let audioEmbeddedInVideo = false;
+    if (spoken && job.voiceAudioUrl) {
       try {
-        const voiceUrl = resolveDisplayMediaUrl(job.voiceAudioUrl);
-        const muxed = await muxTalkVideoWithVoice(prediction.outputUrl, voiceUrl);
-        const muxedBlobUrl = await uploadBytesToBlob(
-          muxed.buffer,
-          `influencers/${authResult}/${job.influencerId}/talk-mux-${job.renderId}.mp4`,
-          "video/mp4",
+        videoUrl = await muxSpokenVoice(
+          authResult,
+          job.influencerId,
+          job.renderId,
+          videoUrl,
+          job.voiceAudioUrl,
         );
-        videoUrl = muxedBlobUrl;
         audioEmbeddedInVideo = true;
       } catch (error) {
         console.error(
-          "Talk mux failed — using raw SadTalker output:",
+          "Talk mux failed — using raw motion output:",
           error instanceof Error ? error.message : error,
         );
       }
@@ -91,6 +116,11 @@ export async function GET(_request: Request, context: RouteContext) {
         activate: true,
       });
       if (render?.url) videoUrl = render.url;
+      await updateInfluencerMotionJob(job.renderId, {
+        status: "ready",
+        videoUrl,
+        metadata: { ...meta, lipsyncStage: "done" },
+      });
     }
 
     return NextResponse.json({
@@ -99,7 +129,7 @@ export async function GET(_request: Request, context: RouteContext) {
       motionType: job.motionType,
       audioEmbeddedInVideo,
       voiceAudioUrl:
-        audioEmbeddedInVideo || job.motionType === "talk"
+        audioEmbeddedInVideo || spoken
           ? undefined
           : job.voiceAudioUrl
             ? resolveDisplayMediaUrl(job.voiceAudioUrl)
@@ -109,6 +139,44 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   if (prediction.status === "failed") {
+    const meta = job.metadata ?? {};
+    const plate =
+      typeof meta.plateVideoUrl === "string" ? meta.plateVideoUrl : undefined;
+    if (spoken && job.voiceAudioUrl && plate && meta.lipsyncStage === "running") {
+      try {
+        const muxedUrl = await muxSpokenVoice(
+          authResult,
+          job.influencerId,
+          job.renderId,
+          plate,
+          job.voiceAudioUrl,
+        );
+        const render = await finalizeInfluencerRender({
+          userId: authResult,
+          influencerId: job.influencerId,
+          renderId: job.renderId,
+          status: "ready",
+          url: muxedUrl,
+          voiceUrl: job.voiceAudioUrl,
+          activate: true,
+        });
+        await updateInfluencerMotionJob(job.renderId, {
+          status: "ready",
+          videoUrl: render?.url ?? muxedUrl,
+          metadata: { ...meta, lipsyncStage: "done", lipsyncError: prediction.error },
+        });
+        return NextResponse.json({
+          status: "ready",
+          videoUrl: resolveDisplayMediaUrl(render?.url ?? muxedUrl),
+          motionType: job.motionType,
+          audioEmbeddedInVideo: true,
+          renderId: job.renderId,
+        });
+      } catch {
+        /* fall through to failed */
+      }
+    }
+
     const error = prediction.error ?? "Motion generation failed";
     await updateInfluencerMotionJob(job.renderId, { status: "failed", error });
     if (job.renderId) {

@@ -31,7 +31,7 @@ import {
 
 const motionSchema = z.object({
   influencerId: z.string().min(1),
-  motionType: z.enum(["talk", "walk", "spin", "jump", "wave", "point"]),
+  motionType: z.enum(["talk", "walk-talk", "walk", "spin", "jump", "wave", "point"]),
   script: z.string().max(500).optional(),
   approvedVoiceRenderId: z.string().min(1).optional(),
   approvedScriptHash: z.string().max(32).optional(),
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       approvedScriptHash,
     } = parsed.data;
 
-    if (motionType === "talk" && !hasElevenLabs()) {
+    if ((motionType === "talk" || motionType === "walk-talk") && !hasElevenLabs()) {
       return NextResponse.json(
         {
           error:
@@ -161,17 +161,17 @@ export async function POST(request: Request) {
       assets.lastScript ||
       "";
 
-    if (motionType === "talk" && !talkScript) {
+    if ((motionType === "talk" || motionType === "walk-talk") && !talkScript) {
       return NextResponse.json(
         {
           error:
-            "Add a script in Motion & Voice (or a sample quote) before generating a talk clip.",
+            "Add a script in Motion & Voice (or a sample quote) before generating a talking clip.",
         },
         { status: 400 },
       );
     }
 
-    if (motionType === "talk") {
+    if (motionType === "talk" || motionType === "walk-talk") {
       const analysis = analyzeTalkScript(talkScript);
       if (!analysis.canRender) {
         return NextResponse.json(
@@ -183,21 +183,23 @@ export async function POST(request: Request) {
         );
       }
 
-      if (!approvedVoiceRenderId || !approvedScriptHash) {
-        return NextResponse.json(
-          {
-            error:
-              "Preview and approve voice before rendering Talk. Run preflight first.",
-          },
-          { status: 422 },
-        );
-      }
+      if (motionType === "talk") {
+        if (!approvedVoiceRenderId || !approvedScriptHash) {
+          return NextResponse.json(
+            {
+              error:
+                "Preview and approve voice before rendering Talk. Run preflight first.",
+            },
+            { status: 422 },
+          );
+        }
 
-      if (approvedScriptHash !== analysis.scriptHash) {
-        return NextResponse.json(
-          { error: "Script changed since preview. Preview voice again." },
-          { status: 422 },
-        );
+        if (approvedScriptHash !== analysis.scriptHash) {
+          return NextResponse.json(
+            { error: "Script changed since preview. Preview voice again." },
+            { status: 422 },
+          );
+        }
       }
     }
 
@@ -262,12 +264,13 @@ export async function POST(request: Request) {
       );
     }
 
+    const spoken = motionType === "talk" || motionType === "walk-talk";
     const started = await startInfluencerMotion(
       motionType as InfluencerMotionType,
       portrait,
       persona.data,
-      motionType === "talk" ? talkScript : undefined,
-      motionType === "talk" ? motionVoiceId : undefined,
+      spoken ? talkScript : undefined,
+      spoken ? motionVoiceId : undefined,
       preparedTalk,
     );
 
@@ -289,7 +292,12 @@ export async function POST(request: Request) {
         motionType: motionType as InfluencerMotionType,
         voiceAudioUrl: started.voiceAudioUrl,
         voiceId: started.voiceId,
-        script: motionType === "talk" ? talkScript : undefined,
+        script: spoken ? talkScript : undefined,
+        metadata: {
+          lipsyncStage: started.needsLipsync ? "pending" : "done",
+          plateDurationSec: started.plateDurationSec,
+          audioDurationSec: started.audioDurationSec,
+        },
       });
     } catch (error) {
       const message =
@@ -332,7 +340,7 @@ export async function POST(request: Request) {
         : undefined,
       providers: {
         replicate: true,
-        elevenlabs: motionType === "talk" ? hasElevenLabs() : undefined,
+        elevenlabs: spoken ? hasElevenLabs() : undefined,
       },
     });
   } catch (error) {

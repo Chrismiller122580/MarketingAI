@@ -59,7 +59,7 @@ export async function generateInfluencerScript(input: {
   const maxWords = input.maxWords ?? TALK_TARGET_MAX_WORDS;
   const isTalkScene = TALK_SCENES.has(input.scene);
   const wordRule = isTalkScene
-    ? `${TALK_TARGET_MIN_WORDS}–${maxWords} words max, conversational pace, one breath (~8–12 seconds spoken)`
+    ? `${TALK_TARGET_MIN_WORDS}–${maxWords} words max, conversational pace, one breath (~8–10 seconds spoken)`
     : "40–90 words max";
   const factRule = hasLockedProductFacts(input.facts)
     ? "ONLY mention verified product facts below. Never invent specs, prices, benefits, or health claims."
@@ -139,7 +139,7 @@ ${input.personalization ? `\n${input.personalization}` : ""}`;
 
   const userMessage = `${factsBlock}
 
-Shorten this ${currentWords}-word script for SadTalker lip-sync:
+Shorten this ${currentWords}-word script for a 10-second lip-sync clip:
 
 ${input.script.trim()}`;
 

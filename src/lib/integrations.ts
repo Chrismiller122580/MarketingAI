@@ -28,7 +28,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     name: "Replicate",
     envVars: ["REPLICATE_API_TOKEN"],
     summary:
-      "Powers AI video for Reels, Video Ads, video Stories (Seedance), and ViraForge influencer motion (Kling + SadTalker).",
+      "Powers AI video for Reels, Video Ads, video Stories (Seedance), and ViraForge influencer motion (Kling + lip-sync).",
     steps: [
       "Go to replicate.com → Account → API tokens → Create token.",
       "Add REPLICATE_API_TOKEN to .env locally or Vercel → Settings → Environment Variables.",
@@ -42,7 +42,7 @@ export const INTEGRATION_GUIDES: IntegrationGuide[] = [
     name: "ElevenLabs",
     envVars: ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID"],
     summary:
-      "Natural TTS for ViraForge talking clips (SadTalker lip-sync) and Content Studio MP3 voiceovers on Reels, Video Ads, and video Stories.",
+      "Natural TTS for ViraForge talking clips (Kling plate + lip-sync) and Content Studio MP3 voiceovers on Reels, Video Ads, and video Stories.",
     steps: [
       "Sign in at elevenlabs.io → Developers → API keys → Create key (or Profile → API Keys).",
       "Add ELEVENLABS_API_KEY to .env locally or Vercel → Settings → Environment Variables.",

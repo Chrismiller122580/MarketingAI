@@ -220,7 +220,13 @@ export async function POST(request: Request) {
         predictionId: started.predictionId,
         motionType: "talk",
         voiceAudioUrl: started.voiceAudioUrl,
+        voiceId: started.voiceId,
         script: scriptResult.script,
+        metadata: {
+          lipsyncStage: started.needsLipsync ? "pending" : "done",
+          plateDurationSec: started.plateDurationSec,
+          audioDurationSec: started.audioDurationSec,
+        },
       });
 
       motionJobId = job.jobId;

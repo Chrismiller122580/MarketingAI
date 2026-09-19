@@ -16,7 +16,7 @@ export const MOTION_ACTIONS: MotionAction[] = [
   {
     type: "talk",
     label: "Talk (close-up)",
-    description: "Studio close-up lip-sync (legacy)",
+    description: "Close-up talking head with matched voice and lip-sync",
   },
   {
     type: "walk",

@@ -1,4 +1,4 @@
-import { enhanceWithDualAi, getAvailableAiProviders } from "./ai-dual";
+import { enhanceWithDualAi, getAvailableAiProviders, cleanGeneratedCopy } from "./ai-dual";
 import {
   planCampaign,
   planItemContentType,
@@ -161,38 +161,68 @@ function emojiPrefix(style: UserSettings["emojiStyle"], platform: Platform): str
 
 function buildHashtags(
   site: SiteData,
-  page: SitePage,
+  _page: SitePage,
   prompt: string,
   settings: UserSettings,
+  platform: Platform = "instagram",
 ): string[] {
   if (!settings.includeHashtags) return [];
+  if (platform === "email") return [];
 
-  const tags = new Set<string>();
-  const hostname = new URL(site.domain).hostname.replace(/\./g, "");
-  tags.add(hostname);
+  const tags: string[] = [];
+  const seen = new Set<string>();
 
+  const push = (raw: string) => {
+    const cleaned = raw.replace(/[^a-zA-Z0-9]/g, "");
+    if (cleaned.length < 3 || cleaned.length > 24) return;
+    if (/^(about|their|would|could|with|from|this|that|your|have)$/i.test(cleaned)) {
+      return;
+    }
+    const tag = cleaned.toLowerCase();
+    if (seen.has(tag)) return;
+    seen.add(tag);
+    tags.push(`#${cleaned}`);
+  };
+
+  push(site.brand.name.replace(/\s+/g, ""));
   for (const kw of site.brand.keywords.slice(0, 4)) {
-    tags.add(kw.replace(/\s+/g, ""));
-  }
-  for (const heading of page.headings.slice(0, 2)) {
-    const word = heading.split(/\s+/)[0]?.toLowerCase();
-    if (word && word.length > 3) tags.add(word);
+    push(kw.replace(/\s+/g, ""));
   }
   for (const word of prompt.toLowerCase().split(/\s+/)) {
-    if (word.length > 4 && !/^(about|their|would|could)$/.test(word)) {
-      tags.add(word);
-    }
+    if (word.length > 5) push(word);
   }
 
-  return Array.from(tags)
-    .slice(0, 6)
-    .map((t) => (t.startsWith("#") ? t : `#${t}`));
+  const max =
+    platform === "twitter" ? 2 : platform === "linkedin" ? 3 : 5;
+  return tags.slice(0, max);
+}
+
+function extractHashtags(text: string): string[] {
+  return Array.from(text.matchAll(/#[A-Za-z0-9_]+/g)).map((match) => match[0]);
+}
+
+function ensureHashtagsInText(
+  text: string,
+  tags: string[],
+  include: boolean,
+): string {
+  if (!include || tags.length === 0) return text;
+  if (/#[A-Za-z]/.test(text)) return text;
+  return `${text.trim()}\n\n${tags.join(" ")}`;
+}
+
+function firstSentence(text: string, max = 160): string {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+  const match = cleaned.match(/^.+?[.!?](?:\s|$)/);
+  const sentence = (match?.[0] ?? cleaned).trim();
+  return sentence.length > max ? `${sentence.slice(0, max - 1).trimEnd()}…` : sentence;
 }
 
 function hook(page: SitePage, brand: SiteData["brand"]): string {
   const candidate =
     page.headings[0] ||
-    page.description ||
+    firstSentence(page.description, 90) ||
     page.excerpt.split(/[.!?]/)[0]?.trim();
   return candidate || brand.tagline;
 }
@@ -219,22 +249,21 @@ function socialPost(
   settings: UserSettings,
 ): string {
   const h = hook(page, site.brand);
-  const body = page.description || page.excerpt.slice(0, 200);
+  const proof =
+    firstSentence(page.description || page.excerpt, 180) ||
+    site.brand.businessModel?.valueProposition ||
+    site.brand.tagline;
   const cta = `→ ${site.domain}${page.path === "/" ? "" : page.path}`;
   const prefix = emojiPrefix(settings.emojiStyle, platform);
-  const bm = site.brand.businessModel;
+  const pain = businessHook(site);
 
-  let post = `${prefix}${businessHook(site)}${h}\n\n${body}`;
-  if (bm?.valueProposition) {
-    post += `\n\n${bm.valueProposition}`;
+  let post = `${prefix}${pain}${h}`;
+  if (proof && proof.toLowerCase() !== h.toLowerCase()) {
+    post += `\n\n${proof}`;
   }
-  if (settings.targetAudience) {
-    post += `\n\nBuilt for ${settings.targetAudience}.`;
-  }
-  if (prompt) post += `\n\n💡 ${prompt}`;
   post += `\n\n${cta}`;
 
-  const hashtags = buildHashtags(site, page, prompt, settings);
+  const hashtags = buildHashtags(site, page, prompt, settings, platform);
   if (hashtags.length > 0) {
     post += `\n\n${hashtags.join(" ")}`;
   }
@@ -249,13 +278,18 @@ function emailCopy(
   prompt: string,
   settings: UserSettings,
 ): string {
+  const subject = hook(page, site.brand);
+  const opener =
+    site.brand.businessModel?.valueProposition ||
+    firstSentence(page.description || page.excerpt, 220) ||
+    site.brand.tagline;
   const highlights = site.pages
-    .slice(0, 4)
-    .map((p) => `• ${p.title}: ${p.description || p.excerpt.slice(0, 100)}`)
+    .slice(0, 3)
+    .map((p) => `• ${p.title}`)
     .join("\n");
 
   return truncate(
-    `Subject: ${hook(page, site.brand)} — ${site.brand.name}\n\nHi there,\n\n${page.description || page.excerpt}\n\nHighlights from our site:\n${highlights}${prompt ? `\n\nFocus: ${prompt}` : ""}${settings.targetAudience ? `\n\nFor: ${settings.targetAudience}` : ""}\n\nExplore more at ${site.domain}`,
+    `Subject: ${subject}\n\n${opener}\n\n${highlights ? `Worth a look:\n${highlights}\n\n` : ""}${prompt ? `${prompt}\n\n` : ""}See it here: ${site.domain}${page.path === "/" ? "" : page.path}${settings.targetAudience ? `\n\nWritten for ${settings.targetAudience}.` : ""}`,
     4000,
   );
 }
@@ -294,18 +328,17 @@ function videoAd(
   settings: UserSettings,
 ): string {
   const h = hook(page, site.brand);
-  const body = page.description || page.excerpt.slice(0, 120);
+  const proof = firstSentence(page.description || page.excerpt, 120);
   const cta = `→ ${site.domain}${page.path === "/" ? "" : page.path}`;
   const prefix = emojiPrefix(settings.emojiStyle, platform);
 
-  let script = `${prefix}${h}\n\n${body}`;
-  if (settings.targetAudience) {
-    script += `\n\nFor ${settings.targetAudience}.`;
+  let script = `${prefix}${h}`;
+  if (proof && proof.toLowerCase() !== h.toLowerCase()) {
+    script += `\n\n${proof}`;
   }
-  if (prompt) script += `\n\n${prompt}`;
   script += `\n\n${cta}`;
 
-  const hashtags = buildHashtags(site, page, prompt, settings);
+  const hashtags = buildHashtags(site, page, prompt, settings, platform);
   if (hashtags.length > 0) {
     script += `\n\n${hashtags.join(" ")}`;
   }
@@ -321,13 +354,15 @@ function reelCaption(
   settings: UserSettings,
 ): string {
   const h = hook(page, site.brand);
-  const body = (page.description || page.excerpt).slice(0, 100);
+  const proof = firstSentence(page.description || page.excerpt, 100);
   const prefix = emojiPrefix(settings.emojiStyle, "instagram");
-  const hashtags = buildHashtags(site, page, prompt, settings).slice(0, 5);
+  const hashtags = buildHashtags(site, page, prompt, settings, "instagram").slice(0, 5);
 
-  let script = `${prefix}${h}\n\n${body}`;
-  if (prompt) script += `\n\n${prompt}`;
-  script += `\n\nSave this for later 🔖`;
+  let script = `${prefix}${h}`;
+  if (proof && proof.toLowerCase() !== h.toLowerCase()) {
+    script += `\n\n${proof}`;
+  }
+  script += `\n\nSave this.`;
   if (hashtags.length > 0) {
     script += `\n\n${hashtags.join(" ")}`;
   }
@@ -651,12 +686,12 @@ export async function generateSmartPost(
     }
   }
 
-  const hashtags = buildHashtags(site, page, prompt, settings);
-
-  const context = `${page.title} ${page.description} ${prompt}`;
   const isVideoContent = isVideoContentType(contentType);
   const isStory = contentType === "Story";
   const effectivePlatform = isInstagramFormat(contentType) ? "instagram" : platform;
+  const hashtags = buildHashtags(site, page, prompt, settings, effectivePlatform);
+
+  const context = `${page.title} ${page.description} ${prompt}`;
   const preferAi =
     isVideoContent ||
     isStory ||
@@ -692,7 +727,23 @@ export async function generateSmartPost(
 
   const selectedVariant =
     variants.find((v) => v.provider === recommendation) ?? variants[0];
-  const finalText = selectedVariant?.text ?? text;
+  const cleanedText = cleanGeneratedCopy(selectedVariant?.text ?? text);
+  const withHashtags = ensureHashtagsInText(
+    cleanedText,
+    hashtags,
+    settings.includeHashtags &&
+      contentType !== "Ad Headline" &&
+      contentType !== "Email Copy" &&
+      effectivePlatform !== "email",
+  );
+  const finalText = truncate(
+    withHashtags,
+    PLATFORM_LIMITS[effectivePlatform] ?? PLATFORM_LIMITS[platform],
+  );
+  const displayHashtags =
+    extractHashtags(finalText).length > 0
+      ? extractHashtags(finalText)
+      : hashtags;
 
   const aiProviders = getAvailableAiProviders();
   const insights = [
@@ -753,7 +804,7 @@ export async function generateSmartPost(
     const { width, height } = getVisualCanvasSize(effectivePlatform, contentType);
     const draftPost: GeneratedPost = {
       text: finalText,
-      hashtags,
+      hashtags: displayHashtags,
       cta: `${site.domain}${page.path === "/" ? "" : page.path}`,
       platform: effectivePlatform,
       contentType,
@@ -775,7 +826,7 @@ export async function generateSmartPost(
 
   return {
     text: finalText,
-    hashtags,
+    hashtags: displayHashtags,
     cta: `${site.domain}${page.path === "/" ? "" : page.path}`,
     platform: effectivePlatform,
     contentType,

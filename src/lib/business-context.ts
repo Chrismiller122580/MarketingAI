@@ -37,12 +37,18 @@ export function buildBusinessInsights(brand: BrandProfile): string[] {
 }
 
 const PLATFORM_COPY_HINTS: Record<Platform, string> = {
-  instagram: "Visual-first, scroll-stopping hook in the first line. Emojis welcome.",
-  twitter: "Punchy and concise. Lead with the insight or hook. Thread-friendly.",
-  linkedin: "Professional thought leadership. Lead with business value and credibility.",
-  facebook: "Conversational and community-oriented. Encourage engagement.",
-  pinterest: "Discovery-focused. Descriptive, keyword-rich, aspirational.",
-  email: "Personalized opener, clear benefit, single focused CTA.",
+  instagram:
+    "Hook in line 1 (under 12 words). 80–150 words. Max 5 hashtags at the end. One CTA. No 'Excited to announce'.",
+  twitter:
+    "One punchy insight under 240 characters. No hashtag walls. Sound like a person, not a brand account.",
+  linkedin:
+    "Open with a specific result, number, or tension. 80–180 words. Short paragraphs. No emoji overload.",
+  facebook:
+    "Conversational first line that invites a comment. 50–120 words. One question or CTA, not both stacked.",
+  pinterest:
+    "Descriptive, keyword-rich, aspirational. Lead with the outcome the pin delivers.",
+  email:
+    "Subject-style first line, then one benefit, then a single CTA. No fluff greeting.",
 };
 
 export function platformCopyHint(platform: Platform): string {

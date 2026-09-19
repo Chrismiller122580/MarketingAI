@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
 import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
 
@@ -14,6 +15,7 @@ export type InfluencerMotionJob = {
   voiceAudioUrl?: string;
   script?: string;
   error?: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 type MotionRenderRow = {
@@ -45,6 +47,7 @@ function toMotionJob(render: MotionRenderRow): InfluencerMotionJob | null {
     voiceAudioUrl: render.voiceUrl ?? undefined,
     script: render.script ?? undefined,
     error: render.error ?? undefined,
+    metadata: (render.metadata as Record<string, unknown> | null) ?? null,
   };
 }
 
@@ -97,6 +100,7 @@ export async function createInfluencerMotionJob(
     voiceId?: string;
     script?: string;
     status?: InfluencerMotionJob["status"];
+    metadata?: Record<string, unknown>;
   },
 ): Promise<InfluencerMotionJob> {
   if (record.renderId) {
@@ -131,6 +135,7 @@ export async function createInfluencerMotionJob(
     voiceId: record.voiceId,
     provider: "replicate",
     predictionId: record.predictionId,
+    metadata: record.metadata,
   });
 
   const created = await prisma.influencerRender.findFirstOrThrow({
@@ -158,7 +163,12 @@ export async function updateInfluencerMotionJob(
   patch: Partial<
     Pick<
       InfluencerMotionJob,
-      "status" | "videoUrl" | "voiceAudioUrl" | "error"
+      | "status"
+      | "videoUrl"
+      | "voiceAudioUrl"
+      | "error"
+      | "predictionId"
+      | "metadata"
     >
   >,
 ): Promise<InfluencerMotionJob | null> {
@@ -176,6 +186,12 @@ export async function updateInfluencerMotionJob(
         ? { voiceUrl: patch.voiceAudioUrl }
         : {}),
       ...(patch.error !== undefined ? { error: patch.error } : {}),
+      ...(patch.predictionId !== undefined
+        ? { predictionId: patch.predictionId }
+        : {}),
+      ...(patch.metadata !== undefined
+        ? { metadata: patch.metadata as Prisma.InputJsonValue }
+        : {}),
     },
   });
 

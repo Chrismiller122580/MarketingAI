@@ -1,29 +1,57 @@
 import { createHash } from "crypto";
 import type { VoiceSettings } from "@elevenlabs/elevenlabs-js/api/types/VoiceSettings";
 
-export const TALK_TARGET_MIN_WORDS = 18;
-export const TALK_TARGET_MAX_WORDS = 28;
-export const TALK_HARD_MAX_WORDS = 35;
-export const TALK_IDEAL_MIN_DURATION_SEC = 8;
-export const TALK_IDEAL_MAX_DURATION_SEC = 15;
-export const TALK_WARN_MAX_DURATION_SEC = 18;
+export const TALK_TARGET_MIN_WORDS = 16;
+export const TALK_TARGET_MAX_WORDS = 24;
+export const TALK_HARD_MAX_WORDS = 30;
+export const TALK_IDEAL_MIN_DURATION_SEC = 6;
+export const TALK_IDEAL_MAX_DURATION_SEC = 11;
+export const TALK_WARN_MAX_DURATION_SEC = 14;
 /** Spoken pace for influencer talk clips (words per second). */
 export const TALK_WORDS_PER_SECOND = 2.3;
+export const KLING_SHORT_DURATION_SEC = 5;
+export const KLING_LONG_DURATION_SEC = 10;
 
 export const TALK_VOICE_SETTINGS: VoiceSettings = {
-  speed: 0.88,
-  stability: 0.55,
-  similarityBoost: 0.75,
-  style: 0.2,
+  speed: 0.9,
+  stability: 0.48,
+  similarityBoost: 0.8,
+  style: 0.32,
   useSpeakerBoost: true,
 };
 
-export const SADTALKER_INPUT_DEFAULTS: Record<string, unknown> = {
-  still: true,
-  preprocess: "crop",
-  expression_scale: 0.85,
-  enhancer: "gfpgan",
-};
+export const KLING_SPOKEN_NEGATIVE_PROMPT =
+  "frozen smile, closed mouth, silent, not speaking, distorted face, extra fingers, morphing identity, text overlay, watermark, subtitle, logo";
+
+/** Kling v2.1 only accepts 5s or 10s. Pick the plate that can cover the voice. */
+export function klingDurationForAudio(audioSec?: number): 5 | 10 {
+  if (!audioSec || !Number.isFinite(audioSec) || audioSec <= 0) {
+    return KLING_LONG_DURATION_SEC;
+  }
+  return audioSec > 6.2 ? KLING_LONG_DURATION_SEC : KLING_SHORT_DURATION_SEC;
+}
+
+/** lucataco/sadtalker uses still + enhancer; cjwbw uses still_mode + use_enhancer. */
+export function sadtalkerInputFor(model: string): Record<string, unknown> {
+  if (model.startsWith("cjwbw/")) {
+    return {
+      still_mode: false,
+      preprocess: "crop",
+      expression_scale: 1.2,
+      use_enhancer: true,
+      use_eyeblink: true,
+      size_of_image: 512,
+      pose_style: 4,
+      facerender: "facevid2vid",
+    };
+  }
+  return {
+    still: false,
+    preprocess: "crop",
+    expression_scale: 1.2,
+    enhancer: "gfpgan",
+  };
+}
 
 export type TalkCheckStatus = "pass" | "warn" | "fail";
 
@@ -72,7 +100,7 @@ export function analyzeTalkScript(script: string): TalkScriptAnalysis {
   } else if (wordCount > TALK_TARGET_MAX_WORDS) {
     lengthStatus = "warn";
     messages.push(
-      `Script is ${wordCount} words — aim for ${TALK_TARGET_MIN_WORDS}–${TALK_TARGET_MAX_WORDS} for natural pacing.`,
+      `Script is ${wordCount} words — aim for ${TALK_TARGET_MIN_WORDS}–${TALK_TARGET_MAX_WORDS} so it fits a 10s talking clip.`,
     );
   } else if (wordCount < TALK_TARGET_MIN_WORDS) {
     lengthStatus = "warn";
