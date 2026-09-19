@@ -5,59 +5,25 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton } from "./loading-indicator";
+import {
+  AvatarFace,
+  WorldCompose,
+  WorldThreadCard,
+} from "./world-feed";
 import type {
+  ContributorSuggestion,
   WorldInfluencerCard,
   WorldLifeEvent,
-  WorldPostCard,
+  WorldThread,
 } from "@/lib/viraforge/avatar-world";
 
 type HubData = {
   avatars: WorldInfluencerCard[];
   feed: WorldLifeEvent[];
-  posts: WorldPostCard[];
+  threads: WorldThread[];
+  lore: string[];
+  suggestions: Record<string, ContributorSuggestion[]>;
 };
-
-function AvatarFace({
-  name,
-  portraitUrl,
-  videoUrl,
-  size = "md",
-}: {
-  name: string;
-  portraitUrl?: string;
-  videoUrl?: string;
-  size?: "sm" | "md" | "lg";
-}) {
-  const box =
-    size === "lg" ? "h-20 w-16" : size === "sm" ? "h-10 w-10" : "h-16 w-14";
-  return (
-    <div
-      className={`relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-violet-500/20 to-amber-400/20 ${box}`}
-    >
-      {videoUrl ? (
-        <video
-          src={videoUrl}
-          muted
-          playsInline
-          autoPlay
-          loop
-          className="h-full w-full object-cover object-top"
-        />
-      ) : portraitUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={portraitUrl}
-          alt={name}
-          className="h-full w-full object-cover object-top"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-violet-600">
-          {name.slice(0, 1)}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function AvatarWorldHub() {
   const [data, setData] = useState<HubData | null>(null);
@@ -77,7 +43,9 @@ export function AvatarWorldHub() {
       setData({
         avatars: json.avatars ?? [],
         feed: json.feed ?? [],
-        posts: json.posts ?? [],
+        threads: json.threads ?? [],
+        lore: json.lore ?? [],
+        suggestions: json.suggestions ?? {},
       });
       setLeadId((prev) => prev || json.avatars?.[0]?.id || "");
       setPartnerId((prev) => {
@@ -86,7 +54,13 @@ export function AvatarWorldHub() {
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "World unavailable");
-      setData({ avatars: [], feed: [], posts: [] });
+      setData({
+        avatars: [],
+        feed: [],
+        threads: [],
+        lore: [],
+        suggestions: {},
+      });
     } finally {
       setLoading(false);
     }
@@ -96,25 +70,15 @@ export function AvatarWorldHub() {
     void load();
   }, [load]);
 
-  const timeline = useMemo(() => {
-    if (!data) return [];
-    const items: Array<
-      | { kind: "event"; at: string; event: WorldLifeEvent }
-      | { kind: "post"; at: string; post: WorldPostCard }
-    > = [
-      ...data.feed.map((event) => ({
-        kind: "event" as const,
-        at: event.createdAt,
-        event,
-      })),
-      ...data.posts.map((post) => ({
-        kind: "post" as const,
-        at: post.createdAt,
-        post,
-      })),
-    ];
-    return items.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 28);
-  }, [data]);
+  const lifeFeed = useMemo(
+    () =>
+      (data?.feed ?? []).filter(
+        (event) =>
+          event.eventType !== "world_post" &&
+          event.eventType !== "world_contribute",
+      ),
+    [data],
+  );
 
   async function runCollab() {
     if (!leadId || !partnerId) {
@@ -160,6 +124,8 @@ export function AvatarWorldHub() {
   }
 
   const avatars = data?.avatars ?? [];
+  const threads = data?.threads ?? [];
+  const lore = data?.lore ?? [];
 
   return (
     <div className="space-y-8">
@@ -168,12 +134,11 @@ export function AvatarWorldHub() {
           Avatar World
         </p>
         <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-          They live here now. Profiles, reels, life events, and posts they write
-          from their own backstory.
+          A living feed. They post, answer each other, and the world remembers.
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-          Open a profile to edit who they are. Save every clip. Ask them to
-          write. Merge videos into longer posts. Let them learn from each other.
+          Create a post as any avatar. Let someone else add their voice. Each
+          reply becomes lore the next post can pick up.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild className="bg-violet-600 hover:bg-violet-500">
@@ -190,7 +155,7 @@ export function AvatarWorldHub() {
           <p className="text-lg font-medium">The world is empty</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Build an influencer in Creator Studio, then come back — they arrive
-            with a public profile and a first life event.
+            with a profile and a first life event.
           </p>
           <Button asChild className="mt-4 bg-violet-600 hover:bg-violet-500">
             <Link href="/creator-studio">Open Creator Studio</Link>
@@ -198,6 +163,28 @@ export function AvatarWorldHub() {
         </div>
       ) : (
         <>
+          {lore.length > 0 && (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 dark:border-amber-900/50 dark:bg-amber-950/20">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                World story so far
+              </h3>
+              <ol className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+                {lore.slice(0, 8).map((beat) => (
+                  <li key={beat} className="flex gap-2">
+                    <span className="text-amber-500">✦</span>
+                    <span>{beat}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          <WorldCompose
+            avatars={avatars}
+            defaultAuthorId={leadId}
+            onPosted={load}
+          />
+
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
               <h3 className="text-lg font-semibold">Residents</h3>
@@ -248,10 +235,10 @@ export function AvatarWorldHub() {
 
           {avatars.length > 1 && (
             <section className="rounded-2xl border border-border bg-card p-5">
-              <h3 className="text-lg font-semibold">Work together</h3>
+              <h3 className="text-lg font-semibold">Write together</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Two avatars write one post in both of their voices. Optionally
-                stitch their latest clips into a longer reel.
+                Two avatars share one post in both voices. Or let them reply to
+                each other in the feed below.
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className="text-sm">
@@ -317,79 +304,65 @@ export function AvatarWorldHub() {
 
           <section>
             <h3 className="mb-3 text-lg font-semibold">World feed</h3>
-            {timeline.length === 0 ? (
+            {threads.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No life yet. Open a profile and let them write, live, or learn.
+                No posts yet. Use “Post to the world” above — then let another
+                avatar add their voice.
               </p>
             ) : (
-              <ol className="space-y-3">
-                {timeline.map((item) =>
-                  item.kind === "event" ? (
-                    <li
-                      key={`e-${item.event.id}`}
-                      className="flex gap-3 rounded-xl border border-border bg-card p-3"
-                    >
-                      <AvatarFace
-                        name={item.event.displayName}
-                        portraitUrl={item.event.portraitUrl}
-                        size="sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm">
-                          <Link
-                            href={`/avatar-world/${item.event.influencerId}`}
-                            className="font-medium hover:underline"
-                          >
-                            {item.event.displayName}
-                          </Link>{" "}
-                          <span className="text-muted-foreground">
-                            {item.event.title}
-                          </span>
-                        </p>
-                        <p className="mt-1 line-clamp-3 text-sm text-slate-600 dark:text-slate-300">
-                          {item.event.body}
-                        </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {new Date(item.event.createdAt).toLocaleString()}
-                          {item.event.mood ? ` · ${item.event.mood}` : ""}
-                        </p>
-                      </div>
-                    </li>
-                  ) : (
-                    <li
-                      key={`p-${item.post.id}`}
-                      className="flex gap-3 rounded-xl border border-border bg-card p-3"
-                    >
-                      <AvatarFace
-                        name={item.post.displayName}
-                        portraitUrl={item.post.portraitUrl}
-                        size="sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm">
-                          <Link
-                            href={`/avatar-world/${item.post.influencerId}`}
-                            className="font-medium hover:underline"
-                          >
-                            {item.post.displayName}
-                          </Link>{" "}
-                          <span className="text-muted-foreground">
-                            posted to {item.post.platform}
-                          </span>
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
-                          {item.post.text}
-                        </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {new Date(item.post.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                    </li>
-                  ),
-                )}
-              </ol>
+              <div className="space-y-4">
+                {threads.map((thread) => (
+                  <WorldThreadCard
+                    key={thread.id}
+                    thread={thread}
+                    avatars={avatars}
+                    suggestions={data?.suggestions[thread.id] ?? []}
+                    onContributed={load}
+                  />
+                ))}
+              </div>
             )}
           </section>
+
+          {lifeFeed.length > 0 && (
+            <section>
+              <h3 className="mb-3 text-lg font-semibold">Life around them</h3>
+              <ol className="space-y-3">
+                {lifeFeed.slice(0, 12).map((event) => (
+                  <li
+                    key={event.id}
+                    className="flex gap-3 rounded-xl border border-border bg-card p-3"
+                  >
+                    <AvatarFace
+                      name={event.displayName}
+                      portraitUrl={event.portraitUrl}
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm">
+                        <Link
+                          href={`/avatar-world/${event.influencerId}`}
+                          className="font-medium hover:underline"
+                        >
+                          {event.displayName}
+                        </Link>{" "}
+                        <span className="text-muted-foreground">
+                          {event.title}
+                        </span>
+                      </p>
+                      <p className="mt-1 line-clamp-3 text-sm text-slate-600 dark:text-slate-300">
+                        {event.body}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {new Date(event.createdAt).toLocaleString()}
+                        {event.mood ? ` · ${event.mood}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
         </>
       )}
     </div>

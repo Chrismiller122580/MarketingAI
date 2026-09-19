@@ -31,6 +31,7 @@ export const WORLD_EVENT_TYPES = [
   "world_collab",
   "world_merge",
   "world_post",
+  "world_contribute",
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];
@@ -43,7 +44,8 @@ export type LifeEventKind =
   | "collab"
   | "lesson"
   | "everyday"
-  | "create";
+  | "create"
+  | "reply";
 
 export type AvatarRelationshipKind =
   | "friend"
@@ -75,6 +77,7 @@ export type AvatarWorldProfile = {
   isPublic: boolean;
   relationships: AvatarRelationship[];
   learnedNotes: string[];
+  sharedLore: string[];
 };
 
 export type WorldLifeEvent = {
@@ -105,6 +108,23 @@ export type WorldPostCard = {
   videoUrl?: string;
   imageUrl?: string;
   createdAt: string;
+  parentPostId?: string;
+  rootPostId?: string;
+  worldBeat?: string;
+  isContribute?: boolean;
+};
+
+export type WorldThread = WorldPostCard & {
+  replies: WorldPostCard[];
+};
+
+export type ContributorSuggestion = {
+  influencerId: string;
+  displayName: string;
+  handle: string;
+  portraitUrl?: string;
+  reason: string;
+  score: number;
 };
 
 export const defaultWorldProfile: AvatarWorldProfile = {
@@ -123,6 +143,7 @@ export const defaultWorldProfile: AvatarWorldProfile = {
   isPublic: false,
   relationships: [],
   learnedNotes: [],
+  sharedLore: [],
 };
 
 export function parseWorldProfile(input: unknown): AvatarWorldProfile {
@@ -168,6 +189,11 @@ export function parseWorldProfile(input: unknown): AvatarWorldProfile {
           .filter((v): v is string => typeof v === "string")
           .slice(0, 16)
       : [],
+    sharedLore: Array.isArray(raw.sharedLore)
+      ? raw.sharedLore
+          .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+          .slice(0, 24)
+      : [],
   };
 }
 
@@ -201,6 +227,7 @@ export function hydrateWorldProfile(
     isPublic: existing.isPublic,
     relationships: existing.relationships,
     learnedNotes: existing.learnedNotes,
+    sharedLore: existing.sharedLore,
   };
 }
 
@@ -318,6 +345,8 @@ function defaultEventTitle(type: WorldEventType): string {
       return "Cut a longer reel";
     case "world_post":
       return "Published a post";
+    case "world_contribute":
+      return "Added to a post";
     default:
       return "A day in the world";
   }
@@ -338,6 +367,8 @@ export type WorldInfluencerCard = {
   videoCount: number;
   eventCount: number;
   postCount: number;
+  interests: string[];
+  relationshipIds: string[];
   updatedAt: string;
 };
 
@@ -377,6 +408,8 @@ export async function listWorldInfluencers(
       videoCount: row._count.renders,
       eventCount: row._count.learningEvents,
       postCount: row._count.posts,
+      interests: world.interests,
+      relationshipIds: world.relationships.map((rel) => rel.influencerId),
       updatedAt: row.updatedAt.toISOString(),
     };
   });
@@ -454,6 +487,7 @@ export function postToWorldCard(
     post.image && typeof post.image === "object"
       ? (post.image as { url?: string; videoUrl?: string })
       : {};
+  const thread = parseThreadInsights(post.insights);
   return {
     id: post.id,
     influencerId: post.influencerId,
@@ -466,7 +500,159 @@ export function postToWorldCard(
     videoUrl: image.videoUrl,
     imageUrl: image.url,
     createdAt: post.createdAt.toISOString(),
+    parentPostId: thread.parentPostId,
+    rootPostId: thread.rootPostId,
+    worldBeat: thread.worldBeat,
+    isContribute: thread.isContribute,
   };
+}
+
+const PARENT_PREFIX = "parent:";
+const ROOT_PREFIX = "root:";
+const LORE_PREFIX = "lore:";
+
+function parseThreadInsights(insights: string[]): {
+  parentPostId?: string;
+  rootPostId?: string;
+  worldBeat?: string;
+  isContribute: boolean;
+} {
+  let parentPostId: string | undefined;
+  let rootPostId: string | undefined;
+  let worldBeat: string | undefined;
+  let isContribute = false;
+  for (const item of insights) {
+    if (item === "contribute") isContribute = true;
+    if (item.startsWith(PARENT_PREFIX)) parentPostId = item.slice(PARENT_PREFIX.length);
+    if (item.startsWith(ROOT_PREFIX)) rootPostId = item.slice(ROOT_PREFIX.length);
+    if (item.startsWith(LORE_PREFIX)) worldBeat = item.slice(LORE_PREFIX.length);
+  }
+  return { parentPostId, rootPostId, worldBeat, isContribute };
+}
+
+export function assembleWorldThreads(posts: WorldPostCard[]): WorldThread[] {
+  const replies = posts.filter((post) => post.parentPostId);
+  const roots = posts
+    .filter((post) => !post.parentPostId)
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+
+  return roots.map((root) => ({
+    ...root,
+    replies: replies
+      .filter(
+        (reply) =>
+          reply.rootPostId === root.id || reply.parentPostId === root.id,
+      )
+      .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)),
+  }));
+}
+
+function tokenizeForMatch(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s#]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 3);
+}
+
+export function suggestContributors(
+  post: WorldPostCard,
+  avatars: WorldInfluencerCard[],
+  alreadyRepliedIds: string[] = [],
+): ContributorSuggestion[] {
+  const tokens = new Set(tokenizeForMatch(post.text));
+  const replied = new Set(alreadyRepliedIds);
+
+  return avatars
+    .filter(
+      (avatar) =>
+        avatar.id !== post.influencerId && !replied.has(avatar.id),
+    )
+    .map((avatar) => {
+      let score = 1;
+      const reasons: string[] = [];
+      if (avatar.relationshipIds.includes(post.influencerId)) {
+        score += 5;
+        reasons.push("already connected");
+      }
+      const overlapping = avatar.interests.filter((interest) =>
+        tokens.has(interest.toLowerCase()),
+      );
+      if (overlapping.length > 0) {
+        score += overlapping.length * 3;
+        reasons.push(`cares about ${overlapping[0]}`);
+      }
+      if (avatar.mood === "playful" || avatar.mood === "inspired") {
+        score += 1;
+      }
+      if (avatar.mood === "restless" || avatar.mood === "ambitious") {
+        score += 1;
+        reasons.push("has something to add");
+      }
+      return {
+        influencerId: avatar.id,
+        displayName: avatar.displayName,
+        handle: avatar.handle,
+        portraitUrl: avatar.portraitUrl,
+        reason: reasons[0] ?? "would continue this thread",
+        score,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+export async function collectWorldLore(userId: string): Promise<string[]> {
+  const rows = await prisma.influencer.findMany({
+    where: { userId },
+    select: { memory: true },
+    take: 50,
+  });
+  const beats: string[] = [];
+  for (const row of rows) {
+    const world = parseWorldProfile((row.memory as InfluencerMemory | null)?.world);
+    for (const beat of world.sharedLore) {
+      if (!beats.includes(beat)) beats.push(beat);
+    }
+  }
+  return beats.slice(0, 16);
+}
+
+export async function listWorldPosts(
+  userId: string,
+  limit = 40,
+): Promise<WorldPostCard[]> {
+  const postRows = await prisma.post.findMany({
+    where: { userId, influencerId: { not: null } },
+    include: {
+      influencer: {
+        select: { displayName: true, handle: true, assets: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  return postRows
+    .map((row) => postToWorldCard(row))
+    .filter((row): row is WorldPostCard => row !== null);
+}
+
+export async function loadWorldHub(userId: string) {
+  const [avatars, feed, posts, lore] = await Promise.all([
+    listWorldInfluencers(userId),
+    listWorldFeed(userId, 40),
+    listWorldPosts(userId, 50),
+    collectWorldLore(userId),
+  ]);
+  const threads = assembleWorldThreads(posts);
+  const suggestions: Record<string, ContributorSuggestion[]> = {};
+  for (const thread of threads.slice(0, 16)) {
+    suggestions[thread.id] = suggestContributors(
+      thread,
+      avatars,
+      thread.replies.map((reply) => reply.influencerId),
+    ).slice(0, 3);
+  }
+  return { avatars, feed, posts, threads, lore, suggestions };
 }
 
 export async function patchWorldProfile(
@@ -531,14 +717,26 @@ export async function generateBackstoryContent(input: {
     backstory: string;
     personalityVoice: string;
   };
+  worldLore?: string[];
+  neighborPosts?: { handle: string; text: string }[];
+  residents?: { displayName: string; handle: string; mood: string }[];
 }): Promise<{ text: string; usedAi: boolean }> {
   if (!hasAnyAiKey()) {
     return { text: fallbackWorldCopy(input), usedAi: false };
   }
 
   const eventLines = (input.recentEvents ?? [])
-    .slice(0, 5)
+    .slice(0, 6)
     .map((e) => `- ${e.title}: ${e.body}`)
+    .join("\n");
+  const loreLines = (input.worldLore ?? []).slice(0, 8).map((beat) => `- ${beat}`).join("\n");
+  const neighborLines = (input.neighborPosts ?? [])
+    .slice(0, 5)
+    .map((post) => `- @${post.handle}: ${post.text.slice(0, 160)}`)
+    .join("\n");
+  const residentLines = (input.residents ?? [])
+    .slice(0, 8)
+    .map((row) => `- ${row.displayName} (@${row.handle}), mood: ${row.mood}`)
     .join("\n");
 
   const systemPrompt = input.partner
@@ -547,10 +745,12 @@ Lead: ${input.persona.displayName} (@${input.persona.handle}). Voice: ${input.pe
 Partner: ${input.partner.displayName} (@${input.partner.handle}). Voice: ${input.partner.personalityVoice}
 
 Write as a single post that clearly sounds like both people — not a brand ad.
+Continue the world's existing story when lore or neighbor posts are provided.
 Return ONLY the post copy.`
     : `You are ${input.persona.displayName} (@${input.persona.handle}), a living influencer on the web.
 Voice: ${input.persona.personalityVoice}
 Write in first person. Sound like a real person with a life, not a brand mascot.
+Reference recent life, learned notes, and world lore when they fit — do not recap everything.
 Never invent product prices, specs, or health claims.
 Return ONLY the post copy.`;
 
@@ -561,10 +761,17 @@ Occupation: ${input.world.occupation || "creator"}
 City: ${input.world.currentCity || input.persona.location}
 Values: ${input.world.values.join(", ") || "none listed"}
 Goals: ${input.world.goals.join(", ") || "none listed"}
+Interests: ${input.world.interests.join(", ") || "none listed"}
 Catchphrase: ${input.world.catchphrase || input.persona.sampleQuote}
-Learned from others: ${input.world.learnedNotes.slice(0, 3).join(" | ") || "nothing yet"}
+Learned from others: ${input.world.learnedNotes.slice(0, 4).join(" | ") || "nothing yet"}
 Recent life:
 ${eventLines || "- A quiet day in the world"}
+World lore so far:
+${loreLines || "- The world is just getting started"}
+Other residents:
+${residentLines || "- They are mostly alone here"}
+What neighbors posted recently:
+${neighborLines || "- No other posts yet"}
 ${input.partner ? `\nPartner backstory: ${input.partner.backstory}` : ""}
 ${input.prompt ? `\nCreator brief: ${input.prompt}` : ""}
 Platform: ${input.platform ?? "instagram"}`;
@@ -635,6 +842,366 @@ export async function saveWorldPost(input: {
     },
   });
   return { id: saved.id };
+}
+
+const RELATIONSHIP_KINDS: AvatarRelationshipKind[] = [
+  "friend",
+  "collaborator",
+  "mentor",
+  "rival",
+];
+
+type ContributionDraft = {
+  text: string;
+  worldBeat: string;
+  mood?: string;
+  relationshipKind: AvatarRelationshipKind;
+  note?: string;
+};
+
+function parseContributionDraft(raw: string): ContributionDraft | null {
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  try {
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+    if (typeof parsed.text !== "string" || !parsed.text.trim()) return null;
+    const kind = RELATIONSHIP_KINDS.includes(parsed.relationshipKind as AvatarRelationshipKind)
+      ? (parsed.relationshipKind as AvatarRelationshipKind)
+      : "collaborator";
+    return {
+      text: parsed.text.trim(),
+      worldBeat:
+        typeof parsed.worldBeat === "string"
+          ? parsed.worldBeat.trim().slice(0, 240)
+          : "",
+      mood: typeof parsed.mood === "string" ? parsed.mood.trim().slice(0, 40) : undefined,
+      relationshipKind: kind,
+      note:
+        typeof parsed.note === "string" ? parsed.note.trim().slice(0, 120) : undefined,
+    };
+  } catch {
+    if (cleaned.length > 12 && !cleaned.startsWith("{")) {
+      return {
+        text: cleaned,
+        worldBeat: "",
+        relationshipKind: "collaborator",
+      };
+    }
+    return null;
+  }
+}
+
+function fallbackContribution(input: {
+  contributor: CreatorAvatarForm;
+  contributorWorld: AvatarWorldProfile;
+  authorHandle: string;
+  originalText: string;
+  brief?: string;
+}): ContributionDraft {
+  const hook =
+    input.contributorWorld.catchphrase || input.contributor.sampleQuote;
+  const beat =
+    input.brief?.trim() ||
+    `Picking up what @${input.authorHandle} started.`;
+  return {
+    text: `${hook}\n\n@${input.authorHandle} — ${beat}\n\n${input.originalText.split("\n")[0] ?? ""}\n\n— ${input.contributor.displayName}`,
+    worldBeat: `${input.contributor.displayName} answered @${input.authorHandle} and the thread grew.`,
+    relationshipKind: "collaborator",
+    note: "Building on the same post",
+  };
+}
+
+export async function loadWorldGenerationContext(userId: string): Promise<{
+  lore: string[];
+  neighborPosts: { handle: string; text: string }[];
+  residents: { displayName: string; handle: string; mood: string }[];
+}> {
+  const [lore, avatars, posts] = await Promise.all([
+    collectWorldLore(userId),
+    listWorldInfluencers(userId),
+    listWorldPosts(userId, 12),
+  ]);
+  return {
+    lore,
+    neighborPosts: posts
+      .filter((post) => !post.parentPostId)
+      .slice(0, 6)
+      .map((post) => ({ handle: post.handle, text: post.text })),
+    residents: avatars.map((avatar) => ({
+      displayName: avatar.displayName,
+      handle: avatar.handle,
+      mood: avatar.mood,
+    })),
+  };
+}
+
+async function appendSharedLore(
+  influencerId: string,
+  memory: unknown,
+  world: AvatarWorldProfile,
+  beat: string,
+  extra: Partial<AvatarWorldProfile> = {},
+): Promise<void> {
+  const sharedLore = [beat, ...world.sharedLore.filter((item) => item !== beat)].slice(
+    0,
+    24,
+  );
+  await prisma.influencer.update({
+    where: { id: influencerId },
+    data: {
+      memory: mergeInfluencerMemory(memory, {
+        world: { ...world, ...extra, sharedLore },
+      }),
+    },
+  });
+}
+
+export async function contributeToWorldPost(input: {
+  userId: string;
+  postId: string;
+  contributorId?: string;
+  brief?: string;
+  auto?: boolean;
+}): Promise<{
+  post: WorldPostCard;
+  worldBeat: string;
+  usedAi: boolean;
+  contributorId: string;
+}> {
+  const parentRow = await prisma.post.findFirst({
+    where: { id: input.postId, userId: input.userId },
+    include: {
+      influencer: true,
+    },
+  });
+  if (!parentRow?.influencerId || !parentRow.influencer) {
+    throw new Error("That post is not in your Avatar World");
+  }
+
+  const parentCard = postToWorldCard({
+    ...parentRow,
+    influencer: {
+      displayName: parentRow.influencer.displayName,
+      handle: parentRow.influencer.handle,
+      assets: parentRow.influencer.assets,
+    },
+  });
+  if (!parentCard) throw new Error("Could not read that post");
+
+  const rootId = parentCard.rootPostId || parentCard.id;
+  const avatars = await listWorldInfluencers(input.userId);
+  const existingReplies = (await listWorldPosts(input.userId, 80)).filter(
+    (post) => post.rootPostId === rootId || post.parentPostId === rootId,
+  );
+
+  let contributorId = input.contributorId;
+  if (input.auto || !contributorId) {
+    const suggestion = suggestContributors(
+      parentCard,
+      avatars,
+      existingReplies.map((reply) => reply.influencerId),
+    )[0];
+    contributorId = suggestion?.influencerId;
+  }
+  if (!contributorId) {
+    throw new Error("Need another avatar to add their voice");
+  }
+  if (contributorId === parentCard.influencerId) {
+    throw new Error("Pick a different avatar to build on this post");
+  }
+
+  const [contributorRow, authorRow] = await Promise.all([
+    prisma.influencer.findFirst({
+      where: { id: contributorId, userId: input.userId },
+    }),
+    prisma.influencer.findFirst({
+      where: { id: parentCard.influencerId, userId: input.userId },
+    }),
+  ]);
+  if (!contributorRow || !authorRow) {
+    throw new Error("Both avatars must belong to you");
+  }
+
+  const contributorPersona = parseCreatorAvatar(contributorRow.persona);
+  const authorPersona = parseCreatorAvatar(authorRow.persona);
+  if (!contributorPersona.success || !authorPersona.success) {
+    throw new Error("Avatar personas are incomplete");
+  }
+
+  const contributorWorld = hydrateWorldProfile(
+    contributorPersona.data,
+    (contributorRow.memory ?? {}) as InfluencerMemory,
+  );
+  const authorWorld = hydrateWorldProfile(
+    authorPersona.data,
+    (authorRow.memory ?? {}) as InfluencerMemory,
+  );
+
+  const lore = await collectWorldLore(input.userId);
+  const threadLines = [
+    `@${parentCard.handle}: ${parentCard.text}`,
+    ...existingReplies.map(
+      (reply) => `@${reply.handle}: ${reply.text.slice(0, 280)}`,
+    ),
+  ].join("\n\n");
+
+  let draft = fallbackContribution({
+    contributor: contributorPersona.data,
+    contributorWorld,
+    authorHandle: parentCard.handle,
+    originalText: parentCard.text,
+    brief: input.brief,
+  });
+  let usedAi = false;
+
+  if (hasAnyAiKey()) {
+    const generated =
+      (await chatCompletion(
+        `You are ${contributorPersona.data.displayName} (@${contributorPersona.data.handle}), a living influencer.
+Voice: ${contributorPersona.data.personalityVoice}
+You are contributing to someone else's post in a shared world. Do not copy them. Add a new beat: agree, challenge, continue the story, or bring your own life in.
+Write in first person. 2–6 short lines. Mention @${parentCard.handle} once if it feels natural.
+Return JSON only: { "text": string, "worldBeat": string, "mood": string, "relationshipKind": "friend"|"collaborator"|"mentor"|"rival", "note": string }
+worldBeat is one sentence describing what just happened in the world.`,
+        `Your backstory: ${contributorWorld.backstory}
+Your mood: ${contributorWorld.mood}${contributorWorld.moodNote ? ` — ${contributorWorld.moodNote}` : ""}
+Your interests: ${contributorWorld.interests.join(", ") || "none"}
+Learned notes: ${contributorWorld.learnedNotes.slice(0, 3).join(" | ") || "none"}
+World lore:
+${lore.slice(0, 8).map((beat) => `- ${beat}`).join("\n") || "- new world"}
+Thread so far:
+${threadLines}
+${input.brief ? `Creator direction: ${input.brief}` : "No extra direction — respond as yourself."}`,
+        { maxTokens: 420, temperature: 0.85, jsonMode: true },
+      )) ?? "";
+    const parsed = parseContributionDraft(generated);
+    if (parsed) {
+      draft = parsed;
+      usedAi = true;
+    }
+  }
+
+  const worldBeat =
+    draft.worldBeat ||
+    `${contributorRow.displayName} added to @${parentCard.handle}'s post.`;
+
+  const post = buildWorldGeneratedPost({
+    text: draft.text,
+    persona: contributorPersona.data,
+    influencerId: contributorRow.id,
+    portraitUrl: resolveInfluencerAssets(
+      (contributorRow.assets ?? {}) as InfluencerAssets,
+    ).portraitUrl,
+    videoUrl: resolveInfluencerAssets(
+      (contributorRow.assets ?? {}) as InfluencerAssets,
+    ).videoUrl,
+    insights: [
+      "avatar-world",
+      "contribute",
+      `${PARENT_PREFIX}${parentCard.id}`,
+      `${ROOT_PREFIX}${rootId}`,
+      `${LORE_PREFIX}${worldBeat}`,
+      `@${parentCard.handle}`,
+    ],
+  });
+
+  const saved = await saveWorldPost({
+    userId: input.userId,
+    influencerId: contributorRow.id,
+    post,
+  });
+
+  const contributorRels = upsertRelationship(contributorWorld.relationships, {
+    influencerId: authorRow.id,
+    handle: authorRow.handle,
+    displayName: authorRow.displayName,
+    kind: draft.relationshipKind,
+    note: draft.note || "Building on the same story",
+  });
+  const authorRels = upsertRelationship(authorWorld.relationships, {
+    influencerId: contributorRow.id,
+    handle: contributorRow.handle,
+    displayName: contributorRow.displayName,
+    kind:
+      draft.relationshipKind === "mentor" ? "friend" : draft.relationshipKind,
+    note: draft.note || "Their world overlapped",
+  });
+
+  await Promise.all([
+    appendSharedLore(contributorRow.id, contributorRow.memory, contributorWorld, worldBeat, {
+      relationships: contributorRels,
+      learnedNotes: [
+        `Replied to @${authorRow.handle}: ${worldBeat}`,
+        ...contributorWorld.learnedNotes,
+      ].slice(0, 16),
+      mood: draft.mood || contributorWorld.mood,
+    }),
+    appendSharedLore(authorRow.id, authorRow.memory, authorWorld, worldBeat, {
+      relationships: authorRels,
+      learnedNotes: [
+        `@${contributorRow.handle} built on my post.`,
+        ...authorWorld.learnedNotes,
+      ].slice(0, 16),
+    }),
+    recordWorldEvent({
+      userId: input.userId,
+      influencerId: contributorRow.id,
+      eventType: "world_contribute",
+      payload: {
+        kind: "reply",
+        title: `Added to @${parentCard.handle}'s post`,
+        body: draft.text.slice(0, 280),
+        mood: draft.mood || contributorWorld.mood,
+        relatedInfluencerId: authorRow.id,
+        relatedHandle: authorRow.handle,
+        postId: saved.id,
+        parentPostId: parentCard.id,
+        rootPostId: rootId,
+        worldBeat,
+      },
+    }),
+    recordWorldEvent({
+      userId: input.userId,
+      influencerId: authorRow.id,
+      eventType: "world_contribute",
+      payload: {
+        kind: "reply",
+        title: `@${contributorRow.handle} built on a post`,
+        body: worldBeat,
+        relatedInfluencerId: contributorRow.id,
+        relatedHandle: contributorRow.handle,
+        postId: saved.id,
+        parentPostId: parentCard.id,
+        rootPostId: rootId,
+        worldBeat,
+      },
+    }),
+  ]);
+
+  const savedRow = await prisma.post.findUnique({
+    where: { id: saved.id },
+    include: {
+      influencer: {
+        select: { displayName: true, handle: true, assets: true },
+      },
+    },
+  });
+  const card =
+    savedRow &&
+    postToWorldCard({
+      ...savedRow,
+      influencer: savedRow.influencer,
+    });
+  if (!card) throw new Error("Saved contribution but could not reload it");
+
+  return {
+    post: card,
+    worldBeat,
+    usedAi,
+    contributorId: contributorRow.id,
+  };
 }
 
 export async function learnFromAvatar(input: {
@@ -778,11 +1345,41 @@ export async function loadWorldDetail(userId: string, influencerId: string) {
 
   await ensureArrivalEvent(userId, influencer.id, persona);
 
-  const [events, renders, others] = await Promise.all([
+  const [events, renders, others, worldPosts] = await Promise.all([
     listInfluencerWorldEvents(userId, influencer.id, 60),
     listInfluencerRenders(userId, influencer.id, { limit: 100 }),
     listWorldInfluencers(userId),
+    listWorldPosts(userId, 80),
   ]);
+
+  const ownPosts = influencer.posts
+    .map((post) =>
+      postToWorldCard({
+        ...post,
+        influencer: {
+          displayName: influencer.displayName,
+          handle: influencer.handle,
+          assets: influencer.assets,
+        },
+      }),
+    )
+    .filter((row): row is WorldPostCard => row !== null);
+
+  const threads = assembleWorldThreads(worldPosts).filter(
+    (thread) =>
+      thread.influencerId === influencer.id ||
+      thread.replies.some((reply) => reply.influencerId === influencer.id),
+  );
+
+  const residents = others;
+  const suggestions: Record<string, ContributorSuggestion[]> = {};
+  for (const thread of threads.slice(0, 16)) {
+    suggestions[thread.id] = suggestContributors(
+      thread,
+      residents,
+      thread.replies.map((reply) => reply.influencerId),
+    ).slice(0, 3);
+  }
 
   return {
     id: influencer.id,
@@ -794,18 +1391,9 @@ export async function loadWorldDetail(userId: string, influencerId: string) {
     facts: factsFromRecord(influencer.productFacts),
     events,
     renders,
-    posts: influencer.posts
-      .map((post) =>
-        postToWorldCard({
-          ...post,
-          influencer: {
-            displayName: influencer.displayName,
-            handle: influencer.handle,
-            assets: influencer.assets,
-          },
-        }),
-      )
-      .filter((row): row is WorldPostCard => row !== null),
+    posts: ownPosts,
+    threads,
+    suggestions,
     others: others.filter((row) => row.id !== influencer.id),
     createdAt: influencer.createdAt.toISOString(),
     updatedAt: influencer.updatedAt.toISOString(),
@@ -822,6 +1410,7 @@ export type PublicWorldProfile = {
   events: WorldLifeEvent[];
   videos: InfluencerRenderRecord[];
   posts: WorldPostCard[];
+  threads: WorldThread[];
 };
 
 export async function loadPublicWorldProfile(
@@ -889,6 +1478,35 @@ export async function loadPublicWorldProfile(
     )
     .filter((row): row is WorldPostCard => row !== null);
 
+  const rootIds = posts.map((post) => post.id);
+  let threadPosts = posts;
+  if (rootIds.length > 0) {
+    const extras = await prisma.post.findMany({
+      where: {
+        userId: influencer.userId,
+        influencerId: { not: null },
+        OR: rootIds.flatMap((id) => [
+          { insights: { has: `${ROOT_PREFIX}${id}` } },
+          { insights: { has: `${PARENT_PREFIX}${id}` } },
+        ]),
+      },
+      include: {
+        influencer: {
+          select: { displayName: true, handle: true, assets: true },
+        },
+      },
+      take: 40,
+    });
+    const extraCards = extras
+      .map((row) => postToWorldCard(row))
+      .filter((row): row is WorldPostCard => row !== null);
+    const seen = new Set(threadPosts.map((post) => post.id));
+    threadPosts = [
+      ...threadPosts,
+      ...extraCards.filter((card) => !seen.has(card.id)),
+    ];
+  }
+
   return {
     id: influencer.id,
     displayName: influencer.displayName,
@@ -913,5 +1531,6 @@ export async function loadPublicWorldProfile(
       metadata: (row.metadata as Record<string, unknown> | null) ?? null,
     })),
     posts,
+    threads: assembleWorldThreads(threadPosts),
   };
 }

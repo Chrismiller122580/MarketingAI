@@ -6,6 +6,7 @@ import {
   buildWorldGeneratedPost,
   generateBackstoryContent,
   loadWorldDetail,
+  loadWorldGenerationContext,
   recordWorldEvent,
   saveWorldPost,
 } from "@/lib/viraforge/avatar-world";
@@ -73,6 +74,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Both avatars must exist" }, { status: 404 });
     }
 
+    const worldContext = await loadWorldGenerationContext(authResult);
+
     const generated = await generateBackstoryContent({
       persona: lead.persona,
       world: lead.world,
@@ -85,6 +88,9 @@ export async function POST(request: Request) {
         backstory: partner.world.backstory,
         personalityVoice: partner.persona.personalityVoice,
       },
+      worldLore: worldContext.lore,
+      neighborPosts: worldContext.neighborPosts,
+      residents: worldContext.residents,
     });
 
     let mergedVideoUrl: string | undefined;

@@ -5,11 +5,14 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton } from "./loading-indicator";
+import { WorldCompose, WorldThreadCard } from "./world-feed";
 import type {
   AvatarWorldProfile as WorldProfile,
+  ContributorSuggestion,
   WorldInfluencerCard,
   WorldLifeEvent,
   WorldPostCard,
+  WorldThread,
 } from "@/lib/viraforge/avatar-world";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { InfluencerAssets } from "@/lib/viraforge/influencer-assets";
@@ -25,6 +28,8 @@ type Detail = {
   events: WorldLifeEvent[];
   renders: InfluencerRenderRecord[];
   posts: WorldPostCard[];
+  threads?: WorldThread[];
+  suggestions?: Record<string, ContributorSuggestion[]>;
   others: WorldInfluencerCard[];
 };
 
@@ -94,9 +99,6 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [tab, setTab] = useState<Tab>("profile");
   const [selectedClips, setSelectedClips] = useState<string[]>([]);
   const [merging, setMerging] = useState(false);
-  const [prompt, setPrompt] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState("");
   const [eventTitle, setEventTitle] = useState("");
   const [eventBody, setEventBody] = useState("");
   const [eventKind, setEventKind] = useState("everyday");
@@ -161,27 +163,6 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
       toast.error(error instanceof Error ? error.message : "Save failed");
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function createContent() {
-    setCreating(true);
-    try {
-      const res = await fetch(`/api/avatar-world/${influencerId}/content`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, save: true, platform: "instagram" }),
-      });
-      const json = (await res.json()) as { text?: string; error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Could not write");
-      setDraft(json.text ?? "");
-      toast.success("Saved to their posts");
-      setPrompt("");
-      await load();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Write failed");
-    } finally {
-      setCreating(false);
     }
   }
 
@@ -537,6 +518,18 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
               </ul>
             </div>
           )}
+          {form.sharedLore.length > 0 && (
+            <div className="lg:col-span-2 rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                World they remember
+              </p>
+              <ul className="mt-2 space-y-2 text-sm">
+                {form.sharedLore.slice(0, 8).map((beat) => (
+                  <li key={beat}>✦ {beat}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 
@@ -705,55 +698,74 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
       )}
 
       {tab === "create" && (
-        <section className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-3 rounded-2xl border border-border bg-card p-5">
-            <p className="font-medium">Write from their backstory</p>
-            <p className="text-sm text-muted-foreground">
-              They draft in their own voice using mood, life events, and what
-              they've learned from other avatars.
-            </p>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ask them to talk about this week, a launch, or how they feel in this city…"
-              className="min-h-28 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-            <Button
-              className="bg-violet-600 hover:bg-violet-500"
-              disabled={creating}
-              onClick={() => void createContent()}
-            >
-              {creating ? (
-                <InlineLoading label="Writing…" />
-              ) : (
-                "Create and save post"
-              )}
-            </Button>
-            {draft && (
-              <pre className="whitespace-pre-wrap rounded-xl bg-muted/60 p-4 text-sm">
-                {draft}
-              </pre>
-            )}
-          </div>
-          <div className="space-y-3">
-            <p className="text-sm font-medium">Their recent posts</p>
-            {detail.posts.length === 0 ? (
+        <section className="space-y-6">
+          <WorldCompose
+            avatars={[
+              {
+                id: detail.id,
+                displayName: detail.displayName,
+                handle: detail.handle,
+                location: form.currentCity,
+                portraitUrl: detail.assets.portraitUrl,
+                videoUrl: detail.assets.videoUrl,
+                mood: form.mood,
+                moodNote: form.moodNote,
+                bio: form.bio,
+                occupation: form.occupation,
+                isPublic: form.isPublic,
+                videoCount: videos.length,
+                eventCount: detail.events.length,
+                postCount: detail.posts.length,
+                interests: form.interests,
+                relationshipIds: form.relationships.map((rel) => rel.influencerId),
+                updatedAt: "",
+              },
+            ]}
+            defaultAuthorId={detail.id}
+            onPosted={load}
+          />
+          <div>
+            <p className="mb-3 text-sm font-medium">Threads they're in</p>
+            {(detail.threads ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nothing published from this life yet.
+                Nothing from this life yet. Post above, then let another avatar
+                add their voice.
               </p>
             ) : (
-              detail.posts.map((post) => (
-                <article
-                  key={post.id}
-                  className="rounded-xl border border-border bg-card p-4 text-sm"
-                >
-                  <p className="whitespace-pre-wrap">{post.text}</p>
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    {post.platform} ·{" "}
-                    {new Date(post.createdAt).toLocaleString()}
-                  </p>
-                </article>
-              ))
+              <div className="space-y-4">
+                {(detail.threads ?? []).map((thread) => (
+                  <WorldThreadCard
+                    key={thread.id}
+                    thread={thread}
+                    avatars={[
+                      {
+                        id: detail.id,
+                        displayName: detail.displayName,
+                        handle: detail.handle,
+                        location: form.currentCity,
+                        portraitUrl: detail.assets.portraitUrl,
+                        videoUrl: detail.assets.videoUrl,
+                        mood: form.mood,
+                        moodNote: form.moodNote,
+                        bio: form.bio,
+                        occupation: form.occupation,
+                        isPublic: form.isPublic,
+                        videoCount: videos.length,
+                        eventCount: detail.events.length,
+                        postCount: detail.posts.length,
+                        interests: form.interests,
+                        relationshipIds: form.relationships.map(
+                          (rel) => rel.influencerId,
+                        ),
+                        updatedAt: "",
+                      },
+                      ...detail.others,
+                    ]}
+                    suggestions={detail.suggestions?.[thread.id] ?? []}
+                    onContributed={load}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </section>

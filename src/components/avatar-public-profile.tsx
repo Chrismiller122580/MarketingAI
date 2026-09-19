@@ -142,18 +142,40 @@ export function AvatarPublicProfile({
                   <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
                     Recent posts
                   </p>
-                  {profile.posts.map((post) => (
+                  {(profile.threads?.length ? profile.threads : profile.posts.map((post) => ({ ...post, replies: [] }))).map((thread) => (
                     <article
-                      key={post.id}
+                      key={thread.id}
                       className="rounded-2xl border border-white/10 bg-white/5 p-4"
                     >
-                      <p className="whitespace-pre-wrap text-sm text-zinc-100">
-                        {post.text}
+                      <p className="text-xs text-violet-200">
+                        @{thread.handle}
                       </p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-100">
+                        {thread.text}
+                      </p>
+                      {thread.worldBeat && (
+                        <p className="mt-2 text-xs italic text-amber-100/80">
+                          {thread.worldBeat}
+                        </p>
+                      )}
                       <p className="mt-2 text-[11px] text-zinc-500">
-                        {post.platform} ·{" "}
-                        {new Date(post.createdAt).toLocaleDateString()}
+                        {thread.platform} ·{" "}
+                        {new Date(thread.createdAt).toLocaleDateString()}
                       </p>
+                      {"replies" in thread &&
+                        thread.replies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            className="mt-3 border-l border-white/15 pl-3"
+                          >
+                            <p className="text-xs text-violet-200">
+                              @{reply.handle} added
+                            </p>
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-200">
+                              {reply.text}
+                            </p>
+                          </div>
+                        ))}
                     </article>
                   ))}
                 </div>
@@ -207,6 +229,19 @@ export function AvatarPublicProfile({
                   <ul className="mt-3 space-y-2 text-sm text-zinc-300">
                     {profile.world.learnedNotes.slice(0, 5).map((note) => (
                       <li key={note}>“{note}”</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {profile.world.sharedLore.length > 0 && (
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                    World story
+                  </p>
+                  <ul className="mt-3 space-y-2 text-sm text-zinc-300">
+                    {profile.world.sharedLore.slice(0, 6).map((beat) => (
+                      <li key={beat}>✦ {beat}</li>
                     ))}
                   </ul>
                 </div>

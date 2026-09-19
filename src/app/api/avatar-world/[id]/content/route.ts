@@ -6,6 +6,7 @@ import {
   buildWorldGeneratedPost,
   generateBackstoryContent,
   loadWorldDetail,
+  loadWorldGenerationContext,
   recordWorldEvent,
   saveWorldPost,
 } from "@/lib/viraforge/avatar-world";
@@ -58,6 +59,8 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Avatar not found" }, { status: 404 });
     }
 
+    const worldContext = await loadWorldGenerationContext(authResult);
+
     const generated = await generateBackstoryContent({
       persona: detail.persona,
       world: detail.world,
@@ -65,6 +68,13 @@ export async function POST(request: Request, context: RouteContext) {
       recentEvents: detail.events,
       prompt: parsed.data.prompt,
       platform: parsed.data.platform,
+      worldLore: worldContext.lore,
+      neighborPosts: worldContext.neighborPosts.filter(
+        (post) => post.handle !== detail.handle,
+      ),
+      residents: worldContext.residents.filter(
+        (row) => row.handle !== detail.handle,
+      ),
     });
 
     const post = buildWorldGeneratedPost({
