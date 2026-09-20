@@ -490,6 +490,14 @@ export type PublicWorldCard = {
   videoUrl?: string;
 };
 
+export type PublicTownResident = PublicWorldCard & {
+  street: string;
+  employer: string;
+  isPublic: boolean;
+  keepPlace?: string;
+  keepPlaceKind?: "bank" | "market" | "rooms" | "shop";
+};
+
 export async function listPublicWorldAvatars(): Promise<PublicWorldCard[]> {
   const admins = await prisma.user.findMany({
     where: { role: "admin" },
@@ -520,37 +528,111 @@ export async function listPublicWorldAvatars(): Promise<PublicWorldCard[]> {
 }
 
 export type PublicWorldTown = {
-  avatars: PublicWorldCard[];
+  avatars: PublicTownResident[];
+  residents: PublicTownResident[];
   economy: {
     currencyLabel: string;
     treasury: number;
     listings: WorldEconomySnapshot["listings"];
     places: WorldEconomySnapshot["places"];
   } | null;
+  threads: WorldThread[];
+  chats: WorldChatCard[];
+  lore: string[];
+  lastTickAt: string | null;
+  livedToday: boolean;
 };
 
+const EMPTY_PUBLIC_TOWN: PublicWorldTown = {
+  avatars: [],
+  residents: [],
+  economy: null,
+  threads: [],
+  chats: [],
+  lore: [],
+  lastTickAt: null,
+  livedToday: false,
+};
+
+function isOwnerlessWorldPost(post: WorldPostCard): boolean {
+  return (
+    post.insights.includes("avatar-world") ||
+    post.insights.includes("ownerless") ||
+    post.insights.includes("backstory")
+  );
+}
+
 export async function listPublicWorldTown(): Promise<PublicWorldTown> {
-  const avatars = await listPublicWorldAvatars();
   const admins = await prisma.user.findMany({
     where: { role: "admin" },
     select: { id: true },
     take: 20,
   });
+  if (admins.length === 0) return EMPTY_PUBLIC_TOWN;
+
   for (const admin of admins) {
     const owned = await prisma.influencer.count({ where: { userId: admin.id } });
     if (owned === 0) continue;
-    const snap = await loadWorldEconomy(admin.id);
+
+    const [hubAvatars, posts, chats, lore, lastTickAt, snap] = await Promise.all([
+      listWorldInfluencers(admin.id),
+      listWorldPosts(admin.id, 40),
+      listWorldChats(admin.id, 10),
+      collectWorldLore(admin.id),
+      getLastWorldTick(admin.id),
+      loadWorldEconomy(admin.id),
+    ]);
+
+    const keepById = new Map(
+      snap.places
+        .filter((place) => place.keeperId)
+        .map((place) => [place.keeperId!, place] as const),
+    );
+    const byAccount = new Map(
+      snap.accounts.map((row) => [row.influencerId, row] as const),
+    );
+
+    const residents: PublicTownResident[] = hubAvatars.map((row) => {
+      const keep = keepById.get(row.id);
+      const account = byAccount.get(row.id);
+      return {
+        id: row.id,
+        displayName: row.displayName,
+        handle: row.handle,
+        occupation: row.occupation,
+        location: row.location,
+        bio: row.bio,
+        mood: row.mood,
+        portraitUrl: row.portraitUrl,
+        videoUrl: row.videoUrl,
+        street: row.street,
+        employer: account?.employer || row.employer,
+        isPublic: row.isPublic,
+        keepPlace: keep?.name,
+        keepPlaceKind: keep?.kind,
+      };
+    });
+
+    const worldPosts = posts.filter(isOwnerlessWorldPost);
+
     return {
-      avatars,
+      avatars: residents.filter((row) => row.isPublic),
+      residents,
       economy: {
         currencyLabel: snap.currencyLabel,
         treasury: snap.treasury,
-        listings: snap.listings.filter((row) => row.status === "open").slice(0, 8),
+        listings: snap.listings.slice(0, 12),
         places: snap.places,
       },
+      threads: assembleWorldThreads(worldPosts).slice(0, 12),
+      chats,
+      lore: lore.slice(0, 8),
+      lastTickAt,
+      livedToday: tickedToday(lastTickAt),
     };
   }
-  return { avatars, economy: null };
+
+  return EMPTY_PUBLIC_TOWN;
 }
 
 export async function findUsableInfluencer(userId: string, influencerId: string) {
@@ -2033,6 +2115,12 @@ export type PublicWorldProfile = {
   videos: InfluencerRenderRecord[];
   posts: WorldPostCard[];
   threads: WorldThread[];
+  street: string;
+  keepPlace?: string;
+  keepPlaceKind?: "bank" | "market" | "rooms" | "shop";
+  nearby: PublicTownResident[];
+  chats: WorldChatCard[];
+  publicIds: string[];
 };
 
 export async function loadPublicWorldProfile(
@@ -2129,6 +2217,23 @@ export async function loadPublicWorldProfile(
     ];
   }
 
+  const town = await listPublicWorldTown();
+  const self = town.residents.find((row) => row.id === influencer.id);
+  const street =
+    self?.street ||
+    streetForOccupation(
+      world.occupation,
+      world.currentCity || persona.location,
+    );
+  const chats = town.chats
+    .filter((chat) =>
+      chat.turns.some((turn) => turn.influencerId === influencer.id),
+    )
+    .slice(0, 6);
+  const nearby = town.residents
+    .filter((row) => row.id !== influencer.id && row.street === street)
+    .slice(0, 6);
+
   return {
     id: influencer.id,
     displayName: influencer.displayName,
@@ -2154,5 +2259,11 @@ export async function loadPublicWorldProfile(
     })),
     posts,
     threads: assembleWorldThreads(threadPosts),
+    street,
+    keepPlace: self?.keepPlace,
+    keepPlaceKind: self?.keepPlaceKind,
+    nearby,
+    chats,
+    publicIds: town.avatars.map((row) => row.id),
   };
 }

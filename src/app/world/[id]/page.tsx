@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { AvatarPublicProfile } from "@/components/avatar-public-profile";
 import { loadPublicWorldProfile } from "@/lib/viraforge/avatar-world";
 
+export const dynamic = "force-dynamic";
+
 type PageProps = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({

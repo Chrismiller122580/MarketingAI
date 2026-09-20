@@ -428,7 +428,7 @@ export function AvatarWorldHub() {
             {liveBusy ? <InlineLoading label="Living today…" /> : "Live today"}
           </Button>
           <Button asChild variant="ghost">
-            <Link href="/world">Public gallery</Link>
+            <Link href="/world">Public town</Link>
           </Button>
           <Button asChild variant="ghost">
             <Link href="/creator-studio">Give someone a face</Link>

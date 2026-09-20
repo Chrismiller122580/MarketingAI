@@ -5,6 +5,7 @@ type BrandLogoProps = {
   size?: "sm" | "md";
   className?: string;
   onClick?: () => void;
+  onDark?: boolean;
 };
 
 const sizes = {
@@ -17,6 +18,7 @@ export function BrandLogo({
   size = "sm",
   className = "",
   onClick,
+  onDark = false,
 }: BrandLogoProps) {
   const s = sizes[size];
 
@@ -29,7 +31,9 @@ export function BrandLogo({
         C
       </div>
       <span
-        className={`truncate font-semibold tracking-tight text-slate-900 dark:text-slate-100 ${s.label}`}
+        className={`truncate font-semibold tracking-tight ${
+          onDark ? "text-white" : "text-slate-900 dark:text-slate-100"
+        } ${s.label}`}
       >
         crawlspark.ai
       </span>
