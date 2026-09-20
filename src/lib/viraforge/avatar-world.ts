@@ -20,10 +20,8 @@ import {
   listInfluencerRenders,
   type InfluencerRenderRecord,
 } from "./influencer-renders";
-import {
-  mergeInfluencerMemory,
-  type InfluencerMemory,
-} from "./learning";
+import { mergeInfluencerMemory, type InfluencerMemory } from "./learning";
+import { loadWorldEconomy } from "./world-economy";
 
 export const WORLD_EVENT_TYPES = [
   "life_event",
@@ -35,6 +33,9 @@ export const WORLD_EVENT_TYPES = [
   "world_tick",
   "world_spawn",
   "world_chat",
+  "world_wage",
+  "world_listing",
+  "world_sale",
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];
@@ -49,7 +50,10 @@ export type LifeEventKind =
   | "everyday"
   | "create"
   | "reply"
-  | "chat";
+  | "chat"
+  | "wage"
+  | "listing"
+  | "sale";
 
 export type AvatarRelationshipKind =
   | "friend"
@@ -373,6 +377,12 @@ function defaultEventTitle(type: WorldEventType): string {
       return "A new resident arrived";
     case "world_chat":
       return "Talked with a neighbor";
+    case "world_wage":
+      return "Got paid";
+    case "world_listing":
+      return "Put something up for sale";
+    case "world_sale":
+      return "Bought something";
     default:
       return "A day in the world";
   }
@@ -395,6 +405,9 @@ export type WorldInfluencerCard = {
   postCount: number;
   interests: string[];
   relationshipIds: string[];
+  balance: number;
+  wage: number;
+  employer: string;
   updatedAt: string;
 };
 
@@ -436,6 +449,9 @@ export async function listWorldInfluencers(
       postCount: row._count.posts,
       interests: world.interests,
       relationshipIds: world.relationships.map((rel) => rel.influencerId),
+      balance: 0,
+      wage: 0,
+      employer: "",
       updatedAt: row.updatedAt.toISOString(),
     };
   });
@@ -719,24 +735,47 @@ export async function listWorldPosts(
 }
 
 export async function loadWorldHub(userId: string) {
-  const [avatars, feed, posts, lore, lastTickAt, chats] = await Promise.all([
+  const [avatars, feed, posts, lore, lastTickAt, chats, economy] = await Promise.all([
     listWorldInfluencers(userId),
     listWorldFeed(userId, 40),
     listWorldPosts(userId, 50),
     collectWorldLore(userId),
     getLastWorldTick(userId),
     listWorldChats(userId, 12),
+    loadWorldEconomy(userId),
   ]);
+  const byAccount = new Map(
+    economy.accounts.map((row) => [row.influencerId, row]),
+  );
+  const withMoney = avatars.map((avatar) => {
+    const account = byAccount.get(avatar.id);
+    return {
+      ...avatar,
+      balance: account?.balance ?? 0,
+      wage: account?.wage ?? 0,
+      employer: account?.employer ?? "",
+    };
+  });
   const threads = assembleWorldThreads(posts);
   const suggestions: Record<string, ContributorSuggestion[]> = {};
   for (const thread of threads.slice(0, 16)) {
     suggestions[thread.id] = suggestContributors(
       thread,
-      avatars,
+      withMoney,
       thread.replies.map((reply) => reply.influencerId),
     ).slice(0, 3);
   }
-  return { avatars, feed, posts, threads, lore, suggestions, lastTickAt, chats };
+  return {
+    avatars: withMoney,
+    feed,
+    posts,
+    threads,
+    lore,
+    suggestions,
+    lastTickAt,
+    chats,
+    economy,
+  };
 }
 
 export async function getLastWorldTick(

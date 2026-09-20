@@ -280,3 +280,47 @@ model Payment {
   confirmedAt             DateTime?
   createdAt               DateTime  @default(now())
 }
+
+model WorldAccount {
+  id           String   @id @default(cuid())
+  userId       String
+  influencerId String
+  balance      Int      @default(0)
+  wage         Int      @default(40)
+  employer     String   @default("the city")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, influencerId])
+  @@index([userId])
+}
+
+model WorldListing {
+  id        String   @id @default(cuid())
+  userId    String
+  sellerId  String
+  buyerId   String?
+  title     String
+  body      String   @db.Text
+  kind      String
+  price     Int
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+model WorldTransfer {
+  id        String   @id @default(cuid())
+  userId    String
+  fromId    String?
+  toId      String?
+  amount    Int
+  kind      String
+  listingId String?
+  note      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

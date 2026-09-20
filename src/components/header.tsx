@@ -28,7 +28,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   },
   "/avatar-world": {
     title: "Avatar World",
-    subtitle: "Admin only. Invite residents, then allow the ones the public can use.",
+    subtitle: "Admin only. Quick-create residents, then allow the ones the public can use.",
   },
   "/analytics": {
     title: "Analytics",
@@ -67,7 +67,7 @@ export function Header({
     (pathname.startsWith("/avatar-world")
       ? {
           title: "Avatar World",
-          subtitle: "Admin only. Invite residents, then allow the ones the public can use.",
+          subtitle: "Admin only. Quick-create residents, then allow the ones the public can use.",
         }
       : pageTitles["/dashboard"]);
 

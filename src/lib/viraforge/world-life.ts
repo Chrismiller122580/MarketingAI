@@ -26,8 +26,14 @@ import {
 } from "./avatar-world";
 import { generateNames, handleFromName } from "./avatar-name-generator";
 import { upsertInfluencerWithFacts } from "./learning";
+import {
+  ensureResidentAccount,
+  jobForOccupation,
+  JOB_TITLES,
+  runEconomyDay,
+} from "./world-economy";
 
-const MAX_RESIDENTS = 24;
+const MAX_RESIDENTS = 40;
 const MOODS = [
   { mood: "inspired", note: "Something small clicked this morning." },
   { mood: "restless", note: "Can't sit still — the city is too loud." },
@@ -492,6 +498,9 @@ export type WorldDayResult = {
   chatBeats: string[];
   beat?: string;
   moodsUpdated: number;
+  wages?: number;
+  listings?: number;
+  sales?: number;
 };
 
 export type SpawnResult = {
@@ -504,6 +513,17 @@ export type SpawnResult = {
   introPostId?: string;
   introReplyName?: string;
   chatBeat?: string;
+  balance?: number;
+  wage?: number;
+};
+
+export type QuickCreateHint = {
+  name?: string;
+  occupation?: string;
+  location?: string;
+  gender?: CreatorAvatarForm["gender"];
+  vibe?: string;
+  welcome?: boolean;
 };
 
 function hashString(value: string): number {
@@ -627,7 +647,31 @@ function asStringList(value: unknown, fallback: string[], max: number): string[]
   return next.length > 0 ? next : fallback.slice(0, max);
 }
 
-function pickArchetype(avatars: WorldInfluencerCard[], salt: number): ResidentArchetype {
+function pickArchetype(
+  avatars: WorldInfluencerCard[],
+  salt: number,
+  hint?: QuickCreateHint,
+): ResidentArchetype {
+  if (hint?.occupation?.trim()) {
+    const q = hint.occupation.trim().toLowerCase();
+    const match = ARCHETYPES.find(
+      (arch) =>
+        arch.occupation.toLowerCase() === q ||
+        arch.occupation.toLowerCase().includes(q) ||
+        q.includes(arch.occupation.toLowerCase()),
+    );
+    const base = match ?? ARCHETYPES[salt % ARCHETYPES.length]!;
+    return {
+      ...base,
+      occupation: hint.occupation.trim(),
+      location: hint.location?.trim() || base.location,
+      gender: hint.gender ?? base.gender,
+      culturalNotes: hint.vibe?.trim()
+        ? `${base.culturalNotes}. ${hint.vibe.trim()}`
+        : base.culturalNotes,
+    };
+  }
+
   const usedLocations = new Set(
     avatars.map((row) => row.location.split(",")[0]?.trim().toLowerCase()),
   );
@@ -640,13 +684,20 @@ function pickArchetype(avatars: WorldInfluencerCard[], salt: number): ResidentAr
     if (city && !usedLocations.has(city)) score += 8;
     if (!usedOccupations.has(arch.occupation.toLowerCase())) score += 6;
     const genderCount = avatars.filter((row) => {
-      // location/occupation diversity matters more than gender guess from name
       return row.occupation.toLowerCase().includes(arch.occupation.split(" ")[0] ?? "");
     }).length;
     score -= genderCount;
     return { arch, score: score + index * 0.01 };
   }).sort((a, b) => b.score - a.score);
-  return ranked[0]?.arch ?? ARCHETYPES[salt % ARCHETYPES.length]!;
+  const picked = ranked[0]?.arch ?? ARCHETYPES[salt % ARCHETYPES.length]!;
+  return {
+    ...picked,
+    location: hint?.location?.trim() || picked.location,
+    gender: hint?.gender ?? picked.gender,
+    culturalNotes: hint?.vibe?.trim()
+      ? `${picked.culturalNotes}. ${hint.vibe.trim()}`
+      : picked.culturalNotes,
+  };
 }
 
 function personaFromArchetype(
@@ -761,6 +812,10 @@ export async function liveWorldDay(input: {
   const dayKey = utcDayKey();
   const moodsUpdated = await applyDayMoods(input.userId, avatars, dayKey);
   const refreshed = await listWorldInfluencers(input.userId);
+  const economy = await runEconomyDay({
+    userId: input.userId,
+    avatars: refreshed,
+  });
   const posts = await listWorldPosts(input.userId, 50);
   const posterCount =
     refreshed.length <= 1 ? 1 : refreshed.length <= 4 ? 2 : 3;
@@ -780,7 +835,7 @@ export async function liveWorldDay(input: {
       autonomous: true,
       scene: `A new day (${dayKey}). You woke up ${detail.world.mood}${
         detail.world.moodNote ? ` — ${detail.world.moodNote}` : ""
-      }. Live it as yourself. Do not wait for instructions. Do not represent a brand.`,
+      }. You have a job. People buy and sell things in Sparks. Live it as yourself. Do not wait for instructions. Do not represent a brand.`,
       worldLore: worldContext.lore,
       neighborPosts: worldContext.neighborPosts.filter(
         (post) => post.handle !== detail.handle,
@@ -867,6 +922,7 @@ export async function liveWorldDay(input: {
     posterNames.length > 0 ? `${posterNames.join(", ")} posted.` : "",
     replyNames.length > 0 ? `${replyNames.join(", ")} answered.` : "",
     chatBeats.length > 0 ? chatBeats.join(" ") : "",
+    economy.beat,
   ].filter(Boolean);
   const beat = beatParts.join(" ") || `${posted[0]!.name} posted into a quiet morning.`;
 
@@ -899,6 +955,9 @@ export async function liveWorldDay(input: {
     chatBeats,
     beat,
     moodsUpdated,
+    wages: economy.wages,
+    listings: economy.listings,
+    sales: economy.sales,
   };
 }
 
@@ -989,7 +1048,10 @@ function mergePersonaDraft(
   };
 }
 
-async function draftDiversePersona(userId: string): Promise<{
+async function draftDiversePersona(
+  userId: string,
+  hint?: QuickCreateHint,
+): Promise<{
   persona: CreatorAvatarForm;
   extras: ReturnType<typeof worldFromArchetype>;
   usedAi: boolean;
@@ -997,7 +1059,7 @@ async function draftDiversePersona(userId: string): Promise<{
 }> {
   const avatars = await listWorldInfluencers(userId);
   const salt = Date.now() + avatars.length * 97;
-  const arch = pickArchetype(avatars, salt);
+  const arch = pickArchetype(avatars, salt, hint);
   const names = generateNames({
     location: arch.location,
     gender: arch.gender,
@@ -1005,12 +1067,14 @@ async function draftDiversePersona(userId: string): Promise<{
     salt,
   });
   const taken = new Set(avatars.map((row) => row.handle.toLowerCase()));
-  const name =
-    names.find((row) => !taken.has(row.handle.toLowerCase())) ??
-    names[0] ?? {
-      full: `${arch.occupation} Resident`,
-      handle: handleFromName(arch.occupation),
-    };
+  const hintedName = hint?.name?.trim();
+  const name = hintedName
+    ? { full: hintedName.slice(0, 80), handle: handleFromName(hintedName) }
+    : names.find((row) => !taken.has(row.handle.toLowerCase())) ??
+      names[0] ?? {
+        full: `${arch.occupation} Resident`,
+        handle: handleFromName(arch.occupation),
+      };
   const seed = personaFromArchetype(arch, {
     full: name.full,
     handle: name.handle,
@@ -1032,9 +1096,9 @@ async function draftDiversePersona(userId: string): Promise<{
       `You invent a living person who will move into a shared world. They do not duplicate the existing residents.
 Return JSON only with keys:
 displayName, handle, gender ("female"|"male"|"nonbinary"), age (18-80), bodyType (0-100), height, faceShape, hair, location, neighborhoods, ageRangeShown, religion, socialClass, wardrobe, culturalNotes, personalityVoice, sampleQuote, occupation, bio, backstory, hometown, currentCity, values (string[]), goals (string[]), interests (string[]), mood, moodNote, catchphrase.
-They must be 18+. Different city, job, culture, class, and faith from the roster. Handle is camelCase alphanumeric. personalityVoice at least 20 characters.
-They have no product, no company, no campaign, no audience. Not a brand mascot. Not a spokesperson.`,
-      `Fill a gap. Seed to remix (you may change name/city/job if it improves diversity):
+They must be 18+. Different city, job, culture, class, and faith from the roster unless a hint forces a job or city. Handle is camelCase alphanumeric. personalityVoice at least 20 characters.
+They have no product, no company, no campaign, no audience. Not a brand mascot. Not a spokesperson. They work a real job and spend real-world money in Sparks.`,
+      `Fill a gap. Honor any hints. Seed to remix:
 ${JSON.stringify({
   displayName: seed.displayName,
   handle: seed.handle,
@@ -1042,24 +1106,40 @@ ${JSON.stringify({
   location: arch.location,
   gender: seed.gender,
   age: seed.age,
+  vibe: hint?.vibe?.trim() || undefined,
 })}
 Existing residents:
-${roster || "- none yet — invent someone vivid"}`,
+${roster || "- none yet — invent someone vivid"}
+Jobs already in this world: ${JOB_TITLES.join(", ")}`,
       { maxTokens: 700, temperature: 0.95, jsonMode: true },
     )) ?? "";
 
   const raw = parseJsonObject(generated);
   const merged = mergePersonaDraft(arch, seed, raw);
+  if (hintedName) {
+    merged.persona.displayName = hintedName.slice(0, 80);
+  }
+  if (hint?.occupation?.trim()) {
+    merged.extras.occupation = hint.occupation.trim().slice(0, 80);
+  }
+  if (hint?.location?.trim()) {
+    merged.persona.location = hint.location.trim().slice(0, 120);
+    merged.extras.currentCity =
+      hint.location.split(",")[0]?.trim() || merged.extras.currentCity;
+  }
   return { ...merged, usedAi: Boolean(raw), archetype: arch };
 }
 
-export async function spawnDiverseResident(userId: string): Promise<SpawnResult> {
+export async function spawnDiverseResident(
+  userId: string,
+  hint?: QuickCreateHint,
+): Promise<SpawnResult> {
   const existing = await prisma.influencer.count({ where: { userId } });
   if (existing >= MAX_RESIDENTS) {
     throw new Error(`This world is full (${MAX_RESIDENTS} residents).`);
   }
 
-  const draft = await draftDiversePersona(userId);
+  const draft = await draftDiversePersona(userId, hint);
   const handle = await uniqueHandle(userId, draft.persona.handle);
   const persona: CreatorAvatarForm = { ...draft.persona, handle };
   const parsed = parseCreatorAvatar({ ...defaultCreatorAvatarValues, ...persona });
@@ -1080,6 +1160,13 @@ export async function spawnDiverseResident(userId: string): Promise<SpawnResult>
   await ensureArrivalEvent(userId, influencerId, parsed.data);
 
   const occupation = draft.extras.occupation || "resident";
+  const account = await ensureResidentAccount({
+    userId,
+    influencerId,
+    occupation,
+  });
+  const job = jobForOccupation(occupation);
+
   await recordWorldEvent({
     userId,
     influencerId,
@@ -1087,7 +1174,7 @@ export async function spawnDiverseResident(userId: string): Promise<SpawnResult>
     payload: {
       kind: "arrived",
       title: "A new resident arrived",
-      body: `${parsed.data.displayName} (${occupation}) showed up from ${parsed.data.location}.`,
+      body: `${parsed.data.displayName} (${occupation}) showed up from ${parsed.data.location} with ${account.balance} Sparks and a job at ${job.employer}.`,
       mood: draft.extras.mood || "curious",
       occupation,
       location: parsed.data.location,
@@ -1097,7 +1184,10 @@ export async function spawnDiverseResident(userId: string): Promise<SpawnResult>
   const beat = `${parsed.data.displayName} arrived from ${parsed.data.location} as a ${occupation}.`;
   await rememberWorldBeat(userId, beat);
 
-  const welcome = await welcomeResident(userId, influencerId);
+  const shouldWelcome = hint?.welcome !== false;
+  const welcome = shouldWelcome
+    ? await welcomeResident(userId, influencerId)
+    : {};
 
   return {
     influencerId,
@@ -1109,6 +1199,34 @@ export async function spawnDiverseResident(userId: string): Promise<SpawnResult>
     introPostId: welcome.introPostId,
     introReplyName: welcome.introReplyName,
     chatBeat: welcome.chatBeat,
+    balance: account.balance,
+    wage: account.wage,
+  };
+}
+
+export async function quickCreateResidents(
+  userId: string,
+  hint: QuickCreateHint & { count?: number } = {},
+): Promise<{ created: SpawnResult[]; remaining: number }> {
+  const count = Math.min(5, Math.max(1, hint.count ?? 1));
+  const existing = await prisma.influencer.count({ where: { userId } });
+  const remaining = Math.max(0, MAX_RESIDENTS - existing);
+  if (remaining === 0) {
+    throw new Error(`This world is full (${MAX_RESIDENTS} residents).`);
+  }
+  const want = Math.min(count, remaining);
+  const created: SpawnResult[] = [];
+  for (let i = 0; i < want; i += 1) {
+    const welcome = hint.welcome === true || (hint.welcome !== false && want === 1);
+    const result = await spawnDiverseResident(userId, {
+      ...hint,
+      welcome,
+    });
+    created.push(result);
+  }
+  return {
+    created,
+    remaining: remaining - created.length,
   };
 }
 

@@ -19,6 +19,29 @@ import type {
   WorldThread,
 } from "@/lib/viraforge/avatar-world";
 
+type WorldEconomySnapshot = {
+  currencyLabel: string;
+  treasury: number;
+  jobTitles: string[];
+  accounts: Array<{
+    influencerId: string;
+    displayName: string;
+    balance: number;
+    wage: number;
+    employer: string;
+  }>;
+  listings: Array<{
+    id: string;
+    sellerName: string;
+    title: string;
+    body: string;
+    kind: string;
+    price: number;
+    status: string;
+    buyerName?: string;
+  }>;
+};
+
 type HubData = {
   avatars: WorldInfluencerCard[];
   feed: WorldLifeEvent[];
@@ -27,6 +50,7 @@ type HubData = {
   suggestions: Record<string, ContributorSuggestion[]>;
   lastTickAt: string | null;
   chats: WorldChat[];
+  economy: WorldEconomySnapshot | null;
 };
 
 function livedToday(iso: string | null): boolean {
@@ -51,6 +75,11 @@ export function AvatarWorldHub() {
   const [liveBusy, setLiveBusy] = useState(false);
   const [spawnBusy, setSpawnBusy] = useState(false);
   const [publicBusyId, setPublicBusyId] = useState<string | null>(null);
+  const [quickName, setQuickName] = useState("");
+  const [quickJob, setQuickJob] = useState("");
+  const [quickCity, setQuickCity] = useState("");
+  const [quickVibe, setQuickVibe] = useState("");
+  const [quickCount, setQuickCount] = useState(1);
   const autoLiveRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -67,6 +96,7 @@ export function AvatarWorldHub() {
         suggestions: json.suggestions ?? {},
         lastTickAt: json.lastTickAt ?? null,
         chats: json.chats ?? [],
+        economy: json.economy ?? null,
       });
       setLeadId((prev) => prev || json.avatars?.[0]?.id || "");
       setPartnerId((prev) => {
@@ -83,6 +113,7 @@ export function AvatarWorldHub() {
         suggestions: {},
         lastTickAt: null,
         chats: [],
+        economy: null,
       });
     } finally {
       setLoading(false);
@@ -145,24 +176,41 @@ export function AvatarWorldHub() {
     }
   }
 
-  async function inviteResident() {
+  async function inviteResident(body: Record<string, unknown> = {}) {
     setSpawnBusy(true);
     try {
-      const res = await fetch("/api/avatar-world/spawn", { method: "POST" });
+      const res = await fetch("/api/avatar-world/spawn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       const json = (await res.json()) as {
         error?: string;
         displayName?: string;
         occupation?: string;
         location?: string;
-        influencerId?: string;
+        count?: number;
+        remaining?: number;
+        created?: Array<{ displayName: string; occupation: string; location: string }>;
         introReplyName?: string;
         chatBeat?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Could not invite a resident");
-      const hello = json.introReplyName
-        ? `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"} and said hello. ${json.introReplyName} answered.`
-        : `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"} and said hello.`;
-      toast.success(json.chatBeat ? `${hello} ${json.chatBeat}` : hello);
+      const count = json.count ?? json.created?.length ?? 1;
+      if (count > 1) {
+        toast.success(
+          `Arrived: ${json.created?.map((row) => row.displayName).join(", ")}. ${json.remaining ?? 0} slots left.`,
+        );
+      } else {
+        const hello = json.introReplyName
+          ? `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"} and said hello. ${json.introReplyName} answered.`
+          : `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"} and said hello.`;
+        toast.success(json.chatBeat ? `${hello} ${json.chatBeat}` : hello);
+      }
+      setQuickName("");
+      setQuickJob("");
+      setQuickCity("");
+      setQuickVibe("");
       await load();
     } catch (error) {
       toast.error(
@@ -267,9 +315,9 @@ export function AvatarWorldHub() {
           They live here without you.
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-          Every day they post on their own and chat with each other. This world
-          is admin-only. Invite people with different lives, then allow the
-          ones the public can use in Content Studio.
+          Every day they post, get paid, buy things, and chat. This world is
+          admin-only. Quick-create people with a job and a city — skip the
+          long form. Then allow the ones the public can use.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {liveBusy ? "They're living today…" : formatTick(lastTickAt)}
@@ -283,7 +331,7 @@ export function AvatarWorldHub() {
             {spawnBusy ? (
               <InlineLoading label="Inviting…" />
             ) : (
-              "Invite a new resident"
+              "Surprise me"
             )}
           </Button>
           <Button
@@ -302,13 +350,112 @@ export function AvatarWorldHub() {
         </div>
       </section>
 
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <h3 className="text-lg font-semibold">Quick create</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Fill none, one, or a few. The rest of their life is invented. Batch up
+          to 5.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted-foreground">
+              Name (optional)
+            </span>
+            <input
+              value={quickName}
+              onChange={(e) => setQuickName(e.target.value)}
+              placeholder="Leave blank"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted-foreground">
+              Job (optional)
+            </span>
+            <input
+              value={quickJob}
+              onChange={(e) => setQuickJob(e.target.value)}
+              list="world-jobs"
+              placeholder="baker, pilot, poet…"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2"
+            />
+            <datalist id="world-jobs">
+              {(data?.economy?.jobTitles ?? []).map((job) => (
+                <option key={job} value={job} />
+              ))}
+            </datalist>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted-foreground">
+              City (optional)
+            </span>
+            <input
+              value={quickCity}
+              onChange={(e) => setQuickCity(e.target.value)}
+              placeholder="Accra, Kyoto…"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted-foreground">
+              How many
+            </span>
+            <select
+              value={quickCount}
+              onChange={(e) => setQuickCount(Number(e.target.value))}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2"
+            >
+              <option value={1}>1 person</option>
+              <option value={3}>3 people</option>
+              <option value={5}>5 people</option>
+            </select>
+          </label>
+        </div>
+        <textarea
+          value={quickVibe}
+          onChange={(e) => setQuickVibe(e.target.value)}
+          placeholder="Optional vibe — quiet, messy, devout, night-shift energy…"
+          className="mt-3 min-h-16 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        />
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            className="bg-violet-600 hover:bg-violet-500"
+            disabled={spawnBusy || liveBusy}
+            onClick={() =>
+              void inviteResident({
+                name: quickName.trim() || undefined,
+                occupation: quickJob.trim() || undefined,
+                location: quickCity.trim() || undefined,
+                vibe: quickVibe.trim() || undefined,
+                count: quickCount,
+                welcome: quickCount === 1,
+              })
+            }
+          >
+            {spawnBusy ? (
+              <InlineLoading label="Creating…" />
+            ) : quickCount > 1 ? (
+              `Create ${quickCount} residents`
+            ) : (
+              "Create this person"
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={spawnBusy || liveBusy}
+            onClick={() => void inviteResident({ count: 1, welcome: true })}
+          >
+            Surprise me
+          </Button>
+        </div>
+      </section>
+
       {avatars.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-700">
           <p className="text-lg font-medium">The world is empty</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Invite a resident with a different background — baker, pilot, poet,
-            nurse. They arrive, say hello, and start living. You don't write
-            for them.
+            Invite a baker, a pilot, a poet. They arrive with a job, a bank
+            account, and something to sell. You don't fill out a studio form.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <Button
@@ -319,7 +466,7 @@ export function AvatarWorldHub() {
               {spawnBusy ? (
                 <InlineLoading label="Inviting…" />
               ) : (
-                "Invite a new resident"
+                "Surprise me"
               )}
             </Button>
             <Button asChild variant="outline">
@@ -342,6 +489,74 @@ export function AvatarWorldHub() {
                   </li>
                 ))}
               </ol>
+            </section>
+          )}
+
+          {data?.economy && (
+            <section className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
+                  City Bank
+                </h3>
+                <p className="mt-2 text-3xl font-semibold tabular-nums">
+                  {data.economy.treasury.toLocaleString()} {data.economy.currencyLabel}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Pays wages every day. Residents spend Sparks on each other.
+                </p>
+                <ul className="mt-4 space-y-2 text-sm">
+                  {data.economy.accounts.slice(0, 8).map((row) => (
+                    <li
+                      key={row.influencerId}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="truncate">
+                        {row.displayName}
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · {row.employer}
+                        </span>
+                      </span>
+                      <span className="shrink-0 tabular-nums">
+                        {row.balance} · {row.wage}/day
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Market
+                </h3>
+                {data.economy.listings.length === 0 ? (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Nothing for sale yet. Live a day and someone will list a loaf,
+                    a tattoo, a seat on a plane.
+                  </p>
+                ) : (
+                  <ul className="mt-3 space-y-3">
+                    {data.economy.listings.slice(0, 8).map((row) => (
+                      <li key={row.id} className="border-b border-border pb-3 last:border-0">
+                        <p className="text-sm font-medium">
+                          {row.title}{" "}
+                          <span className="text-muted-foreground">
+                            · {row.price} Sparks
+                          </span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {row.sellerName} · {row.kind}
+                          {row.status === "sold"
+                            ? ` · bought by ${row.buyerName ?? "a neighbor"}`
+                            : " · open"}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
+                          {row.body}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </section>
           )}
 
@@ -391,6 +606,9 @@ export function AvatarWorldHub() {
                           }`}
                         >
                           {avatar.isPublic ? "Public can use" : "Admin only"}
+                        </span>
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+                          {avatar.balance} Sparks
                         </span>
                       </div>
                     </div>

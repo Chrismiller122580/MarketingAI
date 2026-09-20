@@ -722,6 +722,9 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
                 postCount: detail.posts.length,
                 interests: form.interests,
                 relationshipIds: form.relationships.map((rel) => rel.influencerId),
+                balance: 0,
+                wage: 0,
+                employer: "",
                 updatedAt: "",
               },
             ]}
@@ -761,6 +764,9 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
                         relationshipIds: form.relationships.map(
                           (rel) => rel.influencerId,
                         ),
+                        balance: 0,
+                        wage: 0,
+                        employer: "",
                         updatedAt: "",
                       },
                       ...detail.others,
