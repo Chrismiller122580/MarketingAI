@@ -42,6 +42,7 @@ export async function generateInfluencerScript(input: {
   draftText?: string;
   personalization?: string;
   maxWords?: number;
+  worldLife?: string;
 }): Promise<{
   script: string;
   validation: { valid: boolean; violations: string[] };
@@ -73,6 +74,7 @@ STRICT RULES:
 - ${factRule}
 - Write for the mouth — natural speech, ${wordRule}.
 - Return ONLY the script text. No quotes, labels, or stage directions.
+${input.worldLife ? `\n${input.worldLife}` : ""}
 ${input.personalization ? `\n${input.personalization}` : ""}`;
 
   const userMessage = `${factsBlock}

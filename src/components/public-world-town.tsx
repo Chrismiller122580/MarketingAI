@@ -307,6 +307,10 @@ function ResidentCard({
           <span>{resident.mood}</span>
           {resident.street && <span>· {resident.street}</span>}
           {resident.keepPlace && <span>· keeps {resident.keepPlace}</span>}
+          {resident.partnerName && <span>· with {resident.partnerName}</span>}
+          {resident.relationshipStatus && !resident.partnerName && (
+            <span>· {resident.relationshipStatus}</span>
+          )}
         </p>
       </div>
     </>
@@ -382,6 +386,23 @@ export function PublicWorldTown({
     const list = streets.get(key) ?? [];
     list.push(row);
     streets.set(key, list);
+  }
+  const households: Array<{ names: string; people: PublicTownResident[] }> = [];
+  const seenHouse = new Set<string>();
+  for (const row of town.residents) {
+    if (!row.partnerName) continue;
+    const partner = town.residents.find(
+      (other) => other.displayName === row.partnerName,
+    );
+    const key = [row.id, partner?.id ?? row.partnerName].sort().join(":");
+    if (seenHouse.has(key)) continue;
+    seenHouse.add(key);
+    households.push({
+      names: partner
+        ? `${row.displayName} + ${partner.displayName}`
+        : `${row.displayName} + ${row.partnerName}`,
+      people: partner ? [row, partner] : [row],
+    });
   }
 
   return (
@@ -553,6 +574,32 @@ export function PublicWorldTown({
                 Walk the market
               </Link>
             </div>
+          </section>
+        )}
+
+        {households.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-lg font-semibold">Households</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              They keep building a life together — and that life is in their voice
+              when you use them.
+            </p>
+            <ul className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
+              {households.map((house) => (
+                <li
+                  key={house.names}
+                  className="rounded-3xl border border-rose-400/20 bg-rose-500/10 p-4"
+                >
+                  <p className="font-medium text-rose-100">{house.names}</p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {house.people
+                      .map((row) => row.street || row.occupation)
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 

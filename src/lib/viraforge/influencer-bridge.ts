@@ -1,17 +1,26 @@
-import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
+import {
+  defaultCreatorAvatarValues,
+  parseCreatorAvatar,
+} from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import type {
   InfluencerGenerateContext,
   SiteData,
   SitePage,
 } from "@/lib/types";
-import { findUsableInfluencer } from "./avatar-world";
-import { buildPersonalizationContext } from "./learning";
+import {
+  findUsableInfluencer,
+  formatWorldLifeForContent,
+  hydrateWorldProfile,
+  listInfluencerWorldEvents,
+} from "./avatar-world";
+import { buildPersonalizationContext, type InfluencerMemory } from "./learning";
 import { mergeInfluencerAssets, resolveInfluencerAssets } from "./influencer-assets";
 import {
   buildFactPinpointsFromSites,
   mergeFactsWithSites,
 } from "./site-facts-extractor";
+import { streetForOccupation } from "./world-economy";
 
 export async function loadInfluencerGenerateContext(
   userId: string,
@@ -40,8 +49,26 @@ export async function loadInfluencerGenerateContext(
   );
   const personalization = await buildPersonalizationContext(
     userId,
-    influencerId,
+    usable.owned ? influencerId : undefined,
   );
+
+  const world = hydrateWorldProfile(
+    persona.success ? persona.data : defaultCreatorAvatarValues,
+    (influencer.memory ?? {}) as InfluencerMemory,
+  );
+  const street = streetForOccupation(
+    world.occupation,
+    persona.data.location || world.currentCity,
+  );
+  const events = await listInfluencerWorldEvents(
+    influencer.userId,
+    influencer.id,
+    8,
+  );
+  const worldLife = formatWorldLifeForContent(world, {
+    street,
+    recent: events.map((event) => event.title),
+  });
 
   return {
     id: influencer.id,
@@ -52,5 +79,6 @@ export async function loadInfluencerGenerateContext(
     displayName: persona.data.displayName,
     handle: persona.data.handle,
     personalization: personalization || undefined,
+    worldLife,
   };
 }

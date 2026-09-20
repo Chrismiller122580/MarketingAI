@@ -25,6 +25,7 @@ import {
   saveWorldPost,
   tickedToday,
   generateNeighborChat,
+  growWorldBonds,
   type WorldInfluencerCard,
   type WorldPostCard,
 } from "./avatar-world";
@@ -590,6 +591,7 @@ export type WorldDayResult = {
   rents?: number;
   groceries?: number;
   hangout?: { place: string; names: string[] };
+  growth?: string[];
 };
 
 export type SpawnResult = {
@@ -673,6 +675,7 @@ function pickChatPairs(
 
   const scorePair = (a: WorldInfluencerCard, b: WorldInfluencerCard): number => {
     let score = hashString(`${a.id}:${b.id}`) % 4;
+    if (a.partnerId && a.partnerId === b.id) score += 14;
     if (a.relationshipIds.includes(b.id) || b.relationshipIds.includes(a.id)) {
       score += 8;
     }
@@ -731,6 +734,9 @@ function pickHangout(
     const preferred = preferredIds
       .map((id) => byId.get(id))
       .filter((row): row is WorldInfluencerCard => !!row && row.id !== keeper.id);
+    const partner = avatars.filter(
+      (row) => row.id === keeper.partnerId || keeper.partnerId === row.id,
+    );
     const friends = avatars.filter(
       (row) =>
         row.id !== keeper.id &&
@@ -742,7 +748,7 @@ function pickHangout(
     );
     const seen = new Set<string>([keeper.id]);
     const guests: WorldInfluencerCard[] = [];
-    for (const row of [...preferred, ...friends, ...street, ...avatars]) {
+    for (const row of [...preferred, ...partner, ...friends, ...street, ...avatars]) {
       if (seen.has(row.id)) continue;
       seen.add(row.id);
       guests.push(row);
@@ -1166,6 +1172,8 @@ export async function liveWorldDay(input: {
     }
   }
 
+  const growth = await growWorldBonds(input.userId);
+
   const posterNames = posted.map((row) => row.name);
   const beatParts = [
     posterNames.length > 0 ? `${posterNames.join(", ")} posted.` : "",
@@ -1174,6 +1182,7 @@ export async function liveWorldDay(input: {
       ? `${hangout.names.join(" and ")} at ${hangout.place}.`
       : "",
     chatBeats.length > 0 ? chatBeats.join(" ") : "",
+    growth.beats.length > 0 ? growth.beats.join(" ") : "",
     economy.beat,
   ].filter(Boolean);
   const beat = beatParts.join(" ") || `${posted[0]!.name} posted into a quiet morning.`;
@@ -1214,6 +1223,7 @@ export async function liveWorldDay(input: {
     rents: economy.rents,
     groceries: economy.groceries,
     hangout,
+    growth: growth.beats,
   };
 }
 

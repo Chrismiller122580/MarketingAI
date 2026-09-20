@@ -775,11 +775,12 @@ export async function generateSmartPost(
         isInstagramFormat(contentType) ? "instagram" : platform,
       brief: prompt || undefined,
       personalization: request.influencer.personalization,
+      worldLife: request.influencer.worldLife,
       crawledCorpus: request.crawledCorpus,
     });
     text = truncate(influencerPost.text, PLATFORM_LIMITS[platform]);
     influencerInsights = [
-      `Influencer voice: @${request.influencer.handle} with fact-locked citations.`,
+      `Influencer voice: @${request.influencer.handle} with a lived life from Avatar World.`,
       `Cited ${influencerPost.citedFacts.length} verified fact(s) from crawl + product facts.`,
     ];
     if (!influencerPost.validation.valid) {
@@ -867,6 +868,12 @@ export async function generateSmartPost(
       corpus.siteCount > 1
         ? `Grounded in ${corpus.siteCount} crawled sites and ${corpus.pageCount} pages — only facts from those pages.`
         : `Grounded in ${corpus.pageCount} crawled page${corpus.pageCount === 1 ? "" : "s"} from ${site.domain} — not just the homepage.`,
+    );
+  }
+
+  if (request.influencer?.worldLife && !useInfluencerVoice) {
+    insights.push(
+      `Wrote as @${request.influencer.handle} with their life in Avatar World — friends, work, and mood, not invented product claims.`,
     );
   }
 

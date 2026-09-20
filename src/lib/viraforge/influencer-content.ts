@@ -53,6 +53,7 @@ export async function generateInfluencerSiteContent(input: {
   platform: Platform;
   brief?: string;
   personalization?: string;
+  worldLife?: string;
   crawledCorpus?: CrawledCorpus;
 }): Promise<InfluencerSiteContentResult> {
   if (!hasAnyAiKey()) {
@@ -85,11 +86,12 @@ Stay under ${charLimit} characters.
 STRICT RULES:
 - ONLY cite product facts from the verified list and crawled source of truth. Never invent specs, prices, health claims, or benefits.
 - Weave in 2–4 specific verified facts naturally (name, price, features, location, hours, ingredients).
-- Sound like the influencer's authentic voice — not generic marketing.
+- Sound like the influencer's authentic lived voice — not generic marketing.
 - Open with a hook that works without context. No "Excited to share", "Let me tell you", or "Okay so".
 - Include a soft CTA pointing to ${input.site.domain}${input.page.path === "/" ? "" : input.page.path}
 - Return ONLY the post copy. No explanations.
 ${extraSites}
+${input.worldLife ? `\n${input.worldLife}` : ""}
 ${input.personalization ? `\n${input.personalization}` : ""}`;
 
   const userMessage = `Crawled page: ${input.page.title}

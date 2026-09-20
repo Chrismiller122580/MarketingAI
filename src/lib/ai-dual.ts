@@ -107,13 +107,20 @@ function buildSystemPrompt(
         : "3–5 relevant hashtags at the end, never in the hook."
     : "Do not include hashtags.";
   const corpus = request.crawledCorpus?.promptBlock?.trim();
+  const life = request.influencer;
+  const lived = life?.worldLife?.trim();
+  const asPerson = life
+    ? `Write as ${life.displayName} (@${life.handle}). Voice: ${life.persona.personalityVoice}. Sample: "${life.persona.sampleQuote}". You have a real life in a town — use it as texture, never as product facts. At most one light personal detail if it fits. Never claim the crawled business is your shop. Never mention Sparks or Avatar World.`
+    : "";
 
   return `You are an expert marketing copywriter specializing in ${contentType} for ${platform}.
 Brand: ${request.site.brand.name}. Voice: ${voice}. Audience: ${audience}.
+${asPerson ? `${asPerson}\n` : ""}
 ${businessCtx ? `Business context: ${businessCtx}. ` : ""}
 ${userPrefs ? `${userPrefs} ` : ""}
 ${winning ? `What already works: ${winning} ` : ""}
 ${corpus ? `${corpus}\n` : ""}
+${lived ? `${lived}\n` : ""}
 Format: ${typeHint}
 Platform style: ${platformHint}
 Stay under ${charLimit} characters. ${hashtagRule}

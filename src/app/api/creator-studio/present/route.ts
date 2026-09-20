@@ -183,6 +183,7 @@ export async function POST(request: Request) {
       page,
       platform: platform as Platform,
       personalization: context.personalization,
+      worldLife: context.worldLife,
       crawledCorpus,
     });
 
@@ -193,6 +194,7 @@ export async function POST(request: Request) {
       siteDomain: site.domain,
       draftText: content.text,
       personalization: context.personalization,
+      worldLife: context.worldLife,
     });
 
     const contentStudioUrl = buildContentStudioHandoffUrl({

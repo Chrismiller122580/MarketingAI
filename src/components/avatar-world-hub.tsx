@@ -169,6 +169,7 @@ export function AvatarWorldHub() {
         chats?: number;
         hangout?: { place: string; names: string[] };
         beat?: string;
+        growth?: string[];
       };
       if (!res.ok) throw new Error(json.error ?? "Could not live today");
       if (json.skipped && json.reason === "already-lived") {
@@ -184,6 +185,9 @@ export function AvatarWorldHub() {
               replies > 0 ? `, ${replies} neighbor${replies === 1 ? "" : "s"} answered` : ""
             }${chats > 0 ? `, ${chats} conversation${chats === 1 ? "" : "s"} happened` : ""}.`,
         );
+        if (json.growth && json.growth.length > 0) {
+          toast.message(json.growth[0]);
+        }
       }
       await load();
     } catch (error) {
@@ -382,8 +386,9 @@ export function AvatarWorldHub() {
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
           Found a town and they go to work. They get paid in Sparks, pay rent,
-          buy groceries, and run into each other at the shop, the rooms, the
-          bank. This world is admin-only. Allow the ones the public can use.
+          buy groceries, make friends, and sometimes build a life together.
+          When you pick one for a post, that life is in their voice. This world
+          is admin-only. Allow the ones the public can use.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {liveBusy ? "They're living today…" : formatTick(lastTickAt)}
@@ -779,6 +784,17 @@ export function AvatarWorldHub() {
                             {avatar.street}
                           </span>
                         )}
+                        {avatar.partnerName && (
+                          <span className="rounded-full bg-rose-50 px-2 py-0.5 text-rose-800 dark:bg-rose-950 dark:text-rose-200">
+                            with {avatar.partnerName}
+                          </span>
+                        )}
+                        {!avatar.partnerName &&
+                          avatar.familyNames.length > 0 && (
+                            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-rose-800 dark:bg-rose-950 dark:text-rose-200">
+                              family
+                            </span>
+                          )}
                       </div>
                     </div>
                   </Link>

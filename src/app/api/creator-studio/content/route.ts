@@ -11,10 +11,15 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { generateInfluencerSiteContent } from "@/lib/viraforge/influencer-content";
-import { findUsableInfluencer } from "@/lib/viraforge/avatar-world";
+import {
+  findUsableInfluencer,
+  formatWorldLifeForContent,
+  hydrateWorldProfile,
+} from "@/lib/viraforge/avatar-world";
 import {
   buildPersonalizationContext,
   recordCreatorEvent,
+  type InfluencerMemory,
 } from "@/lib/viraforge/learning";
 import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
 import {
@@ -22,6 +27,7 @@ import {
   mergeFactsWithSites,
 } from "@/lib/viraforge/site-facts-extractor";
 import { loadCrawledCorpus } from "@/lib/crawled-content";
+import { streetForOccupation } from "@/lib/viraforge/world-economy";
 import type { Platform, SiteData } from "@/lib/types";
 
 const contentSchema = z.object({
@@ -133,6 +139,16 @@ export async function POST(request: Request) {
       authResult,
       influencerId,
     );
+    const world = hydrateWorldProfile(
+      persona.data,
+      (influencer.memory ?? {}) as InfluencerMemory,
+    );
+    const worldLife = formatWorldLifeForContent(world, {
+      street: streetForOccupation(
+        world.occupation,
+        persona.data.location || world.currentCity,
+      ),
+    });
 
     const result = await generateInfluencerSiteContent({
       persona: persona.data,
@@ -143,6 +159,7 @@ export async function POST(request: Request) {
       platform: platform as Platform,
       brief,
       personalization: personalization || undefined,
+      worldLife,
       crawledCorpus,
     });
 

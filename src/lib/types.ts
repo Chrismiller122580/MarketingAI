@@ -321,6 +321,8 @@ export type InfluencerGenerateContext = {
   pinpoints: FactPinpoint[];
   assets: InfluencerAssets;
   personalization?: string;
+  /** Lived life from Avatar World — voice texture, not product facts. */
+  worldLife?: string;
 };
 
 export type CrawledCorpusPage = {

@@ -39,6 +39,8 @@ export const WORLD_EVENT_TYPES = [
   "world_rent",
   "world_grocery",
   "world_hangout",
+  "world_grow",
+  "world_family",
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];
@@ -59,13 +61,18 @@ export type LifeEventKind =
   | "sale"
   | "rent"
   | "grocery"
-  | "hangout";
+  | "hangout"
+  | "grow"
+  | "family";
 
 export type AvatarRelationshipKind =
   | "friend"
   | "collaborator"
   | "mentor"
-  | "rival";
+  | "rival"
+  | "neighbor"
+  | "family"
+  | "partner";
 
 export type AvatarRelationship = {
   influencerId: string;
@@ -73,6 +80,8 @@ export type AvatarRelationship = {
   displayName: string;
   kind: AvatarRelationshipKind;
   note?: string;
+  closeness?: number;
+  household?: boolean;
 };
 
 export type AvatarWorldProfile = {
@@ -159,6 +168,46 @@ export type ContributorSuggestion = {
   score: number;
 };
 
+export const RELATIONSHIP_KINDS: AvatarRelationshipKind[] = [
+  "friend",
+  "collaborator",
+  "mentor",
+  "rival",
+  "neighbor",
+  "family",
+  "partner",
+];
+
+const RELATIONSHIP_RANK: Record<AvatarRelationshipKind, number> = {
+  rival: 1,
+  collaborator: 2,
+  neighbor: 3,
+  friend: 4,
+  mentor: 5,
+  family: 6,
+  partner: 7,
+};
+
+function parseRelationshipKind(value: unknown): AvatarRelationshipKind {
+  if (value === "spouse") return "partner";
+  if (value === "parent" || value === "child" || value === "sibling") {
+    return "family";
+  }
+  if (
+    typeof value === "string" &&
+    RELATIONSHIP_KINDS.includes(value as AvatarRelationshipKind)
+  ) {
+    return value as AvatarRelationshipKind;
+  }
+  return "friend";
+}
+
+function clampCloseness(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(8, Math.round(n)));
+}
+
 export const defaultWorldProfile: AvatarWorldProfile = {
   bio: "",
   backstory: "",
@@ -210,11 +259,20 @@ export function parseWorldProfile(input: unknown): AvatarWorldProfile {
             (rel): rel is AvatarRelationship =>
               !!rel &&
               typeof rel === "object" &&
-              typeof rel.influencerId === "string" &&
-              typeof rel.handle === "string" &&
-              typeof rel.displayName === "string",
+              typeof (rel as AvatarRelationship).influencerId === "string" &&
+              typeof (rel as AvatarRelationship).handle === "string" &&
+              typeof (rel as AvatarRelationship).displayName === "string",
           )
-          .slice(0, 12)
+          .map((rel) => ({
+            influencerId: rel.influencerId,
+            handle: rel.handle,
+            displayName: rel.displayName,
+            kind: parseRelationshipKind(rel.kind),
+            note: typeof rel.note === "string" ? rel.note : undefined,
+            closeness: clampCloseness(rel.closeness),
+            household: rel.household === true || parseRelationshipKind(rel.kind) === "partner",
+          }))
+          .slice(0, 16)
       : [],
     learnedNotes: Array.isArray(raw.learnedNotes)
       ? raw.learnedNotes
@@ -397,6 +455,10 @@ function defaultEventTitle(type: WorldEventType): string {
       return "Paid the rent";
     case "world_grocery":
       return "Bought groceries";
+    case "world_grow":
+      return "Grew closer";
+    case "world_family":
+      return "Built a life together";
     default:
       return "A day in the world";
   }
@@ -419,6 +481,10 @@ export type WorldInfluencerCard = {
   postCount: number;
   interests: string[];
   relationshipIds: string[];
+  partnerId?: string;
+  partnerName?: string;
+  familyNames: string[];
+  relationshipStatus: string;
   street: string;
   balance: number;
   wage: number;
@@ -465,6 +531,14 @@ export async function listWorldInfluencers(
       postCount: row._count.posts,
       interests: world.interests,
       relationshipIds: world.relationships.map((rel) => rel.influencerId),
+      partnerId: world.relationships.find((rel) => rel.kind === "partner")
+        ?.influencerId,
+      partnerName: world.relationships.find((rel) => rel.kind === "partner")
+        ?.displayName,
+      familyNames: world.relationships
+        .filter((rel) => rel.kind === "family" || rel.kind === "partner")
+        .map((rel) => rel.displayName),
+      relationshipStatus: world.relationshipStatus,
       street: streetForOccupation(
         world.occupation,
         persona.success ? persona.data.location : world.currentCity,
@@ -496,6 +570,9 @@ export type PublicTownResident = PublicWorldCard & {
   isPublic: boolean;
   keepPlace?: string;
   keepPlaceKind?: "bank" | "market" | "rooms" | "shop";
+  partnerName?: string;
+  familyNames: string[];
+  relationshipStatus: string;
 };
 
 export async function listPublicWorldAvatars(): Promise<PublicWorldCard[]> {
@@ -610,6 +687,9 @@ export async function listPublicWorldTown(): Promise<PublicWorldTown> {
         isPublic: row.isPublic,
         keepPlace: keep?.name,
         keepPlaceKind: keep?.kind,
+        partnerName: row.partnerName,
+        familyNames: row.familyNames,
+        relationshipStatus: row.relationshipStatus,
       };
     });
 
@@ -1088,6 +1168,18 @@ Goals: ${input.world.goals.join(", ") || "none listed"}
 Interests: ${input.world.interests.join(", ") || "none listed"}
 Catchphrase: ${input.world.catchphrase || input.persona.sampleQuote}
 Notes from neighbors: ${input.world.learnedNotes.slice(0, 4).join(" | ") || "nothing yet"}
+People in your life: ${
+    input.world.relationships.length
+      ? input.world.relationships
+          .slice(0, 6)
+          .map(
+            (rel) =>
+              `${rel.displayName} (${rel.kind}${rel.note ? ` — ${rel.note}` : ""})`,
+          )
+          .join("; ")
+      : "still figuring out who they are to you"
+  }
+Relationship: ${input.world.relationshipStatus || "unattached"}
 Recent life:
 ${eventLines || "- A quiet day in the world"}
 World lore so far:
@@ -1167,11 +1259,13 @@ export async function saveWorldPost(input: {
   return { id: saved.id };
 }
 
-const RELATIONSHIP_KINDS: AvatarRelationshipKind[] = [
+const CONTRIBUTION_KINDS: AvatarRelationshipKind[] = [
   "friend",
   "collaborator",
   "mentor",
   "rival",
+  "neighbor",
+  "family",
 ];
 
 type ContributionDraft = {
@@ -1190,7 +1284,7 @@ function parseContributionDraft(raw: string): ContributionDraft | null {
   try {
     const parsed = JSON.parse(cleaned) as Record<string, unknown>;
     if (typeof parsed.text !== "string" || !parsed.text.trim()) return null;
-    const kind = RELATIONSHIP_KINDS.includes(parsed.relationshipKind as AvatarRelationshipKind)
+    const kind = CONTRIBUTION_KINDS.includes(parsed.relationshipKind as AvatarRelationshipKind)
       ? (parsed.relationshipKind as AvatarRelationshipKind)
       : "collaborator";
     return {
@@ -1389,7 +1483,7 @@ Voice: ${contributorPersona.data.personalityVoice}
 ${OWNERLESS_RULES}
 You are answering someone else's note. Do not copy them. Add a new beat: agree, challenge, continue the story, or bring your own life in.
 Write in first person. 2–6 short lines. Mention @${parentCard.handle} once if it feels natural.
-Return JSON only: { "text": string, "worldBeat": string, "mood": string, "relationshipKind": "friend"|"collaborator"|"mentor"|"rival", "note": string }
+Return JSON only: { "text": string, "worldBeat": string, "mood": string, "relationshipKind": "friend"|"collaborator"|"mentor"|"rival"|"neighbor"|"family", "note": string }
 worldBeat is one sentence describing what just happened between you two.`,
         `Your backstory: ${contributorWorld.backstory}
 Your mood: ${contributorWorld.mood}${contributorWorld.moodNote ? ` — ${contributorWorld.moodNote}` : ""}
@@ -1445,6 +1539,7 @@ ${input.brief ? `A scene note (not a brief, not a brand): ${input.brief}` : "No 
     displayName: authorRow.displayName,
     kind: draft.relationshipKind,
     note: draft.note || "Building on the same story",
+    closeness: 1,
   });
   const authorRels = upsertRelationship(authorWorld.relationships, {
     influencerId: contributorRow.id,
@@ -1453,6 +1548,7 @@ ${input.brief ? `A scene note (not a brief, not a brand): ${input.brief}` : "No 
     kind:
       draft.relationshipKind === "mentor" ? "friend" : draft.relationshipKind,
     note: draft.note || "Their world overlapped",
+    closeness: 1,
   });
 
   await Promise.all([
@@ -1674,6 +1770,15 @@ export async function generateNeighborChat(input: {
       (item) =>
         `${item.row.displayName} (@${item.row.handle}), ${item.world.occupation || "neighbor"} in ${item.world.currentCity || item.persona.location}. Mood: ${item.world.mood}${item.world.moodNote ? ` — ${item.world.moodNote}` : ""}.
 Voice: ${item.persona.personalityVoice}
+People: ${
+          item.world.relationships.length
+            ? item.world.relationships
+                .slice(0, 4)
+                .map((rel) => `${rel.kind} with ${rel.displayName}`)
+                .join("; ")
+            : "no close ties yet"
+        }
+Status: ${item.world.relationshipStatus || "unattached"}
 Backstory: ${item.world.backstory}`,
     )
     .join("\n\n");
@@ -1683,6 +1788,7 @@ Backstory: ${item.world.backstory}`,
       (await chatCompletion(
         `Write a private conversation between people who live in the same world. They are ${atPlace}. Not a social post. Not a collab. Not for an audience.
 ${OWNERLESS_RULES}
+If they are partners or family, talk that way — a shared kettle, the rent, a look. Do not announce the relationship.
 ${speakers.length > 2 ? "6–10" : "4–8"} short turns. They sound like neighbors who actually ran into each other. Specific, human, a little messy. Mention the place if they are in one.
 Return JSON only: { "turns": [{ "handle": string, "text": string }], "worldBeat": string }
 handle must be one of ${handleList}. worldBeat is one sentence about what passed between them.`,
@@ -1773,12 +1879,14 @@ ${input.scene?.trim() || `They have a moment ${atPlace}. Talk about the day, the
       let rels = item.world.relationships;
       for (const other of speakers) {
         if (other.id === item.row.id) continue;
+        const existing = rels.find((rel) => rel.influencerId === other.id);
         rels = upsertRelationship(rels, {
           influencerId: other.id,
           handle: other.handle,
           displayName: other.displayName,
-          kind: "friend",
+          kind: existing?.kind ?? "neighbor",
           note: relNote,
+          closeness: 1,
         });
       }
       const others = speakers.filter((row) => row.id !== item.row.id);
@@ -2021,8 +2129,320 @@ function upsertRelationship(
   current: AvatarRelationship[],
   next: AvatarRelationship,
 ): AvatarRelationship[] {
+  const existing = current.find((rel) => rel.influencerId === next.influencerId);
   const others = current.filter((rel) => rel.influencerId !== next.influencerId);
-  return [next, ...others].slice(0, 12);
+  if (!existing) {
+    return [
+      {
+        ...next,
+        kind: parseRelationshipKind(next.kind),
+        closeness: clampCloseness(next.closeness ?? 1),
+        household:
+          next.household === true || parseRelationshipKind(next.kind) === "partner",
+      },
+      ...others,
+    ].slice(0, 16);
+  }
+
+  const closeness = clampCloseness(
+    (existing.closeness ?? 1) + Math.max(0, next.closeness ?? 1),
+  );
+  const nextKind = parseRelationshipKind(next.kind);
+  const keepKind =
+    RELATIONSHIP_RANK[nextKind] >= RELATIONSHIP_RANK[existing.kind]
+      ? nextKind
+      : existing.kind;
+  const household =
+    existing.household === true ||
+    next.household === true ||
+    keepKind === "partner" ||
+    keepKind === "family";
+
+  return [
+    {
+      influencerId: existing.influencerId,
+      handle: next.handle || existing.handle,
+      displayName: next.displayName || existing.displayName,
+      kind: keepKind,
+      note: next.note || existing.note,
+      closeness,
+      household,
+    },
+    ...others,
+  ].slice(0, 16);
+}
+
+export function formatWorldLifeForContent(
+  world: AvatarWorldProfile,
+  opts?: { street?: string; recent?: string[] },
+): string {
+  const people = world.relationships.slice(0, 6).map((rel) => {
+    const bond =
+      rel.kind === "partner"
+        ? "life partner"
+        : rel.kind === "family"
+          ? "family"
+          : rel.kind;
+    return `${rel.displayName} (${bond}${rel.note ? ` — ${rel.note}` : ""})`;
+  });
+  const lines = [
+    "Lived life (VOICE and texture only — never as product facts):",
+    world.occupation ? `You work as a ${world.occupation}.` : "",
+    opts?.street ? `You live around ${opts.street}.` : "",
+    world.currentCity ? `Your city: ${world.currentCity}.` : "",
+    world.relationshipStatus
+      ? `Your relationship: ${world.relationshipStatus}.`
+      : "",
+    people.length > 0 ? `People in your life: ${people.join("; ")}.` : "",
+    world.mood
+      ? `Today you feel ${world.mood}${
+          world.moodNote ? ` (${world.moodNote})` : ""
+        }.`
+      : "",
+    world.learnedNotes[0]
+      ? `You recently learned: ${world.learnedNotes[0]}`
+      : "",
+    opts?.recent?.length
+      ? `Recent days: ${opts.recent.slice(0, 3).join(" / ")}.`
+      : "",
+    "When writing a brand post from crawled pages: stay fact-locked. Sound like this person with a real life. At most one light life detail if it fits (a partner, a street, a job, a mood). Never claim the crawled business is your shop. Never mention Sparks, Avatar World, or other brands.",
+  ];
+  return lines.filter(Boolean).join("\n");
+}
+
+export async function growWorldBonds(userId: string): Promise<{ beats: string[] }> {
+  const rows = await prisma.influencer.findMany({
+    where: { userId },
+    take: 50,
+  });
+  if (rows.length < 2) return { beats: [] };
+
+  type RowWorld = {
+    row: (typeof rows)[number];
+    world: AvatarWorldProfile;
+    street: string;
+  };
+
+  const people: RowWorld[] = rows.map((row) => {
+    const persona = parseCreatorAvatar(row.persona);
+    const world = hydrateWorldProfile(
+      persona.success ? persona.data : defaultCreatorAvatarValues,
+      (row.memory ?? {}) as InfluencerMemory,
+    );
+    return {
+      row,
+      world,
+      street: streetForOccupation(
+        world.occupation,
+        persona.success ? persona.data.location : world.currentCity,
+      ),
+    };
+  });
+  const byId = new Map(people.map((item) => [item.row.id, item]));
+  const partnered = new Set(
+    people
+      .filter((item) =>
+        item.world.relationships.some((rel) => rel.kind === "partner"),
+      )
+      .map((item) => item.row.id),
+  );
+
+  const beats: string[] = [];
+  let formedPartner = false;
+
+  const writeWorld = async (
+    item: RowWorld,
+    world: AvatarWorldProfile,
+  ) => {
+    item.world = world;
+    await prisma.influencer.update({
+      where: { id: item.row.id },
+      data: {
+        memory: mergeInfluencerMemory(item.row.memory, { world }),
+      },
+    });
+    item.row = { ...item.row, memory: mergeInfluencerMemory(item.row.memory, { world }) };
+  };
+
+  for (const item of people) {
+    let rels = item.world.relationships;
+    let changed = false;
+    for (const rel of item.world.relationships) {
+      const closeness = rel.closeness ?? 1;
+      let kind = rel.kind;
+      if (kind === "neighbor" && closeness >= 3) kind = "friend";
+      const other = byId.get(rel.influencerId);
+      const sameStreet = Boolean(
+        other && item.street && other.street === item.street,
+      );
+      if (
+        (kind === "friend" || kind === "mentor") &&
+        closeness >= 6 &&
+        sameStreet
+      ) {
+        kind = "family";
+      }
+      if (kind !== rel.kind) {
+        rels = upsertRelationship(rels, {
+          ...rel,
+          kind,
+          closeness: 0,
+          note:
+            kind === "family"
+              ? "Found family — they keep showing up"
+              : "They're actually friends now",
+          household: kind === "family" || rel.household,
+        });
+        changed = true;
+        const beat =
+          kind === "family"
+            ? `${item.row.displayName} and ${rel.displayName} became family.`
+            : `${item.row.displayName} and ${rel.displayName} grew into friends.`;
+        if (!beats.includes(beat)) beats.push(beat);
+        await recordWorldEvent({
+          userId,
+          influencerId: item.row.id,
+          eventType: kind === "family" ? "world_family" : "world_grow",
+          payload: {
+            kind: kind === "family" ? "family" : "grow",
+            title:
+              kind === "family"
+                ? `Family with ${rel.displayName}`
+                : `Grew closer to ${rel.displayName}`,
+            body: beat,
+            relatedInfluencerId: rel.influencerId,
+            relatedHandle: rel.handle,
+          },
+        });
+      }
+    }
+    if (changed) {
+      const family = rels.filter((rel) => rel.kind === "family" || rel.kind === "partner");
+      const status =
+        rels.find((rel) => rel.kind === "partner")
+          ? `with ${rels.find((rel) => rel.kind === "partner")!.displayName}`
+          : family.length > 0
+            ? `family with ${family.map((rel) => rel.displayName).slice(0, 3).join(", ")}`
+            : item.world.relationshipStatus;
+      await writeWorld(item, {
+        ...item.world,
+        relationships: rels,
+        relationshipStatus: status,
+        learnedNotes: [
+          beats[beats.length - 1] ?? "The people here are starting to matter.",
+          ...item.world.learnedNotes,
+        ].slice(0, 16),
+      });
+    }
+  }
+
+  const candidates: Array<{
+    a: RowWorld;
+    b: RowWorld;
+    closeness: number;
+    sameStreet: boolean;
+  }> = [];
+  for (const item of people) {
+    for (const rel of item.world.relationships) {
+      const other = byId.get(rel.influencerId);
+      if (!other) continue;
+      if (item.row.id >= other.row.id) continue;
+      const back = other.world.relationships.find(
+        (row) => row.influencerId === item.row.id,
+      );
+      const closeness = Math.min(rel.closeness ?? 1, back?.closeness ?? rel.closeness ?? 1);
+      const familyEnough =
+        rel.kind === "family" ||
+        rel.kind === "partner" ||
+        rel.kind === "friend" ||
+        back?.kind === "family" ||
+        back?.kind === "friend";
+      if (!familyEnough) continue;
+      candidates.push({
+        a: item,
+        b: other,
+        closeness,
+        sameStreet: item.street === other.street && Boolean(item.street),
+      });
+    }
+  }
+  candidates.sort((left, right) => right.closeness - left.closeness);
+
+  for (const pair of candidates) {
+    if (formedPartner) break;
+    if (pair.closeness < 7) continue;
+    if (partnered.has(pair.a.row.id) || partnered.has(pair.b.row.id)) continue;
+    if (!pair.sameStreet && pair.closeness < 8) continue;
+
+    const note = `Building a life together on ${pair.a.street || pair.b.street || "this street"}`;
+    const aRels = upsertRelationship(pair.a.world.relationships, {
+      influencerId: pair.b.row.id,
+      handle: pair.b.row.handle,
+      displayName: pair.b.row.displayName,
+      kind: "partner",
+      note,
+      closeness: 0,
+      household: true,
+    });
+    const bRels = upsertRelationship(pair.b.world.relationships, {
+      influencerId: pair.a.row.id,
+      handle: pair.a.row.handle,
+      displayName: pair.a.row.displayName,
+      kind: "partner",
+      note,
+      closeness: 0,
+      household: true,
+    });
+    const beat = `${pair.a.row.displayName} and ${pair.b.row.displayName} started building a life together.`;
+    await writeWorld(pair.a, {
+      ...pair.a.world,
+      relationships: aRels,
+      relationshipStatus: `with ${pair.b.row.displayName}`,
+      learnedNotes: [beat, ...pair.a.world.learnedNotes].slice(0, 16),
+    });
+    await writeWorld(pair.b, {
+      ...pair.b.world,
+      relationships: bRels,
+      relationshipStatus: `with ${pair.a.row.displayName}`,
+      learnedNotes: [beat, ...pair.b.world.learnedNotes].slice(0, 16),
+    });
+    partnered.add(pair.a.row.id);
+    partnered.add(pair.b.row.id);
+    formedPartner = true;
+    beats.push(beat);
+    await Promise.all([
+      recordWorldEvent({
+        userId,
+        influencerId: pair.a.row.id,
+        eventType: "world_family",
+        payload: {
+          kind: "family",
+          title: `Building a life with ${pair.b.row.displayName}`,
+          body: beat,
+          relatedInfluencerId: pair.b.row.id,
+          relatedHandle: pair.b.row.handle,
+        },
+      }),
+      recordWorldEvent({
+        userId,
+        influencerId: pair.b.row.id,
+        eventType: "world_family",
+        payload: {
+          kind: "family",
+          title: `Building a life with ${pair.a.row.displayName}`,
+          body: beat,
+          relatedInfluencerId: pair.a.row.id,
+          relatedHandle: pair.a.row.handle,
+        },
+      }),
+    ]);
+  }
+
+  if (beats.length > 0) {
+    await rememberWorldBeat(userId, beats[0]!.slice(0, 240));
+  }
+
+  return { beats: beats.slice(0, 6) };
 }
 
 export async function loadWorldDetail(userId: string, influencerId: string) {

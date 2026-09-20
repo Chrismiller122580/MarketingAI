@@ -754,6 +754,14 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
                 postCount: detail.posts.length,
                 interests: form.interests,
                 relationshipIds: form.relationships.map((rel) => rel.influencerId),
+                partnerId: form.relationships.find((rel) => rel.kind === "partner")
+                  ?.influencerId,
+                partnerName: form.relationships.find((rel) => rel.kind === "partner")
+                  ?.displayName,
+                familyNames: form.relationships
+                  .filter((rel) => rel.kind === "family" || rel.kind === "partner")
+                  .map((rel) => rel.displayName),
+                relationshipStatus: form.relationshipStatus,
                 street: "",
                 balance: 0,
                 wage: 0,
@@ -798,6 +806,19 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
                         relationshipIds: form.relationships.map(
                           (rel) => rel.influencerId,
                         ),
+                        partnerId: form.relationships.find(
+                          (rel) => rel.kind === "partner",
+                        )?.influencerId,
+                        partnerName: form.relationships.find(
+                          (rel) => rel.kind === "partner",
+                        )?.displayName,
+                        familyNames: form.relationships
+                          .filter(
+                            (rel) =>
+                              rel.kind === "family" || rel.kind === "partner",
+                          )
+                          .map((rel) => rel.displayName),
+                        relationshipStatus: form.relationshipStatus,
                         street: "",
                         balance: 0,
                         wage: 0,
@@ -877,7 +898,9 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
             <p className="mb-3 text-sm font-medium">Relationships</p>
             {form.relationships.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No bonds yet. Learning and collabs create them.
+                No bonds yet. Living a day, hanging out, and learning grow them
+                into friends, family, and partners — and that life is in their
+                voice when you pick them for a post.
               </p>
             ) : (
               <ul className="space-y-2">
@@ -894,6 +917,10 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
                     </Link>{" "}
                     <span className="text-muted-foreground">
                       @{rel.handle} · {rel.kind}
+                      {rel.household ? " · household" : ""}
+                      {typeof rel.closeness === "number"
+                        ? ` · close ${rel.closeness}`
+                        : ""}
                     </span>
                     {rel.note && (
                       <p className="mt-1 text-muted-foreground">{rel.note}</p>
