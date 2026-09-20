@@ -145,7 +145,7 @@ export function WorldChatCard({ chat }: { chat: WorldChatCardType }) {
   return (
     <article className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 dark:border-violet-900/50 dark:bg-violet-950/20">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-        Neighbor chat
+        {chat.placeName ? `At ${chat.placeName}` : "Neighbor chat"}
       </p>
       <ol className="mt-3 space-y-3">
         {chat.turns.map((turn, index) => (

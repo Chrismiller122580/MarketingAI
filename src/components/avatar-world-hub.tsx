@@ -146,6 +146,7 @@ export function AvatarWorldHub() {
           event.eventType !== "world_post" &&
           event.eventType !== "world_contribute" &&
           event.eventType !== "world_chat" &&
+          event.eventType !== "world_hangout" &&
           event.eventType !== "world_tick",
       ),
     [data],
@@ -166,6 +167,7 @@ export function AvatarWorldHub() {
         posterName?: string;
         replies?: number;
         chats?: number;
+        hangout?: { place: string; names: string[] };
         beat?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Could not live today");
@@ -365,6 +367,9 @@ export function AvatarWorldHub() {
   const lore = data?.lore ?? [];
   const lastTickAt = data?.lastTickAt ?? null;
   const chats = data?.chats ?? [];
+  const hangoutPlaces = new Set(
+    chats.map((chat) => chat.placeName).filter((name): name is string => Boolean(name)),
+  );
 
   return (
     <div className="min-w-0 space-y-8 overflow-x-hidden">
@@ -377,8 +382,8 @@ export function AvatarWorldHub() {
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
           Found a town and they go to work. They get paid in Sparks, pay rent,
-          buy groceries, and talk to each other. This world is admin-only.
-          Allow the ones the public can use.
+          buy groceries, and run into each other at the shop, the rooms, the
+          bank. This world is admin-only. Allow the ones the public can use.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {liveBusy ? "They're living today…" : formatTick(lastTickAt)}
@@ -625,6 +630,11 @@ export function AvatarWorldHub() {
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                         {place.note}
                       </p>
+                      {hangoutPlaces.has(place.name) && (
+                        <p className="mt-2 text-[11px] font-medium text-violet-700 dark:text-violet-300">
+                          They ran into each other here
+                        </p>
+                      )}
                     </div>
                   ))}
                 </section>
@@ -764,6 +774,11 @@ export function AvatarWorldHub() {
                             rent {avatar.rent}
                           </span>
                         )}
+                        {avatar.street && (
+                          <span className="rounded-full bg-violet-50 px-2 py-0.5 text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+                            {avatar.street}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Link>
@@ -857,7 +872,7 @@ export function AvatarWorldHub() {
 
           {chats.length > 0 && (
             <section>
-              <h3 className="mb-3 text-lg font-semibold">Neighbor chats</h3>
+              <h3 className="mb-3 text-lg font-semibold">Where they ran into each other</h3>
               <div className="space-y-4">
                 {chats.map((chat) => (
                   <WorldChatCard key={chat.conversationId} chat={chat} />

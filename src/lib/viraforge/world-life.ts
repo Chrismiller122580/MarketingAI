@@ -39,6 +39,8 @@ import {
   missingTownJobs,
   runEconomyDay,
   seedEssentialListings,
+  streetForOccupation,
+  type EconomyDayResult,
 } from "./world-economy";
 
 const MAX_RESIDENTS = 40;
@@ -587,6 +589,7 @@ export type WorldDayResult = {
   sales?: number;
   rents?: number;
   groceries?: number;
+  hangout?: { place: string; names: string[] };
 };
 
 export type SpawnResult = {
@@ -661,29 +664,155 @@ function pickPosters(
 function pickChatPairs(
   avatars: WorldInfluencerCard[],
   count: number,
+  economy?: EconomyDayResult,
+  skip?: Set<string>,
 ): Array<[WorldInfluencerCard, WorldInfluencerCard]> {
   if (avatars.length < 2 || count <= 0) return [];
-  const ranked = [...avatars].sort((a, b) => a.id.localeCompare(b.id));
-  const used = new Set<string>();
+  const used = new Set<string>(skip);
   const pairs: Array<[WorldInfluencerCard, WorldInfluencerCard]> = [];
 
-  const cityOf = (row: WorldInfluencerCard) =>
-    row.location.split(",")[0]?.trim().toLowerCase() || "";
+  const scorePair = (a: WorldInfluencerCard, b: WorldInfluencerCard): number => {
+    let score = hashString(`${a.id}:${b.id}`) % 4;
+    if (a.relationshipIds.includes(b.id) || b.relationshipIds.includes(a.id)) {
+      score += 8;
+    }
+    if (a.street && b.street && a.street === b.street) score += 4;
+    if (economy?.landlordId === a.id && economy.rentPayers.includes(b.id)) score += 6;
+    if (economy?.landlordId === b.id && economy.rentPayers.includes(a.id)) score += 6;
+    if (economy?.grocerId === a.id && economy.groceryBuyers.includes(b.id)) score += 6;
+    if (economy?.grocerId === b.id && economy.groceryBuyers.includes(a.id)) score += 6;
+    if (
+      economy?.salePairs.some(
+        (row) =>
+          (row.buyerId === a.id && row.sellerId === b.id) ||
+          (row.buyerId === b.id && row.sellerId === a.id),
+      )
+    ) {
+      score += 5;
+    }
+    return score;
+  };
 
-  for (const a of ranked) {
+  const candidates: Array<{
+    a: WorldInfluencerCard;
+    b: WorldInfluencerCard;
+    score: number;
+  }> = [];
+  for (let i = 0; i < avatars.length; i += 1) {
+    for (let j = i + 1; j < avatars.length; j += 1) {
+      const a = avatars[i]!;
+      const b = avatars[j]!;
+      candidates.push({ a, b, score: scorePair(a, b) });
+    }
+  }
+  candidates.sort((left, right) => right.score - left.score);
+
+  for (const candidate of candidates) {
     if (pairs.length >= count) break;
-    if (used.has(a.id)) continue;
-    const cityA = cityOf(a);
-    const partner =
-      ranked.find(
-        (b) => b.id !== a.id && !used.has(b.id) && cityOf(b) !== cityA,
-      ) || ranked.find((b) => b.id !== a.id && !used.has(b.id));
-    if (!partner) continue;
-    used.add(a.id);
-    used.add(partner.id);
-    pairs.push([a, partner]);
+    if (used.has(candidate.a.id) || used.has(candidate.b.id)) continue;
+    used.add(candidate.a.id);
+    used.add(candidate.b.id);
+    pairs.push([candidate.a, candidate.b]);
   }
   return pairs;
+}
+
+function pickHangout(
+  avatars: WorldInfluencerCard[],
+  economy: EconomyDayResult,
+  dayKey: string,
+): { place: { id: string; name: string }; speakers: WorldInfluencerCard[] } | null {
+  if (avatars.length < 2) return null;
+  const byId = new Map(avatars.map((row) => [row.id, row]));
+  const takeGuests = (
+    keeper: WorldInfluencerCard,
+    preferredIds: string[],
+  ): WorldInfluencerCard[] => {
+    const preferred = preferredIds
+      .map((id) => byId.get(id))
+      .filter((row): row is WorldInfluencerCard => !!row && row.id !== keeper.id);
+    const friends = avatars.filter(
+      (row) =>
+        row.id !== keeper.id &&
+        (row.relationshipIds.includes(keeper.id) ||
+          keeper.relationshipIds.includes(row.id)),
+    );
+    const street = avatars.filter(
+      (row) => row.id !== keeper.id && row.street === keeper.street,
+    );
+    const seen = new Set<string>([keeper.id]);
+    const guests: WorldInfluencerCard[] = [];
+    for (const row of [...preferred, ...friends, ...street, ...avatars]) {
+      if (seen.has(row.id)) continue;
+      seen.add(row.id);
+      guests.push(row);
+      if (guests.length >= 2) break;
+    }
+    return guests;
+  };
+
+  const options: Array<{
+    place: { id: string; name: string };
+    speakers: WorldInfluencerCard[];
+  }> = [];
+
+  const grocer = avatars.find((row) => row.id === economy.grocerId);
+  const baker = avatars.find((row) => row.id === economy.bakerId);
+  const shopkeeper = grocer ?? baker;
+  if (shopkeeper) {
+    const guests = takeGuests(shopkeeper, economy.groceryBuyers);
+    if (guests.length > 0) {
+      options.push({
+        place: { id: "shop", name: "Corner Shop" },
+        speakers: [shopkeeper, ...guests].slice(0, 3),
+      });
+    }
+  }
+
+  const landlord = avatars.find((row) => row.id === economy.landlordId);
+  if (landlord) {
+    const guests = takeGuests(landlord, economy.rentPayers);
+    if (guests.length > 0) {
+      options.push({
+        place: { id: "rooms", name: "Rooms" },
+        speakers: [landlord, ...guests].slice(0, 3),
+      });
+    }
+  }
+
+  const teller = avatars.find((row) => row.id === economy.tellerId);
+  if (teller) {
+    const guests = takeGuests(teller, avatars.map((row) => row.id));
+    if (guests.length > 0) {
+      options.push({
+        place: { id: "bank", name: "City Bank" },
+        speakers: [teller, ...guests].slice(0, 3),
+      });
+    }
+  }
+
+  if (economy.salePairs[0]) {
+    const sale = economy.salePairs[0];
+    const seller = byId.get(sale.sellerId);
+    const buyer = byId.get(sale.buyerId);
+    if (seller && buyer) {
+      options.push({
+        place: { id: "market", name: "The Market" },
+        speakers: [seller, buyer],
+      });
+    }
+  }
+
+  if (options.length === 0) {
+    const [a, b] = avatars;
+    if (!a || !b) return null;
+    return {
+      place: { id: "market", name: "The Market" },
+      speakers: [a, b],
+    };
+  }
+
+  return options[hashString(`${dayKey}:hangout`) % options.length] ?? options[0]!;
 }
 
 function sanitizeHandle(raw: string): string {
@@ -906,8 +1035,7 @@ export async function liveWorldDay(input: {
     avatars: refreshed,
   });
   const posts = await listWorldPosts(input.userId, 50);
-  const posterCount =
-    refreshed.length <= 1 ? 1 : refreshed.length <= 4 ? 2 : 3;
+  const posterCount = refreshed.length <= 1 ? 1 : 2;
   const posters = pickPosters(refreshed, posts, posterCount);
   const worldContext = await loadWorldGenerationContext(input.userId);
 
@@ -916,15 +1044,18 @@ export async function liveWorldDay(input: {
   for (const poster of posters) {
     const detail = await loadWorldDetail(input.userId, poster.id);
     if (!detail) continue;
+    const street =
+      poster.street ||
+      streetForOccupation(detail.world.occupation, detail.persona.location);
 
     const generated = await generateBackstoryContent({
       persona: detail.persona,
       world: detail.world,
       recentEvents: detail.events,
       autonomous: true,
-      scene: `A new day (${dayKey}). You woke up ${detail.world.mood}${
+      scene: `Morning (${dayKey}) on ${street}. You work as a ${detail.world.occupation || "neighbor"}. You woke up ${detail.world.mood}${
         detail.world.moodNote ? ` — ${detail.world.moodNote}` : ""
-      }. You have a job. People buy and sell things in Sparks. Live it as yourself. Do not wait for instructions. Do not represent a brand.`,
+      }. ${economy.beat || "The town is open."} Live the morning as yourself. Do not wait for instructions. Do not represent a brand.`,
       worldLore: worldContext.lore,
       neighborPosts: worldContext.neighborPosts.filter(
         (post) => post.handle !== detail.handle,
@@ -971,7 +1102,7 @@ export async function liveWorldDay(input: {
   }
 
   const others = Math.max(0, refreshed.length - 1);
-  const repliesWanted = others === 0 ? 0 : others === 1 ? 1 : 2;
+  const repliesWanted = others === 0 ? 0 : 1;
   const replyNames: string[] = [];
   const firstPostId = posted[0]!.postId;
 
@@ -989,16 +1120,45 @@ export async function liveWorldDay(input: {
     }
   }
 
-  const chatWanted = refreshed.length < 2 ? 0 : refreshed.length < 6 ? 1 : 2;
-  const pairs = pickChatPairs(refreshed, chatWanted);
+  const hangoutPick = pickHangout(refreshed, economy, dayKey);
+  let hangout: WorldDayResult["hangout"];
+  const hangoutUsed = new Set<string>();
   const chatBeats: string[] = [];
+
+  if (hangoutPick) {
+    try {
+      const [a, b, c] = hangoutPick.speakers;
+      if (a && b) {
+        const seeds = economy.seeds.slice(0, 4).join(" ");
+        const chat = await generateNeighborChat({
+          userId: input.userId,
+          aId: a.id,
+          bId: b.id,
+          cId: c?.id,
+          place: hangoutPick.place,
+          scene: `Evening at ${hangoutPick.place.name}. ${seeds || economy.beat || "The day is winding down."} You ran into each other here — landlord and tenant, shopkeeper and regular, neighbors on the same street. Talk about the rent, the food, the work, the weather. No audience. No brand.`,
+        });
+        hangoutPick.speakers.forEach((row) => hangoutUsed.add(row.id));
+        hangout = {
+          place: hangoutPick.place.name,
+          names: hangoutPick.speakers.map((row) => row.displayName),
+        };
+        chatBeats.push(chat.beat);
+      }
+    } catch {
+      // Hangout is extra — the morning still counted.
+    }
+  }
+
+  const extraChats = hangout ? 1 : refreshed.length < 2 ? 0 : refreshed.length < 6 ? 1 : 2;
+  const pairs = pickChatPairs(refreshed, extraChats, economy, hangoutUsed);
   for (const [a, b] of pairs) {
     try {
       const chat = await generateNeighborChat({
         userId: input.userId,
         aId: a.id,
         bId: b.id,
-        scene: `A ${dayKey} conversation. No audience. No brand. Two people with a minute.`,
+        scene: `Evening (${dayKey}). ${economy.seeds[0] || economy.beat || "The town is quieting down."} You already know each other, or you live on the same street. Talk like people with a minute. No audience. No brand.`,
       });
       chatBeats.push(chat.beat);
     } catch {
@@ -1010,6 +1170,9 @@ export async function liveWorldDay(input: {
   const beatParts = [
     posterNames.length > 0 ? `${posterNames.join(", ")} posted.` : "",
     replyNames.length > 0 ? `${replyNames.join(", ")} answered.` : "",
+    hangout
+      ? `${hangout.names.join(" and ")} at ${hangout.place}.`
+      : "",
     chatBeats.length > 0 ? chatBeats.join(" ") : "",
     economy.beat,
   ].filter(Boolean);
@@ -1027,6 +1190,7 @@ export async function liveWorldDay(input: {
       postId: firstPostId,
       replies: replyNames.length,
       chats: chatBeats.length,
+      hangout: hangout?.place,
       autonomous: true,
       ownerless: true,
     },
@@ -1049,6 +1213,7 @@ export async function liveWorldDay(input: {
     sales: economy.sales,
     rents: economy.rents,
     groceries: economy.groceries,
+    hangout,
   };
 }
 

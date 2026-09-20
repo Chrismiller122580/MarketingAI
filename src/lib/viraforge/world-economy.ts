@@ -315,6 +315,21 @@ export function missingTownJobs(occupations: string[]): string[] {
   );
 }
 
+export function streetForOccupation(occupation: string, location?: string): string {
+  const job = jobForOccupation(occupation);
+  const occ = occupation.trim().toLowerCase();
+  if (job.role === "grocer" || occupationMatches(occ, "baker") || occupationMatches(occ, "cook")) {
+    return "Market Street";
+  }
+  if (job.role === "landlord") return "the rooms";
+  if (job.role === "teller") return "Bank Row";
+  if (occupationMatches(occ, "nurse")) return "Hospital Hill";
+  if (occupationMatches(occ, "mechanic")) return "the corner stand";
+  if (occupationMatches(occ, "bus driver")) return "the route";
+  const city = location?.split(",")[0]?.trim();
+  return city ? `${city} side` : "the neighborhood";
+}
+
 function hashString(value: string): number {
   let h = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -389,6 +404,7 @@ export type WorldPlace = {
   id: "bank" | "market" | "rooms" | "shop";
   name: string;
   kind: "bank" | "market" | "rooms" | "shop";
+  keeperId?: string;
   keeperName?: string;
   keeperOccupation?: string;
   note: string;
@@ -527,6 +543,7 @@ function buildPlaces(
       id: "bank",
       name: "City Bank",
       kind: "bank",
+      keeperId: teller?.influencerId,
       keeperName: teller?.displayName,
       keeperOccupation: teller?.occupation,
       note: teller
@@ -537,6 +554,7 @@ function buildPlaces(
       id: "market",
       name: "The Market",
       kind: "market",
+      keeperId: grocer?.influencerId,
       keeperName: grocer?.displayName,
       keeperOccupation: grocer?.occupation,
       note:
@@ -548,6 +566,7 @@ function buildPlaces(
       id: "rooms",
       name: "Rooms",
       kind: "rooms",
+      keeperId: landlord?.influencerId,
       keeperName: landlord?.displayName,
       keeperOccupation: landlord?.occupation,
       note: landlord
@@ -558,6 +577,7 @@ function buildPlaces(
       id: "shop",
       name: "Corner Shop",
       kind: "shop",
+      keeperId: shopkeeper?.influencerId,
       keeperName: shopkeeper?.displayName,
       keeperOccupation: shopkeeper?.occupation,
       note: shopkeeper
@@ -716,6 +736,14 @@ export type EconomyDayResult = {
   rents: number;
   groceries: number;
   beat: string;
+  landlordId?: string;
+  grocerId?: string;
+  tellerId?: string;
+  bakerId?: string;
+  rentPayers: string[];
+  groceryBuyers: string[];
+  salePairs: Array<{ buyerId: string; sellerId: string; title: string }>;
+  seeds: string[];
 };
 
 function utcDayStart(now = new Date()): Date {
@@ -731,7 +759,18 @@ export async function runEconomyDay(input: {
     mood: string;
   }>;
 }): Promise<EconomyDayResult> {
-  const empty = { wages: 0, listings: 0, sales: 0, rents: 0, groceries: 0, beat: "" };
+  const empty: EconomyDayResult = {
+    wages: 0,
+    listings: 0,
+    sales: 0,
+    rents: 0,
+    groceries: 0,
+    beat: "",
+    rentPayers: [],
+    groceryBuyers: [],
+    salePairs: [],
+    seeds: [],
+  };
   if (input.avatars.length === 0) return empty;
 
   await ensureBank(input.userId);
@@ -808,6 +847,7 @@ export async function runEconomyDay(input: {
   const rentedIds = new Set(alreadyRented.map((row) => row.fromId).filter(Boolean));
 
   let rents = 0;
+  const rentPayers: string[] = [];
   const rentTo = landlord?.id ?? WORLD_BANK_ID;
   for (const avatar of input.avatars) {
     if (rentedIds.has(avatar.id)) continue;
@@ -830,6 +870,7 @@ export async function runEconomyDay(input: {
     });
     if (!ok) continue;
     rents += 1;
+    rentPayers.push(avatar.id);
   }
   if (rents > 0) {
     await prisma.creatorLearningEvent.create({
@@ -860,6 +901,7 @@ export async function runEconomyDay(input: {
   const groceryIds = new Set(alreadyGroceries.map((row) => row.fromId).filter(Boolean));
 
   let groceries = 0;
+  const groceryBuyers: string[] = [];
   if (grocer) {
     for (const avatar of input.avatars) {
       if (groceryIds.has(avatar.id)) continue;
@@ -875,6 +917,7 @@ export async function runEconomyDay(input: {
       });
       if (!ok) continue;
       groceries += 1;
+      groceryBuyers.push(avatar.id);
     }
     if (groceries > 0) {
       await prisma.creatorLearningEvent.create({
@@ -935,6 +978,7 @@ export async function runEconomyDay(input: {
   }
 
   let sales = 0;
+  const salePairs: Array<{ buyerId: string; sellerId: string; title: string }> = [];
   const open = await prisma.worldListing.findMany({
     where: { userId: input.userId, status: "open" },
     orderBy: { createdAt: "asc" },
@@ -965,6 +1009,11 @@ export async function runEconomyDay(input: {
       data: { status: "sold", buyerId: buyer.id },
     });
     sales += 1;
+    salePairs.push({
+      buyerId: buyer.id,
+      sellerId: listing.sellerId,
+      title: listing.title,
+    });
     await prisma.creatorLearningEvent.create({
       data: {
         userId: input.userId,
@@ -983,6 +1032,33 @@ export async function runEconomyDay(input: {
     if (sales >= 2) break;
   }
 
+  const teller =
+    input.avatars.find((row) => jobForOccupation(row.occupation).role === "teller") ??
+    null;
+  const baker =
+    input.avatars.find((row) => occupationMatches(row.occupation, "baker")) ?? null;
+
+  const seeds = [
+    wages > 0 ? `${wages} neighbors got paid.` : "",
+    rents > 0 && landlord
+      ? `${landlord.displayName} collected rent from ${rentPayers.length} tenant${rentPayers.length === 1 ? "" : "s"}.`
+      : rents > 0
+        ? `${rents} paid rent to City Bank.`
+        : "",
+    groceries > 0 && grocer
+      ? `${groceryBuyers.length} neighbor${groceryBuyers.length === 1 ? "" : "s"} bought food from ${grocer.displayName}.`
+      : "",
+    ...salePairs.map(
+      (row) => {
+        const buyer = input.avatars.find((a) => a.id === row.buyerId);
+        const seller = input.avatars.find((a) => a.id === row.sellerId);
+        return buyer && seller
+          ? `${buyer.displayName} bought ${row.title} from ${seller.displayName}.`
+          : "";
+      },
+    ),
+  ].filter(Boolean);
+
   const beat = [
     wages > 0 ? `${wages} got paid.` : "",
     rents > 0 ? `${rents} paid rent.` : "",
@@ -993,7 +1069,22 @@ export async function runEconomyDay(input: {
     .filter(Boolean)
     .join(" ");
 
-  return { wages, listings, sales, rents, groceries, beat };
+  return {
+    wages,
+    listings,
+    sales,
+    rents,
+    groceries,
+    beat,
+    landlordId: landlord?.id,
+    grocerId: grocer?.id,
+    tellerId: teller?.id,
+    bakerId: baker?.id,
+    rentPayers,
+    groceryBuyers,
+    salePairs,
+    seeds,
+  };
 }
 
 export async function seedEssentialListings(input: {

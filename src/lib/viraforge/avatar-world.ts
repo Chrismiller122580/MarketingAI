@@ -21,7 +21,7 @@ import {
   type InfluencerRenderRecord,
 } from "./influencer-renders";
 import { mergeInfluencerMemory, type InfluencerMemory } from "./learning";
-import { loadWorldEconomy, type WorldEconomySnapshot } from "./world-economy";
+import { loadWorldEconomy, streetForOccupation, type WorldEconomySnapshot } from "./world-economy";
 
 export const WORLD_EVENT_TYPES = [
   "life_event",
@@ -38,6 +38,7 @@ export const WORLD_EVENT_TYPES = [
   "world_sale",
   "world_rent",
   "world_grocery",
+  "world_hangout",
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];
@@ -57,7 +58,8 @@ export type LifeEventKind =
   | "listing"
   | "sale"
   | "rent"
-  | "grocery";
+  | "grocery"
+  | "hangout";
 
 export type AvatarRelationshipKind =
   | "friend"
@@ -144,6 +146,8 @@ export type WorldChatCard = {
   beat: string;
   turns: WorldChatTurn[];
   createdAt: string;
+  placeId?: string;
+  placeName?: string;
 };
 
 export type ContributorSuggestion = {
@@ -381,6 +385,8 @@ function defaultEventTitle(type: WorldEventType): string {
       return "A new resident arrived";
     case "world_chat":
       return "Talked with a neighbor";
+    case "world_hangout":
+      return "Hung out";
     case "world_wage":
       return "Got paid";
     case "world_listing":
@@ -413,6 +419,7 @@ export type WorldInfluencerCard = {
   postCount: number;
   interests: string[];
   relationshipIds: string[];
+  street: string;
   balance: number;
   wage: number;
   rent: number;
@@ -458,6 +465,10 @@ export async function listWorldInfluencers(
       postCount: row._count.posts,
       interests: world.interests,
       relationshipIds: world.relationships.map((rel) => rel.influencerId),
+      street: streetForOccupation(
+        world.occupation,
+        persona.success ? persona.data.location : world.currentCity,
+      ),
       balance: 0,
       wage: 0,
       rent: 0,
@@ -1506,93 +1517,100 @@ function fallbackNeighborChat(
 
 function matchChatSpeaker(
   handle: string,
-  a: { id: string; handle: string; displayName: string },
-  b: { id: string; handle: string; displayName: string },
-): "a" | "b" | null {
+  speakers: Array<{ id: string; handle: string; displayName: string }>,
+): number {
   const h = handle.replace(/^@/, "").trim().toLowerCase();
-  if (!h) return null;
-  if (h === a.handle.toLowerCase() || h === a.displayName.toLowerCase()) return "a";
-  if (h === b.handle.toLowerCase() || h === b.displayName.toLowerCase()) return "b";
-  return null;
+  if (!h) return -1;
+  return speakers.findIndex(
+    (row) =>
+      row.handle.toLowerCase() === h || row.displayName.toLowerCase() === h,
+  );
 }
 
 export async function generateNeighborChat(input: {
   userId: string;
   aId: string;
   bId: string;
+  cId?: string;
   scene?: string;
+  place?: { id: string; name: string };
 }): Promise<WorldChatCard> {
-  if (input.aId === input.bId) {
+  const ids = [...new Set([input.aId, input.bId, input.cId].filter(Boolean))] as string[];
+  if (ids.length < 2) {
     throw new Error("Two different residents have to talk");
   }
 
-  const [aRow, bRow] = await Promise.all([
-    prisma.influencer.findFirst({
-      where: { id: input.aId, userId: input.userId },
-    }),
-    prisma.influencer.findFirst({
-      where: { id: input.bId, userId: input.userId },
-    }),
-  ]);
-  if (!aRow || !bRow) {
+  const rows = await Promise.all(
+    ids.map((id) =>
+      prisma.influencer.findFirst({
+        where: { id, userId: input.userId },
+      }),
+    ),
+  );
+  if (rows.some((row) => !row)) {
     throw new Error("Both residents must belong to this world");
   }
-
-  const aPersona = parseCreatorAvatar(aRow.persona);
-  const bPersona = parseCreatorAvatar(bRow.persona);
-  if (!aPersona.success || !bPersona.success) {
-    throw new Error("Avatar personas are incomplete");
-  }
-
-  const aWorld = hydrateWorldProfile(
-    aPersona.data,
-    (aRow.memory ?? {}) as InfluencerMemory,
+  const speakers = rows.filter(
+    (row): row is NonNullable<(typeof rows)[number]> => Boolean(row),
   );
-  const bWorld = hydrateWorldProfile(
-    bPersona.data,
-    (bRow.memory ?? {}) as InfluencerMemory,
-  );
+
+  const personas = speakers.map((row) => {
+    const parsed = parseCreatorAvatar(row.persona);
+    if (!parsed.success) throw new Error("Avatar personas are incomplete");
+    const world = hydrateWorldProfile(
+      parsed.data,
+      (row.memory ?? {}) as InfluencerMemory,
+    );
+    return { row, persona: parsed.data, world };
+  });
+
   const lore = await collectWorldLore(input.userId);
+  const placeName = input.place?.name;
+  const atPlace = placeName ? `at ${placeName}` : "somewhere in town";
 
-  const aInfo = {
-    displayName: aRow.displayName,
-    handle: aRow.handle,
-    city: aWorld.currentCity || aPersona.data.location,
-    mood: aWorld.mood,
-    quote: aWorld.catchphrase || aPersona.data.sampleQuote,
-  };
-  const bInfo = {
-    displayName: bRow.displayName,
-    handle: bRow.handle,
-    city: bWorld.currentCity || bPersona.data.location,
-    mood: bWorld.mood,
-    quote: bWorld.catchphrase || bPersona.data.sampleQuote,
-  };
+  const infos = personas.map((item) => ({
+    displayName: item.row.displayName,
+    handle: item.row.handle,
+    city: item.world.currentCity || item.persona.location,
+    mood: item.world.mood,
+    quote: item.world.catchphrase || item.persona.sampleQuote,
+  }));
 
-  let draft = fallbackNeighborChat(aInfo, bInfo);
+  let draft = fallbackNeighborChat(infos[0]!, infos[1]!);
+  if (infos[2]) {
+    draft.turns.push({
+      handle: infos[2].handle,
+      text: `Came through ${atPlace} and overheard you. Don't let me interrupt — I'm ${infos[2].mood}.`,
+    });
+    draft.worldBeat = `${infos.map((row) => row.displayName).join(", ")} ran into each other ${atPlace}.`;
+  }
   let usedAi = false;
+
+  const handleList = speakers.map((row) => `"${row.handle}"`).join(" or ");
+  const roster = personas
+    .map(
+      (item) =>
+        `${item.row.displayName} (@${item.row.handle}), ${item.world.occupation || "neighbor"} in ${item.world.currentCity || item.persona.location}. Mood: ${item.world.mood}${item.world.moodNote ? ` — ${item.world.moodNote}` : ""}.
+Voice: ${item.persona.personalityVoice}
+Backstory: ${item.world.backstory}`,
+    )
+    .join("\n\n");
 
   if (hasAnyAiKey()) {
     const generated =
       (await chatCompletion(
-        `Write a private conversation between two people who live in the same world. Not a social post. Not a collab. Not for an audience.
+        `Write a private conversation between people who live in the same world. They are ${atPlace}. Not a social post. Not a collab. Not for an audience.
 ${OWNERLESS_RULES}
-4–8 short turns. They sound like neighbors or new acquaintances. Specific, human, a little messy.
+${speakers.length > 2 ? "6–10" : "4–8"} short turns. They sound like neighbors who actually ran into each other. Specific, human, a little messy. Mention the place if they are in one.
 Return JSON only: { "turns": [{ "handle": string, "text": string }], "worldBeat": string }
-handle must be one of "${aRow.handle}" or "${bRow.handle}". worldBeat is one sentence about what passed between them.`,
-        `A: ${aRow.displayName} (@${aRow.handle}), ${aWorld.occupation || "neighbor"} in ${aInfo.city}. Mood: ${aWorld.mood}${aWorld.moodNote ? ` — ${aWorld.moodNote}` : ""}.
-Voice: ${aPersona.data.personalityVoice}
-Backstory: ${aWorld.backstory}
-
-B: ${bRow.displayName} (@${bRow.handle}), ${bWorld.occupation || "neighbor"} in ${bInfo.city}. Mood: ${bWorld.mood}${bWorld.moodNote ? ` — ${bWorld.moodNote}` : ""}.
-Voice: ${bPersona.data.personalityVoice}
-Backstory: ${bWorld.backstory}
+handle must be one of ${handleList}. worldBeat is one sentence about what passed between them.`,
+        `${roster}
 
 World lore:
 ${lore.slice(0, 6).map((beat) => `- ${beat}`).join("\n") || "- new world"}
 
-${input.scene?.trim() || "They have a moment. Talk about the day, the work, the city, or each other."}`,
-        { maxTokens: 500, temperature: 0.9, jsonMode: true },
+${input.scene?.trim() || `They have a moment ${atPlace}. Talk about the day, the work, the city, or each other.`}`,
+        { maxTokens: speakers.length > 2 ? 700 : 500, temperature: 0.9, jsonMode: true },
       )) ?? "";
     const parsed = parseChatDraft(generated);
     if (parsed) {
@@ -1601,65 +1619,60 @@ ${input.scene?.trim() || "They have a moment. Talk about the day, the work, the 
     }
   }
 
-  const mappedTurns: WorldChatTurn[] = [];
-  const aAssets = resolveInfluencerAssets((aRow.assets ?? {}) as InfluencerAssets);
-  const bAssets = resolveInfluencerAssets((bRow.assets ?? {}) as InfluencerAssets);
+  const assetsById = new Map(
+    speakers.map((row) => [
+      row.id,
+      resolveInfluencerAssets((row.assets ?? {}) as InfluencerAssets),
+    ]),
+  );
 
+  const mappedTurns: WorldChatTurn[] = [];
   for (let i = 0; i < draft.turns.length; i += 1) {
     const turn = draft.turns[i]!;
-    const who =
-      matchChatSpeaker(turn.handle, aRow, bRow) ?? (i % 2 === 0 ? "a" : "b");
-    const speaker = who === "a" ? aRow : bRow;
-    const assets = who === "a" ? aAssets : bAssets;
+    const idx = matchChatSpeaker(turn.handle, speakers);
+    const speaker = speakers[idx >= 0 ? idx : i % speakers.length]!;
+    const assets = assetsById.get(speaker.id);
     mappedTurns.push({
       influencerId: speaker.id,
       displayName: speaker.displayName,
       handle: speaker.handle,
-      portraitUrl: assets.portraitUrl,
+      portraitUrl: assets?.portraitUrl,
       text: turn.text,
     });
   }
 
   if (mappedTurns.length < 2) {
-    draft = fallbackNeighborChat(aInfo, bInfo);
+    draft = fallbackNeighborChat(infos[0]!, infos[1]!);
     mappedTurns.length = 0;
     for (const turn of draft.turns) {
-      const who = matchChatSpeaker(turn.handle, aRow, bRow) ?? "a";
-      const speaker = who === "a" ? aRow : bRow;
-      const assets = who === "a" ? aAssets : bAssets;
+      const idx = matchChatSpeaker(turn.handle, speakers);
+      const speaker = speakers[idx >= 0 ? idx : 0]!;
+      const assets = assetsById.get(speaker.id);
       mappedTurns.push({
         influencerId: speaker.id,
         displayName: speaker.displayName,
         handle: speaker.handle,
-        portraitUrl: assets.portraitUrl,
+        portraitUrl: assets?.portraitUrl,
         text: turn.text,
       });
     }
   }
 
+  const names = speakers.map((row) => row.displayName);
   const worldBeat =
     draft.worldBeat ||
-    `${aRow.displayName} and ${bRow.displayName} talked like people, not a campaign.`;
-  const conversationId = `chat_${aRow.id.slice(0, 8)}_${bRow.id.slice(0, 8)}_${Date.now().toString(36)}`;
+    (placeName
+      ? `${names.join(" and ")} ran into each other at ${placeName}.`
+      : `${names[0]} and ${names[1]} talked like people, not a campaign.`);
+  const conversationId = `chat_${speakers.map((row) => row.id.slice(0, 6)).join("_")}_${Date.now().toString(36)}`;
   const preview = mappedTurns[0]?.text.slice(0, 280) || worldBeat;
-
-  const aRels = upsertRelationship(aWorld.relationships, {
-    influencerId: bRow.id,
-    handle: bRow.handle,
-    displayName: bRow.displayName,
-    kind: "friend",
-    note: "Talked like neighbors",
-  });
-  const bRels = upsertRelationship(bWorld.relationships, {
-    influencerId: aRow.id,
-    handle: aRow.handle,
-    displayName: aRow.displayName,
-    kind: "friend",
-    note: "Talked like neighbors",
-  });
+  const eventType = input.place ? "world_hangout" : "world_chat";
+  const relNote = input.place
+    ? `Ran into them at ${placeName}`
+    : "Talked like neighbors";
 
   const payloadBase = {
-    kind: "chat" as const,
+    kind: input.place ? "hangout" : "chat",
     conversationId,
     turns: mappedTurns.map((turn) => ({
       influencerId: turn.influencerId,
@@ -1669,50 +1682,50 @@ ${input.scene?.trim() || "They have a moment. Talk about the day, the work, the 
     })),
     worldBeat,
     usedAi,
+    placeId: input.place?.id,
+    placeName: input.place?.name,
   };
 
-  await Promise.all([
-    appendSharedLore(aRow.id, aRow.memory, aWorld, worldBeat, {
-      relationships: aRels,
-      learnedNotes: [
-        `Talked with @${bRow.handle}: ${worldBeat}`,
-        ...aWorld.learnedNotes,
-      ].slice(0, 16),
+  await Promise.all(
+    personas.map(async (item, index) => {
+      let rels = item.world.relationships;
+      for (const other of speakers) {
+        if (other.id === item.row.id) continue;
+        rels = upsertRelationship(rels, {
+          influencerId: other.id,
+          handle: other.handle,
+          displayName: other.displayName,
+          kind: "friend",
+          note: relNote,
+        });
+      }
+      const others = speakers.filter((row) => row.id !== item.row.id);
+      await appendSharedLore(item.row.id, item.row.memory, item.world, worldBeat, {
+        relationships: rels,
+        learnedNotes: [
+          placeName
+            ? `At ${placeName} with ${others.map((row) => `@${row.handle}`).join(", ")}: ${worldBeat}`
+            : `Talked with ${others.map((row) => `@${row.handle}`).join(", ")}: ${worldBeat}`,
+          ...item.world.learnedNotes,
+        ].slice(0, 16),
+      });
+      await recordWorldEvent({
+        userId: input.userId,
+        influencerId: item.row.id,
+        eventType,
+        payload: {
+          ...payloadBase,
+          title: placeName
+            ? `At ${placeName}`
+            : `Talked with @${others[0]?.handle ?? "a neighbor"}`,
+          body: preview,
+          mood: item.world.mood,
+          relatedInfluencerId: others[index % others.length]?.id,
+          relatedHandle: others[index % others.length]?.handle,
+        },
+      });
     }),
-    appendSharedLore(bRow.id, bRow.memory, bWorld, worldBeat, {
-      relationships: bRels,
-      learnedNotes: [
-        `Talked with @${aRow.handle}: ${worldBeat}`,
-        ...bWorld.learnedNotes,
-      ].slice(0, 16),
-    }),
-    recordWorldEvent({
-      userId: input.userId,
-      influencerId: aRow.id,
-      eventType: "world_chat",
-      payload: {
-        ...payloadBase,
-        title: `Talked with @${bRow.handle}`,
-        body: preview,
-        mood: aWorld.mood,
-        relatedInfluencerId: bRow.id,
-        relatedHandle: bRow.handle,
-      },
-    }),
-    recordWorldEvent({
-      userId: input.userId,
-      influencerId: bRow.id,
-      eventType: "world_chat",
-      payload: {
-        ...payloadBase,
-        title: `Talked with @${aRow.handle}`,
-        body: preview,
-        mood: bWorld.mood,
-        relatedInfluencerId: aRow.id,
-        relatedHandle: aRow.handle,
-      },
-    }),
-  ]);
+  );
 
   return {
     id: conversationId,
@@ -1720,6 +1733,8 @@ ${input.scene?.trim() || "They have a moment. Talk about the day, the work, the 
     beat: worldBeat,
     turns: mappedTurns,
     createdAt: new Date().toISOString(),
+    placeId: input.place?.id,
+    placeName: input.place?.name,
   };
 }
 
@@ -1756,7 +1771,7 @@ export async function listWorldChats(
   limit = 12,
 ): Promise<WorldChatCard[]> {
   const rows = await prisma.creatorLearningEvent.findMany({
-    where: { userId, eventType: "world_chat" },
+    where: { userId, eventType: { in: ["world_chat", "world_hangout"] } },
     include: {
       influencer: {
         select: { displayName: true, handle: true, assets: true },
@@ -1802,6 +1817,8 @@ export async function listWorldChats(
             : `${turns[0]?.displayName} talked with a neighbor.`,
       turns,
       createdAt: row.createdAt.toISOString(),
+      placeId: typeof payload.placeId === "string" ? payload.placeId : undefined,
+      placeName: typeof payload.placeName === "string" ? payload.placeName : undefined,
     });
     if (chats.length >= limit) break;
   }
