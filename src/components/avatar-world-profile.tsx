@@ -495,8 +495,12 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
               checked={form.isPublic}
               onChange={(e) => patchForm({ isPublic: e.target.checked })}
             />
-            Public on the web
+            Public can use this avatar
           </label>
+          <p className="-mt-2 text-xs text-muted-foreground lg:col-span-2">
+            When on, anyone can view them at /world and pick them in Content
+            Studio. The world itself stays admin-only.
+          </p>
           <div className="lg:col-span-2">
             <Button
               className="bg-violet-600 hover:bg-violet-500"

@@ -48,6 +48,13 @@ export function isAdminError<T>(
   return result instanceof NextResponse;
 }
 
+/** Avatar World is admin-only. Returns the admin user id. */
+export async function requireAvatarWorldAdmin(): Promise<string | NextResponse> {
+  const admin = await requireAdmin();
+  if (isAdminError(admin)) return admin;
+  return admin.userId;
+}
+
 export type PlanInfo = {
   plan: string;
   subscriptionStatus: string | null;

@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { AppShell } from "@/components/app-shell";
 import { AvatarWorldHub } from "@/components/avatar-world-hub";
-import { CreatorGate } from "@/components/creator-gate";
 
 export const metadata: Metadata = {
   title: "Avatar World",
   description:
-    "A living world of avatars who post and chat on their own. Invite people with different lives.",
+    "Admin-only living world. Invite residents and allow the public to use them.",
 };
 
-export default function AvatarWorldPage() {
+export default async function AvatarWorldPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  if (session.user.role !== "admin") redirect("/dashboard");
+
   return (
     <AppShell>
-      <CreatorGate title="Avatar World">
-        <AvatarWorldHub />
-      </CreatorGate>
+      <AvatarWorldHub />
     </AppShell>
   );
 }

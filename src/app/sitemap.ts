@@ -9,5 +9,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: "https://www.crawlspark.ai/privacy", lastModified, changeFrequency: "yearly", priority: 0.3 },
     { url: "https://www.crawlspark.ai/terms", lastModified, changeFrequency: "yearly", priority: 0.3 },
     { url: "https://www.crawlspark.ai/domains", lastModified, changeFrequency: "yearly", priority: 0.2 },
+    { url: "https://www.crawlspark.ai/world", lastModified, changeFrequency: "weekly", priority: 0.6 },
   ];
 }

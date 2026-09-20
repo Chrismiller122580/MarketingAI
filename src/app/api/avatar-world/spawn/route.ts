@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isAuthError, requireAvatarWorldAdmin } from "@/lib/auth-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { spawnDiverseResident } from "@/lib/viraforge/world-life";
 
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 export async function POST() {
-  const authResult = await requireAuthUserId();
+  const authResult = await requireAvatarWorldAdmin();
   if (isAuthError(authResult)) return authResult;
 
   const rl = checkRateLimit(authResult, "generate");

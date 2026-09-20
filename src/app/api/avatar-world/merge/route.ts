@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isAuthError, requireAvatarWorldAdmin } from "@/lib/auth-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { uploadBytesToBlob } from "@/lib/media-url";
@@ -19,7 +19,7 @@ const mergeSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const authResult = await requireAuthUserId();
+  const authResult = await requireAvatarWorldAdmin();
   if (isAuthError(authResult)) return authResult;
 
   const rl = checkRateLimit(authResult, "video");

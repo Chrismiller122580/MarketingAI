@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ function InfluencerSkeleton() {
 }
 
 export function InfluencersPanel() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "admin";
   const [influencers, setInfluencers] = useState<InfluencerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -90,21 +93,23 @@ export function InfluencersPanel() {
             )}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            AI personas that learn from your inputs and locked product facts.
+            AI personas you design. Site influence and product facts are optional.
           </p>
         </div>
-        <div className="grid min-w-0 grid-cols-2 gap-2">
-          <Button
-            asChild
-            size="sm"
-            variant="outline"
-            disabled={loading}
-            className="min-w-0"
-          >
-            <Link href="/avatar-world" className="truncate text-center">
-              Avatar World
-            </Link>
-          </Button>
+        <div className={`grid min-w-0 gap-2 ${isAdmin ? "grid-cols-2" : "grid-cols-1"}`}>
+          {isAdmin && (
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              disabled={loading}
+              className="min-w-0"
+            >
+              <Link href="/avatar-world" className="truncate text-center">
+                Avatar World
+              </Link>
+            </Button>
+          )}
           <Button
             asChild
             size="sm"
@@ -174,15 +179,17 @@ export function InfluencersPanel() {
                   </p>
                 </div>
               </div>
-              <div className="grid w-full min-w-0 grid-cols-3 gap-1.5">
-                <Button asChild variant="outline" size="sm" className="min-w-0 shrink">
-                  <Link
-                    href={`/avatar-world/${inf.id}`}
-                    className="block w-full truncate text-center"
-                  >
-                    World
-                  </Link>
-                </Button>
+              <div className={`grid w-full min-w-0 gap-1.5 ${isAdmin ? "grid-cols-3" : "grid-cols-2"}`}>
+                {isAdmin && (
+                  <Button asChild variant="outline" size="sm" className="min-w-0 shrink">
+                    <Link
+                      href={`/avatar-world/${inf.id}`}
+                      className="block w-full truncate text-center"
+                    >
+                      World
+                    </Link>
+                  </Button>
+                )}
                 <Button asChild variant="outline" size="sm" className="min-w-0 shrink">
                   <Link
                     href={`/creator-studio?influencer=${inf.id}`}

@@ -30,7 +30,9 @@ export function AvatarPublicProfile({
             <Link href="/" className="hover:text-white">
               crawlspark.ai
             </Link>
-            <span>Avatar World</span>
+            <Link href="/world" className="hover:text-white">
+              Avatar World
+            </Link>
           </header>
 
           <section className="flex flex-col gap-6 sm:flex-row sm:items-end">
@@ -79,6 +81,20 @@ export function AvatarPublicProfile({
                     {profile.world.relationshipStatus}
                   </span>
                 )}
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link
+                  href={`/content?influencer=${profile.id}`}
+                  className="inline-flex rounded-full bg-violet-500 px-4 py-2 text-sm font-medium text-white hover:bg-violet-400"
+                >
+                  Use this avatar
+                </Link>
+                <Link
+                  href="/world"
+                  className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10"
+                >
+                  All public avatars
+                </Link>
               </div>
             </div>
           </section>

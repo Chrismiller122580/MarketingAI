@@ -20,7 +20,7 @@ export function CreatorUpgradeWall({
         {title} is on {ENTERPRISE_PLUS_LABEL}
       </h1>
       <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
-        Influencer avatars, Present motion clips, and Avatar World live here.
+        Influencer avatars and Present motion clips live here.
         Your marketing workspace — crawl, generate, schedule, and publish — is
         ready on the dashboard now.
       </p>

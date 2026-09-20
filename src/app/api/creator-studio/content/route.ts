@@ -11,6 +11,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { generateInfluencerSiteContent } from "@/lib/viraforge/influencer-content";
+import { findUsableInfluencer } from "@/lib/viraforge/avatar-world";
 import {
   buildPersonalizationContext,
   recordCreatorEvent,
@@ -68,14 +69,12 @@ export async function POST(request: Request) {
     const { influencerId, domain, pagePath, platform, brief } = parsed.data;
     const sitePayload = parsed.data.site as SiteData | undefined;
 
-    const influencer = await prisma.influencer.findFirst({
-      where: { id: influencerId, userId: authResult },
-      include: { productFacts: true },
-    });
+    const usable = await findUsableInfluencer(authResult, influencerId);
+    const influencer = usable?.influencer;
 
     if (!influencer) {
       return NextResponse.json(
-        { error: "Save the influencer first" },
+        { error: "That avatar is not available" },
         { status: 400 },
       );
     }

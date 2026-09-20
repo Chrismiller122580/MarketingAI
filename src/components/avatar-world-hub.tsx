@@ -50,6 +50,7 @@ export function AvatarWorldHub() {
   const [collabBusy, setCollabBusy] = useState(false);
   const [liveBusy, setLiveBusy] = useState(false);
   const [spawnBusy, setSpawnBusy] = useState(false);
+  const [publicBusyId, setPublicBusyId] = useState<string | null>(null);
   const autoLiveRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -172,6 +173,31 @@ export function AvatarWorldHub() {
     }
   }
 
+  async function togglePublicUse(avatarId: string, next: boolean) {
+    setPublicBusyId(avatarId);
+    try {
+      const res = await fetch(`/api/avatar-world/${avatarId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublic: next }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not update access");
+      toast.success(
+        next
+          ? "Public can use this avatar"
+          : "This avatar is admin-only again",
+      );
+      await load();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not update access",
+      );
+    } finally {
+      setPublicBusyId(null);
+    }
+  }
+
   useEffect(() => {
     if (!data || autoLiveRef.current || liveBusy) return;
     if (data.avatars.length === 0) return;
@@ -241,9 +267,9 @@ export function AvatarWorldHub() {
           They live here without you.
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-          Every day they post on their own and chat with each other. Your job is
-          to invite people with different lives so the world stays diverse —
-          not to brief them, brand them, or speak for them.
+          Every day they post on their own and chat with each other. This world
+          is admin-only. Invite people with different lives, then allow the
+          ones the public can use in Content Studio.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {liveBusy ? "They're living today…" : formatTick(lastTickAt)}
@@ -266,6 +292,9 @@ export function AvatarWorldHub() {
             onClick={() => void runLive(true)}
           >
             {liveBusy ? <InlineLoading label="Living today…" /> : "Live today"}
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href="/world">Public gallery</Link>
           </Button>
           <Button asChild variant="ghost">
             <Link href="/creator-studio">Give someone a face</Link>
@@ -320,15 +349,19 @@ export function AvatarWorldHub() {
             <div className="mb-3 flex items-end justify-between gap-3">
               <h3 className="text-lg font-semibold">Residents</h3>
               <p className="text-xs text-muted-foreground">
-                {avatars.length} living avatar{avatars.length === 1 ? "" : "s"}
+                {avatars.length} living ·{" "}
+                {avatars.filter((row) => row.isPublic).length} public
               </p>
             </div>
             <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {avatars.map((avatar) => (
-                <li key={avatar.id}>
+                <li
+                  key={avatar.id}
+                  className="flex h-full flex-col rounded-2xl border border-border bg-card transition hover:border-violet-300 hover:shadow-sm dark:hover:border-violet-700"
+                >
                   <Link
                     href={`/avatar-world/${avatar.id}`}
-                    className="flex h-full gap-4 rounded-2xl border border-border bg-card p-4 transition hover:border-violet-300 hover:shadow-sm dark:hover:border-violet-700"
+                    className="flex flex-1 gap-4 p-4"
                   >
                     <AvatarFace
                       name={avatar.displayName}
@@ -350,15 +383,46 @@ export function AvatarWorldHub() {
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
                           {avatar.mood}
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                          {avatar.videoCount} clips
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                          {avatar.postCount} posts
+                        <span
+                          className={`rounded-full px-2 py-0.5 ${
+                            avatar.isPublic
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                          }`}
+                        >
+                          {avatar.isPublic ? "Public can use" : "Admin only"}
                         </span>
                       </div>
                     </div>
                   </Link>
+                  <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      {avatar.isPublic
+                        ? "Listed for the public"
+                        : "Hidden from the public"}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant={avatar.isPublic ? "outline" : "default"}
+                      className={
+                        avatar.isPublic
+                          ? ""
+                          : "bg-violet-600 hover:bg-violet-500"
+                      }
+                      disabled={publicBusyId === avatar.id || liveBusy || spawnBusy}
+                      onClick={() =>
+                        void togglePublicUse(avatar.id, !avatar.isPublic)
+                      }
+                    >
+                      {publicBusyId === avatar.id ? (
+                        <InlineLoading label="Saving…" />
+                      ) : avatar.isPublic ? (
+                        "Make private"
+                      ) : (
+                        "Allow public"
+                      )}
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

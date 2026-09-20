@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isAuthError, requireAvatarWorldAdmin } from "@/lib/auth-helpers";
 import { learnFromAvatar } from "@/lib/viraforge/avatar-world";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -10,7 +10,7 @@ const learnSchema = z.object({
 });
 
 export async function POST(request: Request, context: RouteContext) {
-  const authResult = await requireAuthUserId();
+  const authResult = await requireAvatarWorldAdmin();
   if (isAuthError(authResult)) return authResult;
 
   try {

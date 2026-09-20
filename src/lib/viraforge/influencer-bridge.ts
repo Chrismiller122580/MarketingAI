@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/db";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import type {
@@ -6,6 +5,7 @@ import type {
   SiteData,
   SitePage,
 } from "@/lib/types";
+import { findUsableInfluencer } from "./avatar-world";
 import { buildPersonalizationContext } from "./learning";
 import { mergeInfluencerAssets, resolveInfluencerAssets } from "./influencer-assets";
 import { buildFactPinpoints, mergeFactsWithSite } from "./site-facts-extractor";
@@ -16,13 +16,10 @@ export async function loadInfluencerGenerateContext(
   site: SiteData,
   page: SitePage,
 ): Promise<InfluencerGenerateContext | null> {
-  const influencer = await prisma.influencer.findFirst({
-    where: { id: influencerId, userId },
-    include: { productFacts: true },
-  });
+  const usable = await findUsableInfluencer(userId, influencerId);
+  if (!usable) return null;
 
-  if (!influencer) return null;
-
+  const influencer = usable.influencer;
   const persona = parseCreatorAvatar(influencer.persona);
   if (!persona.success) return null;
 

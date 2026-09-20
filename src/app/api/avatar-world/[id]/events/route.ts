@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isAuthError, requireAvatarWorldAdmin } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import {
   listInfluencerWorldEvents,
@@ -11,7 +11,7 @@ import {
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const authResult = await requireAuthUserId();
+  const authResult = await requireAvatarWorldAdmin();
   if (isAuthError(authResult)) return authResult;
 
   const { id } = await context.params;
@@ -37,7 +37,7 @@ const eventSchema = z.object({
 });
 
 export async function POST(request: Request, context: RouteContext) {
-  const authResult = await requireAuthUserId();
+  const authResult = await requireAvatarWorldAdmin();
   if (isAuthError(authResult)) return authResult;
 
   try {

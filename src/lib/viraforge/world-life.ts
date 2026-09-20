@@ -1226,6 +1226,12 @@ export async function liveWorldsForAllUsers(limit = 8): Promise<{
   errors: number;
   results: Array<{ userId: string; skipped: boolean; reason?: string }>;
 }> {
+  const admins = await prisma.user.findMany({
+    where: { role: "admin" },
+    select: { id: true },
+    take: 20,
+  });
+  const adminIds = new Set(admins.map((row) => row.id));
   const owners = await prisma.influencer.groupBy({
     by: ["userId"],
     _count: { _all: true },
@@ -1240,6 +1246,7 @@ export async function liveWorldsForAllUsers(limit = 8): Promise<{
   let processed = 0;
 
   for (const owner of owners) {
+    if (!adminIds.has(owner.userId)) continue;
     if (processed >= limit) break;
     try {
       const last = await prisma.creatorLearningEvent.findFirst({

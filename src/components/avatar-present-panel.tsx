@@ -143,10 +143,19 @@ export function AvatarPresentPanel() {
             handle: string;
             assets?: { portraitUrl?: string };
           }>;
+          publicAvatars?: Array<{
+            id: string;
+            displayName: string;
+            handle: string;
+            assets?: { portraitUrl?: string };
+          }>;
           lastInfluencerId?: string;
         } | null) => {
-          if (!data?.influencers) return;
-          const options = data.influencers.map((i) => ({
+          if (!data) return;
+          const options = [
+            ...(data.influencers ?? []),
+            ...(data.publicAvatars ?? []),
+          ].map((i) => ({
             id: i.id,
             displayName: i.displayName,
             handle: i.handle,

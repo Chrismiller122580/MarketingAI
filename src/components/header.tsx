@@ -24,11 +24,11 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   },
   "/creator-studio": {
     title: "Creator Studio",
-    subtitle: "Design hyper-realistic influencer avatars with locked persona fields.",
+    subtitle: "Design influencer avatars. Site influence and product facts are optional.",
   },
   "/avatar-world": {
     title: "Avatar World",
-    subtitle: "Profiles, video vaults, life events, and collaborations.",
+    subtitle: "Admin only. Invite residents, then allow the ones the public can use.",
   },
   "/analytics": {
     title: "Analytics",
@@ -67,7 +67,7 @@ export function Header({
     (pathname.startsWith("/avatar-world")
       ? {
           title: "Avatar World",
-          subtitle: "Profiles, video vaults, life events, and collaborations.",
+          subtitle: "Admin only. Invite residents, then allow the ones the public can use.",
         }
       : pageTitles["/dashboard"]);
 

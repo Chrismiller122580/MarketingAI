@@ -38,7 +38,6 @@ const marketingItems: NavItem[] = [
 
 const creatorItems: NavItem[] = [
   { href: "/creator-studio", label: "Creator Studio", icon: NavIconCreatorStudio },
-  { href: "/avatar-world", label: "Avatar World", icon: NavIconWorld },
 ];
 
 function NavLink({
@@ -142,6 +141,11 @@ export function Sidebar({
             <p className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Admin
             </p>
+            <NavLink
+              item={{ href: "/avatar-world", label: "Avatar World", icon: NavIconWorld }}
+              pathname={pathname}
+              onClick={handleNavClick}
+            />
             <NavLink
               item={{ href: "/admin", label: "Admin", icon: NavIconAdmin }}
               pathname={pathname}

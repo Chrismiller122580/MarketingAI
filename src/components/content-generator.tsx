@@ -60,6 +60,7 @@ type AttachedInfluencer = {
   motionVideoUrl?: string;
   motionType?: string;
   hasMotionClip: boolean;
+  fromWorld?: boolean;
 };
 
 const VisualPostEditor = dynamic(
@@ -225,6 +226,22 @@ export function ContentGenerator() {
       .then((data: {
         influencers?: Array<{
           id: string;
+          displayName?: string;
+          handle?: string;
+          fromWorld?: boolean;
+          persona?: { displayName?: string; handle?: string };
+          assets?: {
+            portraitUrl?: string;
+            videoUrl?: string;
+            motionStatus?: string;
+            motionType?: string;
+          };
+        }>;
+        publicAvatars?: Array<{
+          id: string;
+          displayName?: string;
+          handle?: string;
+          fromWorld?: boolean;
           persona?: { displayName?: string; handle?: string };
           assets?: {
             portraitUrl?: string;
@@ -234,20 +251,27 @@ export function ContentGenerator() {
           };
         }>;
       } | null) => {
-        if (!data?.influencers) return;
+        if (!data) return;
+        const rows = [
+          ...(data.influencers ?? []).map((row) => ({ ...row, fromWorld: false })),
+          ...(data.publicAvatars ?? []).map((row) => ({ ...row, fromWorld: true })),
+        ];
+        if (rows.length === 0) return;
         setStudioInfluencers(
-          data.influencers.map((match) => {
+          rows.map((match) => {
             const persona = match.persona ?? {};
             const hasMotionClip =
               match.assets?.motionStatus === "ready" && !!match.assets?.videoUrl;
             return {
               id: match.id,
-              displayName: persona.displayName ?? "Influencer",
-              handle: persona.handle ?? "creator",
+              displayName:
+                match.displayName ?? persona.displayName ?? "Influencer",
+              handle: match.handle ?? persona.handle ?? "creator",
               portraitUrl: match.assets?.portraitUrl,
               motionVideoUrl: match.assets?.videoUrl,
               motionType: match.assets?.motionType,
               hasMotionClip,
+              fromWorld: match.fromWorld === true,
             };
           }),
         );
@@ -899,8 +923,8 @@ export function ContentGenerator() {
                 Link an influencer
               </label>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Same avatars as Avatar presents. Walk & talk is the default
-                shot — or run Present above to load a finished draft.
+                Your avatars plus any Avatar World residents an admin allowed
+                the public to use.
               </p>
               <select
                 id="studio-influencer"
@@ -919,6 +943,7 @@ export function ContentGenerator() {
                 {studioInfluencers.map((inf) => (
                   <option key={inf.id} value={inf.id}>
                     {inf.displayName} (@{inf.handle})
+                    {inf.fromWorld ? " · Avatar World" : ""}
                     {!inf.portraitUrl ? " — needs portrait" : ""}
                   </option>
                 ))}

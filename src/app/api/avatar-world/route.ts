@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
+import { isAuthError, requireAvatarWorldAdmin } from "@/lib/auth-helpers";
 import { loadWorldHub } from "@/lib/viraforge/avatar-world";
 
 export async function GET() {
-  const authResult = await requireAuthUserId();
+  const authResult = await requireAvatarWorldAdmin();
   if (isAuthError(authResult)) return authResult;
 
   const hub = await loadWorldHub(authResult);

@@ -52,9 +52,10 @@ export function sessionIsPaid(user?: {
 export const CREATOR_PUBLISHED_UNLOCK = 3;
 
 /**
- * Creator Studio + Avatar World: Enterprise Plus and admins always.
+ * Creator Studio: Enterprise Plus and admins always.
  * Paid plans unlock after a few published posts so power users aren't walled off.
  * Free stays on the marketing engine.
+ * Avatar World is admin-only (not gated here).
  */
 export function canUseCreatorTools(
   user?: {

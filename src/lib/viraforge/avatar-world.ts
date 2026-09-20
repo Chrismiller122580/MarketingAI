@@ -441,6 +441,62 @@ export async function listWorldInfluencers(
   });
 }
 
+export type PublicWorldCard = {
+  id: string;
+  displayName: string;
+  handle: string;
+  occupation: string;
+  location: string;
+  bio: string;
+  mood: string;
+  portraitUrl?: string;
+  videoUrl?: string;
+};
+
+export async function listPublicWorldAvatars(): Promise<PublicWorldCard[]> {
+  const admins = await prisma.user.findMany({
+    where: { role: "admin" },
+    select: { id: true },
+    take: 20,
+  });
+  if (admins.length === 0) return [];
+
+  const cards: PublicWorldCard[] = [];
+  for (const admin of admins) {
+    const owned = await listWorldInfluencers(admin.id);
+    for (const row of owned) {
+      if (!row.isPublic) continue;
+      cards.push({
+        id: row.id,
+        displayName: row.displayName,
+        handle: row.handle,
+        occupation: row.occupation,
+        location: row.location,
+        bio: row.bio,
+        mood: row.mood,
+        portraitUrl: row.portraitUrl,
+        videoUrl: row.videoUrl,
+      });
+    }
+  }
+  return cards.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+export async function findUsableInfluencer(userId: string, influencerId: string) {
+  const influencer = await prisma.influencer.findFirst({
+    where: { id: influencerId },
+    include: { productFacts: true },
+  });
+  if (!influencer) return null;
+  if (influencer.userId === userId) {
+    return { influencer, owned: true as const };
+  }
+  if (worldFromMemory(influencer.memory).isPublic) {
+    return { influencer, owned: false as const };
+  }
+  return null;
+}
+
 export async function listWorldFeed(
   userId: string,
   limit = 40,

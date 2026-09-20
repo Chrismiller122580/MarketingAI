@@ -28,6 +28,7 @@ import {
   startContentStudioMotionClips,
 } from "@/lib/viraforge/content-studio-motion";
 import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
+import { findUsableInfluencer } from "@/lib/viraforge/avatar-world";
 import {
   DEFAULT_PRESENT_MOTION_TYPES,
   normalizeMotionTypeSelection,
@@ -103,14 +104,12 @@ export async function POST(request: Request) {
     const renderMotion = talkNow !== false;
     let site = parsed.data.site as SiteData | undefined;
 
-    const influencer = await prisma.influencer.findFirst({
-      where: { id: influencerId, userId: authResult },
-      include: { productFacts: true },
-    });
+    const usable = await findUsableInfluencer(authResult, influencerId);
+    const influencer = usable?.influencer;
 
     if (!influencer) {
       return NextResponse.json(
-        { error: "Save the influencer first" },
+        { error: "That avatar is not available" },
         { status: 400 },
       );
     }

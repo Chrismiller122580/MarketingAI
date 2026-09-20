@@ -8,6 +8,7 @@ import { MenuButton } from "./menu-button";
 import { ThemeToggle } from "./theme-toggle";
 
 const links = [
+  { href: "/world", label: "Avatars" },
   { href: "/domains", label: "Domains" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
