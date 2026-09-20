@@ -21,7 +21,7 @@ import {
   type InfluencerRenderRecord,
 } from "./influencer-renders";
 import { mergeInfluencerMemory, type InfluencerMemory } from "./learning";
-import { loadWorldEconomy, streetForOccupation, type WorldEconomySnapshot } from "./world-economy";
+import { loadWorldEconomy, streetForOccupation, type WorldEconomySnapshot, type WorldPlaceKind } from "./world-economy";
 
 export const WORLD_EVENT_TYPES = [
   "life_event",
@@ -569,7 +569,7 @@ export type PublicTownResident = PublicWorldCard & {
   employer: string;
   isPublic: boolean;
   keepPlace?: string;
-  keepPlaceKind?: "bank" | "market" | "rooms" | "shop";
+  keepPlaceKind?: WorldPlaceKind;
   partnerName?: string;
   familyNames: string[];
   relationshipStatus: string;
@@ -2537,7 +2537,7 @@ export type PublicWorldProfile = {
   threads: WorldThread[];
   street: string;
   keepPlace?: string;
-  keepPlaceKind?: "bank" | "market" | "rooms" | "shop";
+  keepPlaceKind?: WorldPlaceKind;
   nearby: PublicTownResident[];
   chats: WorldChatCard[];
   publicIds: string[];

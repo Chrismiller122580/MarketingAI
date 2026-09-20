@@ -277,6 +277,42 @@ const JOBS: Record<string, JobSpec> = {
       { title: "a ride across town", kind: "service", price: 4, body: "Sit down. Hold the rail. He knows every stop by the smell of it." },
     ],
   },
+  "fishing guide": {
+    title: "fishing guide",
+    employer: "the dock at dusk",
+    wage: 62,
+    starter: 80,
+    goods: [
+      { title: "an hour on the lake", kind: "service", price: 18, body: "A borrowed rod. He already knows where they are biting." },
+    ],
+  },
+  "park ranger": {
+    title: "park ranger",
+    employer: "the green",
+    wage: 64,
+    starter: 85,
+    goods: [
+      { title: "a map of the oak paths", kind: "good", price: 5, body: "Folded wrong on purpose. The shortcut is marked in pencil." },
+    ],
+  },
+  bartender: {
+    title: "bartender",
+    employer: "The Bar",
+    wage: 72,
+    starter: 90,
+    goods: [
+      { title: "whatever's on tap", kind: "good", price: 7, body: "She doesn't ask what you do. The glass is cold." },
+    ],
+  },
+  "rec hall host": {
+    title: "rec hall host",
+    employer: "the rec hall",
+    wage: 58,
+    starter: 75,
+    goods: [
+      { title: "a table until close", kind: "service", price: 6, body: "Darts, cards, or the game on the back wall. Keep the chalk." },
+    ],
+  },
 };
 
 export const JOB_TITLES = Object.keys(JOBS);
@@ -326,6 +362,34 @@ export function streetForOccupation(occupation: string, location?: string): stri
   if (occupationMatches(occ, "nurse")) return "Hospital Hill";
   if (occupationMatches(occ, "mechanic")) return "the corner stand";
   if (occupationMatches(occ, "bus driver")) return "the route";
+  if (
+    occupationMatches(occ, "fishing") ||
+    occupationMatches(occ, "dock") ||
+    occupationMatches(occ, "lifeguard")
+  ) {
+    return "the shoreline";
+  }
+  if (
+    occupationMatches(occ, "park ranger") ||
+    occupationMatches(occ, "groundskeeper") ||
+    occupationMatches(occ, "soccer")
+  ) {
+    return "the green";
+  }
+  if (
+    occupationMatches(occ, "bartender") ||
+    occupationMatches(occ, "barkeep") ||
+    occupationMatches(occ, "pianist")
+  ) {
+    return "last call";
+  }
+  if (
+    occupationMatches(occ, "arcade") ||
+    occupationMatches(occ, "rec hall") ||
+    occupationMatches(occ, "rec league")
+  ) {
+    return "the rec hall";
+  }
   const city = location?.split(",")[0]?.trim();
   return city ? `${city} side` : "the neighborhood";
 }
@@ -400,10 +464,55 @@ export type WorldLedgerEntry = {
   createdAt: string;
 };
 
-export type WorldPlace = {
-  id: "bank" | "market" | "rooms" | "shop";
+export const WORLD_PLACE_KINDS = [
+  "bank",
+  "market",
+  "rooms",
+  "shop",
+  "lake",
+  "park",
+  "bar",
+  "games",
+] as const;
+
+export type WorldPlaceKind = (typeof WORLD_PLACE_KINDS)[number];
+
+export const SOCIAL_HANGOUTS: Array<{
+  id: Extract<WorldPlaceKind, "lake" | "park" | "bar" | "games">;
   name: string;
-  kind: "bank" | "market" | "rooms" | "shop";
+  street: string;
+  scene: string;
+}> = [
+  {
+    id: "lake",
+    name: "The Lake",
+    street: "the shoreline",
+    scene: "Dusk on the water. Skip a rock. Talk quiet.",
+  },
+  {
+    id: "park",
+    name: "The Park",
+    street: "the green",
+    scene: "A worn bench under the oak. The day is cooling off.",
+  },
+  {
+    id: "bar",
+    name: "The Bar",
+    street: "last call",
+    scene: "Low lights, a sticky rail. One more, then home.",
+  },
+  {
+    id: "games",
+    name: "The Rec Hall",
+    street: "the rec hall",
+    scene: "Darts, a scuffed table, someone keeping score wrong.",
+  },
+];
+
+export type WorldPlace = {
+  id: WorldPlaceKind;
+  name: string;
+  kind: WorldPlaceKind;
   keeperId?: string;
   keeperName?: string;
   keeperOccupation?: string;
@@ -537,6 +646,20 @@ function buildPlaces(
   const baker = accounts.find((row) => occupationMatches(row.occupation, "baker"));
   const open = listings.filter((row) => row.status === "open").length;
   const shopkeeper = grocer ?? baker;
+  const dock =
+    accounts.find((row) => occupationMatches(row.occupation, "fishing")) ??
+    accounts.find((row) => occupationMatches(row.occupation, "dock")) ??
+    accounts.find((row) => occupationMatches(row.occupation, "lifeguard"));
+  const ranger =
+    accounts.find((row) => occupationMatches(row.occupation, "park ranger")) ??
+    accounts.find((row) => occupationMatches(row.occupation, "groundskeeper")) ??
+    accounts.find((row) => occupationMatches(row.occupation, "soccer"));
+  const bartender =
+    accounts.find((row) => occupationMatches(row.occupation, "bartender")) ??
+    accounts.find((row) => occupationMatches(row.occupation, "pianist"));
+  const recHost =
+    accounts.find((row) => occupationMatches(row.occupation, "rec hall")) ??
+    accounts.find((row) => occupationMatches(row.occupation, "arcade"));
 
   return [
     {
@@ -583,6 +706,50 @@ function buildPlaces(
       note: shopkeeper
         ? `${shopkeeper.displayName} sells the day's food. Milk, bread, something for later.`
         : "The shop is dark. Found a grocer or a baker and it opens.",
+    },
+    {
+      id: "lake",
+      name: "The Lake",
+      kind: "lake",
+      keeperId: dock?.influencerId,
+      keeperName: dock?.displayName,
+      keeperOccupation: dock?.occupation,
+      note: dock
+        ? `${dock.displayName} watches the dock. The water is still open after work.`
+        : "The water is open. Nobody minds if you sit and skip a rock.",
+    },
+    {
+      id: "park",
+      name: "The Park",
+      kind: "park",
+      keeperId: ranger?.influencerId,
+      keeperName: ranger?.displayName,
+      keeperOccupation: ranger?.occupation,
+      note: ranger
+        ? `${ranger.displayName} keeps the green. Benches, an oak, room to talk.`
+        : "Grass worn thin under the oak. The park doesn't need a keeper to be open.",
+    },
+    {
+      id: "bar",
+      name: "The Bar",
+      kind: "bar",
+      keeperId: bartender?.influencerId,
+      keeperName: bartender?.displayName,
+      keeperOccupation: bartender?.occupation,
+      note: bartender
+        ? `${bartender.displayName} is behind the rail. Last call is a rumor.`
+        : "Low lights, a sticky rail. Someone will pour if you wait.",
+    },
+    {
+      id: "games",
+      name: "The Rec Hall",
+      kind: "games",
+      keeperId: recHost?.influencerId,
+      keeperName: recHost?.displayName,
+      keeperOccupation: recHost?.occupation,
+      note: recHost
+        ? `${recHost.displayName} keeps the chalk and the score. Pickup until the lights cut.`
+        : "Darts, a scuffed table, a game on the back wall. Come play.",
     },
   ];
 }

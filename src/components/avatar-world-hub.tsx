@@ -386,9 +386,10 @@ export function AvatarWorldHub() {
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
           Found a town and they go to work. They get paid in Sparks, pay rent,
-          buy groceries, make friends, and sometimes build a life together.
-          When you pick one for a post, that life is in their voice. This world
-          is admin-only. Allow the ones the public can use.
+          buy groceries, make friends, and hang out at the lake, the park, the
+          bar, and the rec hall. When you pick one for a post, that life is in
+          their voice. This world is admin-only. Allow the ones the public can
+          use.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {liveBusy ? "They're living today…" : formatTick(lastTickAt)}
@@ -622,6 +623,12 @@ export function AvatarWorldHub() {
                     >
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         {place.name}
+                        {place.kind === "lake" ||
+                        place.kind === "park" ||
+                        place.kind === "bar" ||
+                        place.kind === "games"
+                          ? " · hangout"
+                          : ""}
                       </p>
                       <p className="mt-2 truncate text-sm font-medium">
                         {place.keeperName

@@ -40,6 +40,7 @@ import {
   missingTownJobs,
   runEconomyDay,
   seedEssentialListings,
+  SOCIAL_HANGOUTS,
   streetForOccupation,
   type EconomyDayResult,
 } from "./world-economy";
@@ -570,6 +571,82 @@ const ARCHETYPES: ResidentArchetype[] = [
     voice:
       "Personality: Patient, joking, never rushed by a passenger. Voice: Cairene English, street-level, no branding.",
   },
+  {
+    occupation: "fishing guide",
+    location: "Duluth, Minnesota",
+    gender: "female",
+    age: 39,
+    religion: "The lake, mostly",
+    socialClass: "Seasonal guide • cash in the glove box",
+    culturalNotes: "Superior cold, rented rods, stories that get bigger after dark",
+    wardrobe: "Waxed jacket, waders hanging to dry, a hat that has seen weather",
+    hair: "Sun-faded brown, always in a knot",
+    faceShape: "Oval",
+    height: "5'7\"",
+    bodyType: 52,
+    interests: ["walleye", "quiet water", "thermos coffee"],
+    values: ["coming back in", "not scaring the fish"],
+    goals: ["keep the dock open one more season"],
+    voice:
+      "Personality: Dry, unhurried, notices the weather first. Voice: Upper Midwest, low, never a pitch.",
+  },
+  {
+    occupation: "park ranger",
+    location: "Denver, Colorado",
+    gender: "male",
+    age: 44,
+    religion: "Trails as church",
+    socialClass: "City parks • keys to a shed",
+    culturalNotes: "Oak benches, kids' soccer, a map he folded wrong on purpose",
+    wardrobe: "Khaki shirt, scuffed boots, a radio on the belt",
+    hair: "Short black, a little gray at the temples",
+    faceShape: "Square",
+    height: "6'0\"",
+    bodyType: 56,
+    interests: ["oaks", "shortcuts", "quiet lawns"],
+    values: ["the green staying open", "not making a scene"],
+    goals: ["keep the benches from rotting through winter"],
+    voice:
+      "Personality: Steady, a little shy, good at sitting with people. Voice: High plains, even, specific about trees.",
+  },
+  {
+    occupation: "bartender",
+    location: "Brooklyn, New York",
+    gender: "female",
+    age: 36,
+    religion: "Last call as liturgy",
+    socialClass: "Service • tips in a cup",
+    culturalNotes: "Sticky rail, regulars who never say their jobs, one more then home",
+    wardrobe: "Black shirt, rolled sleeves, a gold chain she forgets she's wearing",
+    hair: "Dark curls pinned up for the shift",
+    faceShape: "Heart",
+    height: "5'5\"",
+    bodyType: 49,
+    interests: ["ice", "other people's nights", "the walk home"],
+    values: ["listening", "not asking twice"],
+    goals: ["close without a fight and still catch the train"],
+    voice:
+      "Personality: Fast, kind in the margins, remembers the usual. Voice: Brooklyn, dry, never a brand.",
+  },
+  {
+    occupation: "rec hall host",
+    location: "Detroit, Michigan",
+    gender: "male",
+    age: 27,
+    religion: "The scoreboard, loosely",
+    socialClass: "Rec league • chalk on the fingers",
+    culturalNotes: "Darts, a scuffed table, someone always keeping score wrong",
+    wardrobe: "Team tee, joggers, a whistle he rarely uses",
+    hair: "A fade with a hard part",
+    faceShape: "Round",
+    height: "5'10\"",
+    bodyType: 58,
+    interests: ["darts", "pickup", "the radio in the corner"],
+    values: ["everybody plays", "no sore winners"],
+    goals: ["keep the lights on until somebody wins fair"],
+    voice:
+      "Personality: Loud then gentle. Voice: Detroit, teasing, never a slogan.",
+  },
 ];
 
 export type WorldDayResult = {
@@ -720,105 +797,105 @@ function pickChatPairs(
   return pairs;
 }
 
-function pickHangout(
+function pickHangouts(
   avatars: WorldInfluencerCard[],
-  economy: EconomyDayResult,
   dayKey: string,
-): { place: { id: string; name: string }; speakers: WorldInfluencerCard[] } | null {
-  if (avatars.length < 2) return null;
+): Array<{ place: { id: string; name: string }; speakers: WorldInfluencerCard[] }> {
+  if (avatars.length < 2) return [];
   const byId = new Map(avatars.map((row) => [row.id, row]));
+  const used = new Set<string>();
   const takeGuests = (
     keeper: WorldInfluencerCard,
     preferredIds: string[],
+    max: number,
   ): WorldInfluencerCard[] => {
     const preferred = preferredIds
       .map((id) => byId.get(id))
-      .filter((row): row is WorldInfluencerCard => !!row && row.id !== keeper.id);
+      .filter(
+        (row): row is WorldInfluencerCard =>
+          !!row && row.id !== keeper.id && !used.has(row.id),
+      );
     const partner = avatars.filter(
-      (row) => row.id === keeper.partnerId || keeper.partnerId === row.id,
+      (row) =>
+        !used.has(row.id) &&
+        (row.id === keeper.partnerId || keeper.partnerId === row.id),
     );
     const friends = avatars.filter(
       (row) =>
         row.id !== keeper.id &&
+        !used.has(row.id) &&
         (row.relationshipIds.includes(keeper.id) ||
           keeper.relationshipIds.includes(row.id)),
     );
     const street = avatars.filter(
-      (row) => row.id !== keeper.id && row.street === keeper.street,
+      (row) =>
+        row.id !== keeper.id &&
+        !used.has(row.id) &&
+        row.street === keeper.street,
     );
     const seen = new Set<string>([keeper.id]);
     const guests: WorldInfluencerCard[] = [];
     for (const row of [...preferred, ...partner, ...friends, ...street, ...avatars]) {
-      if (seen.has(row.id)) continue;
+      if (seen.has(row.id) || used.has(row.id)) continue;
       seen.add(row.id);
       guests.push(row);
-      if (guests.length >= 2) break;
+      if (guests.length >= max) break;
     }
     return guests;
   };
 
-  const options: Array<{
+  const groupSize = avatars.length >= 6 ? 3 : 2;
+  const guestMax = groupSize - 1;
+  const want =
+    avatars.length < 4 ? 1 : Math.min(2, Math.floor(avatars.length / groupSize));
+  const start = hashString(`${dayKey}:social`) % SOCIAL_HANGOUTS.length;
+  const rotated = [
+    ...SOCIAL_HANGOUTS.slice(start),
+    ...SOCIAL_HANGOUTS.slice(0, start),
+  ];
+
+  const picks: Array<{
     place: { id: string; name: string };
     speakers: WorldInfluencerCard[];
   }> = [];
 
-  const grocer = avatars.find((row) => row.id === economy.grocerId);
-  const baker = avatars.find((row) => row.id === economy.bakerId);
-  const shopkeeper = grocer ?? baker;
-  if (shopkeeper) {
-    const guests = takeGuests(shopkeeper, economy.groceryBuyers);
-    if (guests.length > 0) {
-      options.push({
-        place: { id: "shop", name: "Corner Shop" },
-        speakers: [shopkeeper, ...guests].slice(0, 3),
-      });
-    }
+  for (const social of rotated) {
+    if (picks.length >= want) break;
+    const unused = avatars.filter((row) => !used.has(row.id));
+    if (unused.length < 2) break;
+    const locals = unused.filter((row) => row.street === social.street);
+    const seed =
+      locals[hashString(`${dayKey}:${social.id}`) % Math.max(1, locals.length)] ??
+      unused[hashString(`${dayKey}:${social.id}:crowd`) % unused.length];
+    if (!seed) continue;
+    const guests = takeGuests(
+      seed,
+      locals.map((row) => row.id),
+      guestMax,
+    );
+    if (guests.length === 0) continue;
+    const speakers = [seed, ...guests].slice(0, groupSize);
+    speakers.forEach((row) => used.add(row.id));
+    picks.push({
+      place: { id: social.id, name: social.name },
+      speakers,
+    });
   }
 
-  const landlord = avatars.find((row) => row.id === economy.landlordId);
-  if (landlord) {
-    const guests = takeGuests(landlord, economy.rentPayers);
-    if (guests.length > 0) {
-      options.push({
-        place: { id: "rooms", name: "Rooms" },
-        speakers: [landlord, ...guests].slice(0, 3),
-      });
-    }
-  }
-
-  const teller = avatars.find((row) => row.id === economy.tellerId);
-  if (teller) {
-    const guests = takeGuests(teller, avatars.map((row) => row.id));
-    if (guests.length > 0) {
-      options.push({
-        place: { id: "bank", name: "City Bank" },
-        speakers: [teller, ...guests].slice(0, 3),
-      });
-    }
-  }
-
-  if (economy.salePairs[0]) {
-    const sale = economy.salePairs[0];
-    const seller = byId.get(sale.sellerId);
-    const buyer = byId.get(sale.buyerId);
-    if (seller && buyer) {
-      options.push({
-        place: { id: "market", name: "The Market" },
-        speakers: [seller, buyer],
-      });
-    }
-  }
-
-  if (options.length === 0) {
+  if (picks.length === 0) {
     const [a, b] = avatars;
-    if (!a || !b) return null;
-    return {
-      place: { id: "market", name: "The Market" },
-      speakers: [a, b],
-    };
+    if (!a || !b) return [];
+    const fallback =
+      SOCIAL_HANGOUTS[hashString(`${dayKey}:fallback`) % SOCIAL_HANGOUTS.length]!;
+    return [
+      {
+        place: { id: fallback.id, name: fallback.name },
+        speakers: [a, b],
+      },
+    ];
   }
 
-  return options[hashString(`${dayKey}:hangout`) % options.length] ?? options[0]!;
+  return picks;
 }
 
 function sanitizeHandle(raw: string): string {
@@ -1126,45 +1203,73 @@ export async function liveWorldDay(input: {
     }
   }
 
-  const hangoutPick = pickHangout(refreshed, economy, dayKey);
+  const hangoutPicks = pickHangouts(refreshed, dayKey);
   let hangout: WorldDayResult["hangout"];
   const hangoutUsed = new Set<string>();
+  const hangoutNames: string[] = [];
+  const usedPlaces = new Set<string>();
   const chatBeats: string[] = [];
 
-  if (hangoutPick) {
+  for (const hangoutPick of hangoutPicks) {
     try {
       const [a, b, c] = hangoutPick.speakers;
-      if (a && b) {
-        const seeds = economy.seeds.slice(0, 4).join(" ");
-        const chat = await generateNeighborChat({
-          userId: input.userId,
-          aId: a.id,
-          bId: b.id,
-          cId: c?.id,
-          place: hangoutPick.place,
-          scene: `Evening at ${hangoutPick.place.name}. ${seeds || economy.beat || "The day is winding down."} You ran into each other here — landlord and tenant, shopkeeper and regular, neighbors on the same street. Talk about the rent, the food, the work, the weather. No audience. No brand.`,
-        });
-        hangoutPick.speakers.forEach((row) => hangoutUsed.add(row.id));
+      if (!a || !b) continue;
+      const seeds = economy.seeds.slice(0, 4).join(" ");
+      const social = SOCIAL_HANGOUTS.find(
+        (row) => row.id === hangoutPick.place.id,
+      );
+      const chat = await generateNeighborChat({
+        userId: input.userId,
+        aId: a.id,
+        bId: b.id,
+        cId: c?.id,
+        place: hangoutPick.place,
+        scene: `Evening at ${hangoutPick.place.name}. ${social?.scene ?? ""} ${seeds || economy.beat || "The day is winding down."} You ran into each other here — friends, family, neighbors, people who share a street. Talk about the day. No audience. No brand.`,
+      });
+      hangoutPick.speakers.forEach((row) => hangoutUsed.add(row.id));
+      usedPlaces.add(hangoutPick.place.id);
+      hangoutNames.push(
+        `${hangoutPick.speakers.map((row) => row.displayName).join(" and ")} at ${hangoutPick.place.name}`,
+      );
+      if (!hangout) {
         hangout = {
           place: hangoutPick.place.name,
           names: hangoutPick.speakers.map((row) => row.displayName),
         };
-        chatBeats.push(chat.beat);
       }
+      chatBeats.push(chat.beat);
     } catch {
       // Hangout is extra — the morning still counted.
     }
   }
 
-  const extraChats = hangout ? 1 : refreshed.length < 2 ? 0 : refreshed.length < 6 ? 1 : 2;
+  const leftoverHangouts = SOCIAL_HANGOUTS.filter(
+    (row) => !usedPlaces.has(row.id),
+  );
+  const extraChats = hangout
+    ? leftoverHangouts.length > 0
+      ? 1
+      : 0
+    : refreshed.length < 2
+      ? 0
+      : refreshed.length < 6
+        ? 1
+        : 2;
   const pairs = pickChatPairs(refreshed, extraChats, economy, hangoutUsed);
-  for (const [a, b] of pairs) {
+  for (const [index, pair] of pairs.entries()) {
+    const [a, b] = pair;
+    const social =
+      leftoverHangouts[index % Math.max(1, leftoverHangouts.length)] ??
+      SOCIAL_HANGOUTS[
+        hashString(`${dayKey}:extra:${index}`) % SOCIAL_HANGOUTS.length
+      ]!;
     try {
       const chat = await generateNeighborChat({
         userId: input.userId,
         aId: a.id,
         bId: b.id,
-        scene: `Evening (${dayKey}). ${economy.seeds[0] || economy.beat || "The town is quieting down."} You already know each other, or you live on the same street. Talk like people with a minute. No audience. No brand.`,
+        place: { id: social.id, name: social.name },
+        scene: `Evening at ${social.name}. ${social.scene} ${economy.seeds[0] || economy.beat || "The town is quieting down."} You already know each other, or you live on the same street. Talk like people with a minute. No audience. No brand.`,
       });
       chatBeats.push(chat.beat);
     } catch {
@@ -1179,7 +1284,7 @@ export async function liveWorldDay(input: {
     posterNames.length > 0 ? `${posterNames.join(", ")} posted.` : "",
     replyNames.length > 0 ? `${replyNames.join(", ")} answered.` : "",
     hangout
-      ? `${hangout.names.join(" and ")} at ${hangout.place}.`
+      ? hangoutNames.join(". ") + "."
       : "",
     chatBeats.length > 0 ? chatBeats.join(" ") : "",
     growth.beats.length > 0 ? growth.beats.join(" ") : "",

@@ -14,5 +14,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: "https://www.crawlspark.ai/world/place/market", lastModified, changeFrequency: "daily", priority: 0.4 },
     { url: "https://www.crawlspark.ai/world/place/rooms", lastModified, changeFrequency: "daily", priority: 0.4 },
     { url: "https://www.crawlspark.ai/world/place/shop", lastModified, changeFrequency: "daily", priority: 0.4 },
+    { url: "https://www.crawlspark.ai/world/place/lake", lastModified, changeFrequency: "daily", priority: 0.4 },
+    { url: "https://www.crawlspark.ai/world/place/park", lastModified, changeFrequency: "daily", priority: 0.4 },
+    { url: "https://www.crawlspark.ai/world/place/bar", lastModified, changeFrequency: "daily", priority: 0.4 },
+    { url: "https://www.crawlspark.ai/world/place/games", lastModified, changeFrequency: "daily", priority: 0.4 },
   ];
 }

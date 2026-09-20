@@ -14,6 +14,10 @@ const TITLES: Record<PublicPlaceKind, string> = {
   market: "The Market",
   rooms: "Rooms",
   shop: "Corner Shop",
+  lake: "The Lake",
+  park: "The Park",
+  bar: "The Bar",
+  games: "The Rec Hall",
 };
 
 function asKind(value: string): PublicPlaceKind | undefined {

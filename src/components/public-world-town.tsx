@@ -7,22 +7,51 @@ import type {
 } from "@/lib/viraforge/avatar-world";
 import type { WorldPlace } from "@/lib/viraforge/world-economy";
 
-export const PUBLIC_PLACE_KINDS = ["bank", "market", "rooms", "shop"] as const;
+export const PUBLIC_PLACE_KINDS = [
+  "bank",
+  "market",
+  "rooms",
+  "shop",
+  "lake",
+  "park",
+  "bar",
+  "games",
+] as const;
 export type PublicPlaceKind = (typeof PUBLIC_PLACE_KINDS)[number];
+
+const HANGOUT_KINDS = new Set<PublicPlaceKind>([
+  "lake",
+  "park",
+  "bar",
+  "games",
+]);
+
+const PLACE_STREET: Partial<Record<PublicPlaceKind, string>> = {
+  bank: "Bank Row",
+  rooms: "the rooms",
+  market: "Market Street",
+  shop: "the corner stand",
+  lake: "the shoreline",
+  park: "the green",
+  bar: "last call",
+  games: "the rec hall",
+};
 
 const PLACE_LABEL: Record<PublicPlaceKind, string> = {
   bank: "City Bank",
   market: "The Market",
   rooms: "Rooms",
   shop: "Corner Shop",
+  lake: "The Lake",
+  park: "The Park",
+  bar: "The Bar",
+  games: "The Rec Hall",
 };
 
 function isPlaceKind(value: string | undefined): value is PublicPlaceKind {
   return (
-    value === "bank" ||
-    value === "market" ||
-    value === "rooms" ||
-    value === "shop"
+    typeof value === "string" &&
+    (PUBLIC_PLACE_KINDS as readonly string[]).includes(value)
   );
 }
 
@@ -126,6 +155,11 @@ function listingsForPlace(
       )
       .slice(0, 8);
   }
+  if (HANGOUT_KINDS.has(place.kind as PublicPlaceKind)) {
+    return listings
+      .filter((row) => place.keeperId && row.sellerId === place.keeperId)
+      .slice(0, 6);
+  }
   return listings
     .filter(
       (row) =>
@@ -139,18 +173,31 @@ function listingsForPlace(
 function peopleAtPlace(
   place: WorldPlace,
   residents: PublicTownResident[],
+  chats: WorldChatCard[] = [],
 ): PublicTownResident[] {
   const keepers = residents.filter((row) => row.id === place.keeperId);
   const streetMates = residents.filter((row) => {
     if (row.id === place.keeperId) return false;
-    if (place.kind === "bank") return row.street === "Bank Row";
-    if (place.kind === "rooms") return row.street === "the rooms";
     if (place.kind === "market" || place.kind === "shop") {
       return row.street === "Market Street" || row.street === "the corner stand";
     }
-    return false;
+    const street = PLACE_STREET[place.kind as PublicPlaceKind];
+    return street ? row.street === street : false;
   });
-  return [...keepers, ...streetMates];
+  const seen = new Set(keepers.concat(streetMates).map((row) => row.id));
+  const visitorIds = new Set(
+    chats
+      .filter(
+        (chat) => chat.placeId === place.id || chat.placeName === place.name,
+      )
+      .flatMap((chat) => chat.turns.map((turn) => turn.influencerId)),
+  );
+  const visitors = residents.filter((row) => {
+    if (seen.has(row.id) || !visitorIds.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
+  return [...keepers, ...streetMates, ...visitors];
 }
 
 function PublicThread({
@@ -277,6 +324,18 @@ function placeKindFromName(name: string): PublicPlaceKind | undefined {
   if (lower.includes("market")) return "market";
   if (lower.includes("room")) return "rooms";
   if (lower.includes("shop")) return "shop";
+  if (lower.includes("lake") || lower.includes("shore") || lower.includes("dock")) {
+    return "lake";
+  }
+  if (lower.includes("park") || lower.includes("green")) return "park";
+  if (lower.includes("bar") || lower.includes("last call")) return "bar";
+  if (
+    lower.includes("rec") ||
+    lower.includes("game") ||
+    lower.includes("arcade")
+  ) {
+    return "games";
+  }
   return undefined;
 }
 
@@ -370,7 +429,7 @@ export function PublicWorldTown({
     ? listingsForPlace(selected, listings)
     : listings.filter((row) => row.status === "open").slice(0, 8);
   const placePeople = selected
-    ? peopleAtPlace(selected, town.residents)
+    ? peopleAtPlace(selected, town.residents, town.chats)
     : [];
   const placeChats = selected
     ? town.chats.filter(
@@ -424,7 +483,7 @@ export function PublicWorldTown({
             {placeKind
               ? selected?.note ||
                 "A place in the town. Neighbors pass through, buy things, and talk."
-              : "Residents work jobs, get paid in Sparks, pay rent, and run into each other. Public avatars can be used in Content Studio."}
+              : "Residents work jobs, hang out at the lake, the park, the bar, and the rec hall, and run into each other. Public avatars can be used in Content Studio."}
           </p>
           <p className="mt-2 text-sm text-zinc-400">{livedLine(town)}</p>
           <div className="mt-5 flex flex-wrap gap-2 text-xs text-zinc-300">
@@ -459,6 +518,9 @@ export function PublicWorldTown({
                 >
                   <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">
                     {place.name}
+                    {HANGOUT_KINDS.has(place.kind as PublicPlaceKind)
+                      ? " · hangout"
+                      : ""}
                   </p>
                   <p className="mt-2 truncate text-sm font-medium">
                     {place.keeperName ?? "Open · no keeper yet"}
@@ -486,8 +548,12 @@ export function PublicWorldTown({
                 </p>
                 <p className="mt-1 text-lg font-semibold">
                   {selected.keeperName
-                    ? `${selected.keeperName} is on the desk`
-                    : "No one holds the keys — the place still runs"}
+                    ? HANGOUT_KINDS.has(selected.kind as PublicPlaceKind)
+                      ? `${selected.keeperName} is around`
+                      : `${selected.keeperName} is on the desk`
+                    : HANGOUT_KINDS.has(selected.kind as PublicPlaceKind)
+                      ? "Open — come hang out"
+                      : "No one holds the keys — the place still runs"}
                 </p>
               </div>
               <Link
@@ -540,12 +606,15 @@ export function PublicWorldTown({
                   ? "On the counter"
                   : selected?.kind === "rooms"
                     ? "Rooms and keys"
-                    : "Market"}
+                    : selected && HANGOUT_KINDS.has(selected.kind as PublicPlaceKind)
+                      ? "What happens here"
+                      : "Market"}
               </p>
               {placeListings.length === 0 ? (
                 <p className="mt-3 text-sm text-zinc-400">
-                  Nothing listed yet. After they live a day, a loaf or a room
-                  shows up here.
+                  {selected && HANGOUT_KINDS.has(selected.kind as PublicPlaceKind)
+                    ? "People come here to hang out. After they live a day, you'll see who ran into each other."
+                    : "Nothing listed yet. After they live a day, a loaf or a room shows up here."}
                 </p>
               ) : (
                 <ul className="mt-3 space-y-3">
@@ -568,10 +637,16 @@ export function PublicWorldTown({
                 </ul>
               )}
               <Link
-                href="/world/place/market"
+                href={
+                  selected && HANGOUT_KINDS.has(selected.kind as PublicPlaceKind)
+                    ? "/world"
+                    : "/world/place/market"
+                }
                 className="mt-3 inline-block text-xs text-violet-200 hover:underline"
               >
-                Walk the market
+                {selected && HANGOUT_KINDS.has(selected.kind as PublicPlaceKind)
+                  ? "Back to the square"
+                  : "Walk the market"}
               </Link>
             </div>
           </section>
