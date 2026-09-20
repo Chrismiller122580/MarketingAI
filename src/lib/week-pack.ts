@@ -4,7 +4,7 @@ import type { Platform, PostHistorySnapshot, SiteData } from "./types";
 export const WEEK_PACK_SIZE = 5;
 
 export const WEEK_PACK_PROMPT =
-  "This week's content pack: one publish-ready social post per day, unused site pages first, a distinct angle each day, no filler. Captions should be ready to schedule as-is.";
+  "This week's content pack: one publish-ready social post per day, unused site pages first, a distinct angle each day, no filler. Captions should be ready to schedule as-is. Ground every claim in crawled pages — never invent prices or specs.";
 
 export function resolveWeekPackPlatforms(opts: {
   paid: boolean;
@@ -43,6 +43,32 @@ export function unusedPagePaths(
       .filter((p): p is string => Boolean(p)),
   );
   return site.pages.filter((p) => !used.has(p.path)).map((p) => p.path);
+}
+
+/** Unused pages across every crawled site, keyed as domain::path. */
+export function unusedCorpusFocus(
+  sites: SiteData[],
+  existing: PostHistorySnapshot[],
+): string[] {
+  const used = new Set(
+    existing
+      .map((p) => p.sourcePage)
+      .filter((p): p is string => Boolean(p)),
+  );
+  const keys: string[] = [];
+  for (const site of sites) {
+    for (const page of site.pages) {
+      if (
+        used.has(page.path) ||
+        used.has(`${site.domain}${page.path}`) ||
+        used.has(`${site.domain}::${page.path}`)
+      ) {
+        continue;
+      }
+      keys.push(`${site.domain}::${page.path}`);
+    }
+  }
+  return keys;
 }
 
 export function calendarDatePlus(offset: number, from = new Date()): string {

@@ -323,6 +323,23 @@ export type InfluencerGenerateContext = {
   personalization?: string;
 };
 
+export type CrawledCorpusPage = {
+  domain: string;
+  brandName: string;
+  path: string;
+  title: string;
+  summary: string;
+  headings: string[];
+};
+
+export type CrawledCorpus = {
+  sites: SiteData[];
+  siteCount: number;
+  pageCount: number;
+  promptBlock: string;
+  pages: CrawledCorpusPage[];
+};
+
 export type GenerateRequest = {
   site: SiteData;
   contentType: ContentType;
@@ -349,6 +366,8 @@ export type GenerateRequest = {
   generateFreshTalkMotion?: boolean;
   /** Top-performing posts used as few-shot style hints. */
   winningCopy?: WinningCopyHints | null;
+  /** Every crawled site/page for this user — posts stay authentic to real pages. */
+  crawledCorpus?: CrawledCorpus;
 };
 
 export type VideoJobStatus = {
@@ -377,6 +396,7 @@ export type BatchGenerateRequest = {
   winningCopy?: WinningCopyHints | null;
   /** Spread items one per calendar day starting today (this-week pack). */
   spreadDaily?: boolean;
+  crawledCorpus?: CrawledCorpus;
 };
 
 export type PublishRequest = {

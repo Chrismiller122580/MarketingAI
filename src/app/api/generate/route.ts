@@ -23,6 +23,7 @@ import { assertFreeGenerationsAllowed, consumeGenerations } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { loadWinningCopyHints } from "@/lib/winning-copy";
 import { hasVoiceProvider } from "@/lib/ai-voice";
+import { loadCrawledCorpus } from "@/lib/crawled-content";
 import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
 import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
 import { normalizeMotionTypeSelection } from "@/lib/viraforge/motion-actions";
@@ -121,6 +122,7 @@ export async function POST(request: Request) {
     const promptPreferences = await getPromptPreferences(userId as string);
     const winningCopy = await loadWinningCopyHints(userId as string);
     const site = body.site as SiteData;
+    const crawledCorpus = await loadCrawledCorpus(userId as string, site);
 
     let influencerContext;
     let influencerVoice = false;
@@ -141,6 +143,7 @@ export async function POST(request: Request) {
         influencerId,
         site,
         page,
+        crawledCorpus.sites,
       );
 
       if (!influencerContext) {
@@ -200,6 +203,7 @@ export async function POST(request: Request) {
       influencerMotionTypes: motionTypes,
       generateFreshMotion,
       winningCopy,
+      crawledCorpus,
     };
 
     const post = await generateSmartPost(generateRequest);

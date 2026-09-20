@@ -11,6 +11,7 @@ import {
 } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { loadWinningCopyHints, preferWinningPlatform } from "@/lib/winning-copy";
+import { loadCrawledCorpus } from "@/lib/crawled-content";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
 
     const promptPreferences = await getPromptPreferences(userId);
     const winningCopy = await loadWinningCopyHints(userId);
+    const crawledCorpus = await loadCrawledCorpus(userId, body.site);
     const platforms = preferWinningPlatform(
       body.platforms ??
         body.settings?.defaultPlatforms ??
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
       focusPagePaths: body.focusPagePaths,
       winningCopy,
       spreadDaily: body.spreadDaily,
+      crawledCorpus,
     };
 
     const result = await generateCampaignPack(batchRequest);

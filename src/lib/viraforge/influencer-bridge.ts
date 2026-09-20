@@ -8,13 +8,17 @@ import type {
 import { findUsableInfluencer } from "./avatar-world";
 import { buildPersonalizationContext } from "./learning";
 import { mergeInfluencerAssets, resolveInfluencerAssets } from "./influencer-assets";
-import { buildFactPinpoints, mergeFactsWithSite } from "./site-facts-extractor";
+import {
+  buildFactPinpointsFromSites,
+  mergeFactsWithSites,
+} from "./site-facts-extractor";
 
 export async function loadInfluencerGenerateContext(
   userId: string,
   influencerId: string,
   site: SiteData,
   page: SitePage,
+  allSites?: SiteData[],
 ): Promise<InfluencerGenerateContext | null> {
   const usable = await findUsableInfluencer(userId, influencerId);
   if (!usable) return null;
@@ -24,9 +28,13 @@ export async function loadInfluencerGenerateContext(
   if (!persona.success) return null;
 
   const locked = factsFromRecord(influencer.productFacts);
+  const sites =
+    allSites && allSites.length > 0
+      ? allSites
+      : [site];
 
-  const mergedFacts = mergeFactsWithSite(locked, site, page);
-  const pinpoints = buildFactPinpoints(locked, site, page);
+  const mergedFacts = mergeFactsWithSites(locked, sites, page);
+  const pinpoints = buildFactPinpointsFromSites(locked, sites, page);
   const assets = resolveInfluencerAssets(
     mergeInfluencerAssets(influencer.assets, {}),
   );

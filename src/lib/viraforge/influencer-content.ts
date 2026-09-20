@@ -3,7 +3,7 @@ import { cleanGeneratedCopy } from "@/lib/ai-dual";
 import { platformCopyHint } from "@/lib/business-context";
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
-import type { Platform, SiteData, SitePage } from "@/lib/types";
+import type { CrawledCorpus, Platform, SiteData, SitePage } from "@/lib/types";
 import {
   validateQuoteAgainstFacts,
   formatFactsForPrompt,
@@ -53,6 +53,7 @@ export async function generateInfluencerSiteContent(input: {
   platform: Platform;
   brief?: string;
   personalization?: string;
+  crawledCorpus?: CrawledCorpus;
 }): Promise<InfluencerSiteContentResult> {
   if (!hasAnyAiKey()) {
     throw new Error(
@@ -61,27 +62,34 @@ export async function generateInfluencerSiteContent(input: {
   }
 
   const platformHint = platformCopyHint(input.platform);
-  const factsBlock = formatFactsForPrompt(input.facts);
+  const factsBlock = formatFactsForPrompt(
+    input.facts,
+    input.crawledCorpus?.promptBlock,
+  );
   const pinpointList = input.pinpoints
     .map((p) => `- [${p.category}] ${p.fact} (source: ${p.source})`)
     .join("\n");
   const charLimit = influencerCharLimit(input.platform);
+  const extraSites = (input.crawledCorpus?.siteCount ?? 1) > 1
+    ? `You may also cite other crawled sites below when they are the same business. Never mix unrelated brands into one claim.`
+    : "";
 
   const systemPrompt = `You are ${input.persona.displayName}, social handle @${input.persona.handle}.
 Voice and personality: ${input.persona.personalityVoice}
 Sample tone: "${input.persona.sampleQuote}"
 
-Write as this influencer promoting content for the crawled website ${input.site.domain}.
+Write as this influencer promoting authentic content from crawled websites. Focus page: ${input.site.domain}${input.page.path === "/" ? "" : input.page.path}.
 Platform: ${input.platform}. Style: ${platformHint}
 Stay under ${charLimit} characters.
 
 STRICT RULES:
-- ONLY cite product facts from the verified list below. Never invent specs, prices, health claims, or benefits.
+- ONLY cite product facts from the verified list and crawled source of truth. Never invent specs, prices, health claims, or benefits.
 - Weave in 2–4 specific verified facts naturally (name, price, features, location, hours, ingredients).
 - Sound like the influencer's authentic voice — not generic marketing.
 - Open with a hook that works without context. No "Excited to share", "Let me tell you", or "Okay so".
 - Include a soft CTA pointing to ${input.site.domain}${input.page.path === "/" ? "" : input.page.path}
 - Return ONLY the post copy. No explanations.
+${extraSites}
 ${input.personalization ? `\n${input.personalization}` : ""}`;
 
   const userMessage = `Crawled page: ${input.page.title}

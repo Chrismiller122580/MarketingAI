@@ -20,8 +20,8 @@ import {
 } from "@/lib/viraforge/influencer-assets";
 import { recordCreatorEvent } from "@/lib/viraforge/learning";
 import {
-  buildFactPinpoints,
-  mergeFactsWithSite,
+  buildFactPinpointsFromSites,
+  mergeFactsWithSites,
 } from "@/lib/viraforge/site-facts-extractor";
 import {
   canGenerateFreshMotion,
@@ -34,6 +34,7 @@ import {
   normalizeMotionTypeSelection,
 } from "@/lib/viraforge/motion-actions";
 import { buildContentStudioHandoffUrl } from "@/lib/viraforge/present-handoff";
+import { loadCrawledCorpus } from "@/lib/crawled-content";
 import type { Platform, SiteData } from "@/lib/types";
 
 const motionTypeSchema = z.enum([
@@ -151,14 +152,24 @@ export async function POST(request: Request) {
     const page =
       site.pages.find((p) => p.path === pagePath) ?? site.pages[0];
 
+    const crawledCorpus = await loadCrawledCorpus(authResult, site);
     const locked = factsFromRecord(influencer.productFacts);
-    const mergedFacts = mergeFactsWithSite(locked, site, page);
-    const pinpoints = buildFactPinpoints(locked, site, page);
+    const mergedFacts = mergeFactsWithSites(
+      locked,
+      crawledCorpus.sites,
+      page,
+    );
+    const pinpoints = buildFactPinpointsFromSites(
+      locked,
+      crawledCorpus.sites,
+      page,
+    );
     const context = await loadInfluencerGenerateContext(
       authResult,
       influencerId,
       site,
       page,
+      crawledCorpus.sites,
     );
     if (!context) {
       return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
@@ -172,6 +183,7 @@ export async function POST(request: Request) {
       page,
       platform: platform as Platform,
       personalization: context.personalization,
+      crawledCorpus,
     });
 
     const scriptResult = await generateInfluencerScript({

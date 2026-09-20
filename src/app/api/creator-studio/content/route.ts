@@ -18,9 +18,10 @@ import {
 } from "@/lib/viraforge/learning";
 import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
 import {
-  buildFactPinpoints,
-  mergeFactsWithSite,
+  buildFactPinpointsFromSites,
+  mergeFactsWithSites,
 } from "@/lib/viraforge/site-facts-extractor";
+import { loadCrawledCorpus } from "@/lib/crawled-content";
 import type { Platform, SiteData } from "@/lib/types";
 
 const contentSchema = z.object({
@@ -114,10 +115,19 @@ export async function POST(request: Request) {
     const page =
       site.pages.find((p) => p.path === (pagePath ?? "/")) ?? site.pages[0];
 
+    const crawledCorpus = await loadCrawledCorpus(authResult, site);
     const locked = factsFromRecord(influencer.productFacts);
 
-    const mergedFacts = mergeFactsWithSite(locked, site, page);
-    const pinpoints = buildFactPinpoints(locked, site, page);
+    const mergedFacts = mergeFactsWithSites(
+      locked,
+      crawledCorpus.sites,
+      page,
+    );
+    const pinpoints = buildFactPinpointsFromSites(
+      locked,
+      crawledCorpus.sites,
+      page,
+    );
 
     const personalization = await buildPersonalizationContext(
       authResult,
@@ -133,6 +143,7 @@ export async function POST(request: Request) {
       platform: platform as Platform,
       brief,
       personalization: personalization || undefined,
+      crawledCorpus,
     });
 
     await recordCreatorEvent(

@@ -864,3 +864,56 @@ export function mergeFactsWithSite(
     ingredients: locked.ingredients,
   };
 }
+
+function pageBelongsToSite(site: SiteData, page?: SitePage): boolean {
+  if (!page) return false;
+  return site.pages.some(
+    (row) => row.url === page.url || row.path === page.path,
+  );
+}
+
+export function mergeFactsWithSites(
+  locked: ProductFactsForm,
+  sites: SiteData[],
+  page?: SitePage,
+): ProductFactsForm {
+  let merged = locked;
+  for (const site of sites) {
+    const owned = pageBelongsToSite(site, page) ? page : undefined;
+    merged = mergeFactsWithSite(merged, site, owned);
+  }
+  return merged;
+}
+
+export function buildFactPinpointsFromSites(
+  locked: ProductFactsForm,
+  sites: SiteData[],
+  page?: SitePage,
+): FactPinpoint[] {
+  const seen = new Set<string>();
+  const pinpoints: FactPinpoint[] = [];
+
+  const push = (pin: FactPinpoint) => {
+    const key = `${pin.category}:${pin.fact.toLowerCase()}`;
+    if (!pin.fact.trim() || seen.has(key)) return;
+    seen.add(key);
+    pinpoints.push(pin);
+  };
+
+  for (const site of sites) {
+    const owned = pageBelongsToSite(site, page) ? page : undefined;
+    const pages = owned
+      ? [owned, ...site.pages.filter((row) => row.url !== owned.url)].slice(
+          0,
+          16,
+        )
+      : site.pages.slice(0, 16);
+    for (const target of pages) {
+      for (const pin of buildFactPinpoints(locked, site, target)) {
+        push(pin);
+      }
+    }
+  }
+
+  return pinpoints.slice(0, 40);
+}

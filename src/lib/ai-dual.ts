@@ -106,18 +106,20 @@ function buildSystemPrompt(
         ? "At most 2 hashtags, at the end."
         : "3–5 relevant hashtags at the end, never in the hook."
     : "Do not include hashtags.";
+  const corpus = request.crawledCorpus?.promptBlock?.trim();
 
   return `You are an expert marketing copywriter specializing in ${contentType} for ${platform}.
 Brand: ${request.site.brand.name}. Voice: ${voice}. Audience: ${audience}.
 ${businessCtx ? `Business context: ${businessCtx}. ` : ""}
 ${userPrefs ? `${userPrefs} ` : ""}
 ${winning ? `What already works: ${winning} ` : ""}
+${corpus ? `${corpus}\n` : ""}
 Format: ${typeHint}
 Platform style: ${platformHint}
 Stay under ${charLimit} characters. ${hashtagRule}
 ${uniqueness}
 ${angle !== "auto" ? `Required creative angle: ${getAngleLabel(angle)}.` : "Pick the freshest creative angle that stands out from typical posts."}
-First line must work as a standalone hook. No "Excited to announce", "In today's world", "Looking for", or generic marketing filler. Ground claims in the page facts. One CTA. Return only the final copy — no explanations.`;
+First line must work as a standalone hook. No "Excited to announce", "In today's world", "Looking for", or generic marketing filler. Ground every claim in the crawled source of truth and the focus page. Never invent prices, specs, hours, ingredients, or benefits that are not on those pages. One CTA. Return only the final copy — no explanations.`;
 }
 
 function buildUserMessage(
@@ -129,7 +131,7 @@ function buildUserMessage(
   const headings = page.headings.slice(0, 6).join(" · ");
   const relatedBlock =
     relatedPages && relatedPages.length > 0
-      ? `\n\nRelated site content for factual grounding:\n${relatedPages
+      ? `\n\nRelated crawled pages for factual grounding:\n${relatedPages
           .map(
             (p) =>
               `- ${p.title}: ${p.description || p.excerpt.slice(0, 220)}`,
@@ -138,15 +140,20 @@ function buildUserMessage(
       : "";
   const keywords = request.site.brand.keywords.slice(0, 8).join(", ");
   const pain = request.site.brand.businessModel?.painPoints.slice(0, 3).join("; ");
+  const corpus = request.crawledCorpus?.promptBlock?.trim();
+  const corpusNote = corpus
+    ? `\n\nUse the crawled source of truth (${request.crawledCorpus?.siteCount ?? 1} sites, ${request.crawledCorpus?.pageCount ?? 0} pages). Cite only those pages.`
+    : "";
 
-  return `Page: ${page.title}
+  return `Focus page: ${page.title}
+Site: ${request.site.brand.name} (${request.site.domain})
 URL path: ${page.path}
 Description: ${page.description || page.excerpt.slice(0, 420)}
 ${headings ? `Headings: ${headings}` : ""}
 ${keywords ? `Brand keywords: ${keywords}` : ""}
 ${pain ? `Customer pains to speak to: ${pain}` : ""}
 Rewrite this draft into stronger ${request.contentType} copy — do not paste it back:
-${draft}${request.prompt ? `\nCampaign brief: ${request.prompt}` : ""}${relatedBlock}`;
+${draft}${request.prompt ? `\nCampaign brief: ${request.prompt}` : ""}${relatedBlock}${corpusNote}`;
 }
 
 async function pickRecommendation(

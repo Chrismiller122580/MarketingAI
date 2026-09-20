@@ -1,17 +1,19 @@
 import { chatCompletion } from "./ai-client";
 import { formatVoiceGuide } from "./brand-synthesis";
 import { analyzePostHistory } from "./content-uniqueness";
+import { corpusSites, findPageInSites, flattenCorpusPages } from "./crawled-content";
+import type { CorpusPageHit } from "./crawled-content";
 import type {
   BatchGenerateRequest,
   ContentType,
   Platform,
   SiteData,
-  SitePage,
   WinningCopyHints,
 } from "./types";
 
 export type CampaignPlanItem = {
   pagePath: string;
+  pageDomain?: string;
   platform: Platform;
   angle: string;
   dayOffset: number;
@@ -33,22 +35,44 @@ const PLATFORMS: Platform[] = [
   "email",
 ];
 
+type CatalogEntry = CorpusPageHit;
+
 function formatWinningForPlanner(hints?: WinningCopyHints | null): string {
   if (!hints?.promptBlock) return "";
   return `What already works (match energy, do not copy):\n${hints.promptBlock}`;
 }
 
-function resolvePage(site: SiteData, path: string): SitePage | undefined {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
+function parseDomainPath(raw: string): { domain?: string; path: string } {
+  const trimmed = raw.trim();
+  if (trimmed.includes("::")) {
+    const [domain, path] = trimmed.split("::");
+    return { domain, path: path.startsWith("/") ? path : `/${path}` };
+  }
+  if (/^[a-z0-9.-]+\.[a-z]{2,}\//i.test(trimmed)) {
+    const slash = trimmed.indexOf("/");
+    return {
+      domain: trimmed.slice(0, slash),
+      path: trimmed.slice(slash),
+    };
+  }
+  return { path: trimmed.startsWith("/") ? trimmed : `/${trimmed}` };
+}
+
+export function resolvePlanPage(
+  sites: SiteData[],
+  item: { pagePath: string; pageDomain?: string },
+): CatalogEntry | undefined {
+  const parsed = parseDomainPath(item.pagePath);
+  const domain = item.pageDomain || parsed.domain;
   return (
-    site.pages.find((p) => p.path === normalized) ??
-    site.pages.find((p) => p.path === path)
+    findPageInSites(sites, { path: parsed.path, domain }) ??
+    findPageInSites(sites, { path: parsed.path })
   );
 }
 
 function parsePlan(
   raw: string,
-  site: SiteData,
+  sites: SiteData[],
   platforms: Platform[],
   maxPosts: number,
 ): CampaignPlan | null {
@@ -57,6 +81,7 @@ function parsePlan(
       theme?: string;
       items?: Array<{
         pagePath?: string;
+        pageDomain?: string;
         platform?: string;
         angle?: string;
         dayOffset?: number;
@@ -70,14 +95,19 @@ function parsePlan(
     for (const item of parsed.items) {
       if (items.length >= maxPosts) break;
       const pagePath = item.pagePath ?? "/";
-      if (!resolvePage(site, pagePath)) continue;
+      const resolved = resolvePlanPage(sites, {
+        pagePath,
+        pageDomain: item.pageDomain,
+      });
+      if (!resolved) continue;
       const platform = PLATFORMS.includes(item.platform as Platform)
         ? (item.platform as Platform)
         : platforms[items.length % platforms.length];
       if (!platforms.includes(platform)) continue;
 
       items.push({
-        pagePath: pagePath.startsWith("/") ? pagePath : `/${pagePath}`,
+        pagePath: resolved.page.path,
+        pageDomain: resolved.site.domain,
         platform,
         angle: String(item.angle ?? "brand awareness").slice(0, 80),
         dayOffset: Math.max(0, Math.min(30, Number(item.dayOffset) || items.length)),
@@ -97,33 +127,49 @@ function parsePlan(
   }
 }
 
-function filterFocusPages(
-  site: SiteData,
+function catalogForFocus(
+  sites: SiteData[],
   focusPagePaths?: string[],
-): SitePage[] {
-  if (!focusPagePaths?.length) return site.pages;
+): CatalogEntry[] {
+  const catalog = flattenCorpusPages(sites);
+  if (!focusPagePaths?.length) return catalog;
+
   const allowed = new Set(focusPagePaths);
-  const focused = site.pages.filter((p) => allowed.has(p.path));
-  return focused.length > 0 ? focused : site.pages;
+  const focused = catalog.filter((hit) => {
+    const path = hit.page.path;
+    return (
+      allowed.has(path) ||
+      allowed.has(`${hit.site.domain}::${path}`) ||
+      allowed.has(`${hit.site.domain}${path}`)
+    );
+  });
+  return focused.length > 0 ? focused : catalog;
 }
 
-function rankPagesByFreshness(
-  site: SiteData,
+function rankCatalogByFreshness(
+  sites: SiteData[],
   pageCounts: Map<string, number>,
   focusPagePaths?: string[],
-): SitePage[] {
-  return filterFocusPages(site, focusPagePaths).sort((a, b) => {
-    const aCount = pageCounts.get(a.path) ?? 0;
-    const bCount = pageCounts.get(b.path) ?? 0;
+): CatalogEntry[] {
+  return catalogForFocus(sites, focusPagePaths).sort((a, b) => {
+    const aCount =
+      pageCounts.get(a.page.path) ??
+      pageCounts.get(`${a.site.domain}${a.page.path}`) ??
+      0;
+    const bCount =
+      pageCounts.get(b.page.path) ??
+      pageCounts.get(`${b.site.domain}${b.page.path}`) ??
+      0;
     if (aCount !== bCount) return aCount - bCount;
-    if (a.path === "/") return -1;
-    if (b.path === "/") return 1;
-    return b.headings.length - a.headings.length;
+    if (a.page.path === "/") return -1;
+    if (b.page.path === "/") return 1;
+    return b.page.headings.length - a.page.headings.length;
   });
 }
 
 function buildHeuristicPlan(
-  site: SiteData,
+  sites: SiteData[],
+  primary: SiteData,
   platforms: Platform[],
   maxPosts: number,
   prompt: string,
@@ -131,8 +177,8 @@ function buildHeuristicPlan(
   focusPagePaths?: string[],
 ): CampaignPlan {
   const themes =
-    site.brand.synthesis?.contentThemes ??
-    site.brand.topics ??
+    primary.brand.synthesis?.contentThemes ??
+    primary.brand.topics ??
     ["product highlights", "brand story", "customer value"];
   const angles = [
     "thought leadership",
@@ -143,32 +189,33 @@ function buildHeuristicPlan(
     "call to action",
   ];
 
-  const pages = rankPagesByFreshness(site, pageCounts, focusPagePaths);
+  const pages = rankCatalogByFreshness(sites, pageCounts, focusPagePaths);
 
   const items: CampaignPlanItem[] = [];
   let day = 0;
 
   for (let i = 0; i < maxPosts; i++) {
-    const page = pages[i % pages.length];
+    const hit = pages[i % pages.length];
     const platform = platforms[i % platforms.length];
     const theme = themes[i % themes.length];
     const angle = angles[i % angles.length];
 
     items.push({
-      pagePath: page.path,
+      pagePath: hit.page.path,
+      pageDomain: hit.site.domain,
       platform,
       angle,
       dayOffset: day,
       brief: prompt
         ? `${prompt} — ${angle} angle on ${theme}`
-        : `${angle}: ${theme} from ${page.title}`,
+        : `${angle}: ${theme} from ${hit.page.title} (${hit.site.domain})`,
     });
     day += i % platforms.length === platforms.length - 1 ? 1 : 0;
     if ((i + 1) % platforms.length === 0) day++;
   }
 
   return {
-    theme: prompt || `${site.brand.name} content calendar`,
+    theme: prompt || `${primary.brand.name} content calendar`,
     items,
     source: "heuristic",
   };
@@ -187,16 +234,25 @@ export async function planCampaign(
     focusPagePaths,
   } = request;
 
+  const sites = corpusSites(site, request.crawledCorpus);
   const winningCopy = request.winningCopy ?? null;
   const history = analyzePostHistory(existingPosts);
-  const freshPages = rankPagesByFreshness(site, history.pageCounts, focusPagePaths);
+  const freshPages = rankCatalogByFreshness(
+    sites,
+    history.pageCounts,
+    focusPagePaths,
+  );
 
   const pageList = freshPages
-    .slice(0, 12)
-    .map((p) => {
-      const used = history.pageCounts.get(p.path) ?? 0;
-      const freshness = used === 0 ? " [never posted]" : used >= 2 ? " [overused]" : "";
-      return `${p.path}: ${p.title}${freshness} — ${p.description.slice(0, 80) || p.headings[0] || ""}`;
+    .slice(0, 16)
+    .map((hit) => {
+      const used =
+        history.pageCounts.get(hit.page.path) ??
+        history.pageCounts.get(`${hit.site.domain}${hit.page.path}`) ??
+        0;
+      const freshness =
+        used === 0 ? " [never posted]" : used >= 2 ? " [overused]" : "";
+      return `${hit.site.domain}${hit.page.path}: ${hit.page.title}${freshness} — ${hit.page.description.slice(0, 80) || hit.page.headings[0] || ""}`;
     })
     .join("\n");
 
@@ -210,18 +266,20 @@ export async function planCampaign(
       : "No prior posts — full library is fresh.";
 
   const winningBlock = formatWinningForPlanner(winningCopy);
+  const multiSite = sites.length > 1;
 
   const systemPrompt = `You are a content strategist. Plan a social media campaign calendar as JSON only.
-Return: { "theme": string, "items": [{ "pagePath": string, "platform": string, "angle": string, "dayOffset": number, "brief": string }] }
+Return: { "theme": string, "items": [{ "pagePath": string, "pageDomain": string, "platform": string, "angle": string, "dayOffset": number, "brief": string }] }
 Rules:
-- Use only page paths from the provided list
+- Use only pages from the provided list. pagePath is the path starting with /. pageDomain is the site domain.
 - Platforms must be from: ${platforms.join(", ")}
 - Prioritize pages marked [never posted]; avoid overusing [overused] pages
 - Vary angles across posts — each post needs a distinct hook (question, story, myth-buster, stat, contrarian, how-to, etc.)
 - Never repeat the same angle twice in one campaign
 - Stagger dayOffset from 0 upward
-- brief is 1 sentence creative direction with a specific hook idea
+- brief is 1 sentence creative direction with a specific hook idea grounded in that page
 - Exactly ${maxPosts} items
+${multiSite ? "- Rotate across crawled sites when it keeps the campaign authentic to each brand. Do not mix two brands in one item." : ""}
 ${winningCopy?.topPlatform ? `- Lean toward ${winningCopy.topPlatform} when it is in the allowed platforms` : ""}
 ${winningCopy?.topPage ? `- Include ${winningCopy.topPage} at least once if it is in the page list` : ""}`;
 
@@ -230,6 +288,7 @@ Voice: ${formatVoiceGuide(site.brand)}
 Campaign goal: ${prompt || site.brand.businessModel?.conversionGoal || "engagement"}
 Content themes: ${themes}
 Target platforms: ${platforms.join(", ")}
+Crawled sites: ${sites.map((s) => `${s.brand.name} (${s.domain})`).join("; ")}
 ${usedPages}
 ${winningBlock}
 
@@ -243,13 +302,14 @@ ${pageList}`;
   });
 
   if (raw) {
-    const parsed = parsePlan(raw, site, platforms, maxPosts);
+    const parsed = parsePlan(raw, sites, platforms, maxPosts);
     if (parsed && parsed.items.length >= Math.min(3, maxPosts)) {
       return parsed;
     }
   }
 
   return buildHeuristicPlan(
+    sites,
     site,
     platforms,
     maxPosts,

@@ -3,6 +3,7 @@ import {
   planCampaign,
   planItemContentType,
   planItemToPrompt,
+  resolvePlanPage,
   type CampaignPlan,
 } from "./campaign-planner";
 import { rankPagesBySimilarity } from "./embeddings";
@@ -31,9 +32,16 @@ import {
 } from "./visual-targeting";
 import { generateInfluencerSiteContent } from "./viraforge/influencer-content";
 import { calendarDatePlus } from "./week-pack";
+import {
+  corpusSites,
+  findPageInSites,
+  flattenCorpusPages,
+  type CorpusPageHit,
+} from "./crawled-content";
 import type {
   BatchGenerateRequest,
   ContentType,
+  CrawledCorpus,
   GeneratedPost,
   GenerateRequest,
   Platform,
@@ -114,62 +122,123 @@ function siteBusinessKeywordsMatch(page: SitePage, prompt: string): boolean {
   return tokenize(prompt).some((t) => combined.includes(t));
 }
 
-async function pickPage(
-  site: SiteData,
+async function pickSource(
+  primary: SiteData,
+  corpus: CrawledCorpus | undefined,
   sourcePageUrl?: string,
   prompt = "",
   contentType: ContentType = "Social Post",
   boostPath?: string,
-): Promise<SitePage> {
+): Promise<CorpusPageHit> {
+  const sites = corpusSites(primary, corpus);
   if (sourcePageUrl) {
-    return site.pages.find((p) => p.url === sourcePageUrl) ?? site.pages[0];
+    return (
+      findPageInSites(sites, { url: sourcePageUrl }) ?? {
+        site: primary,
+        page: primary.pages[0],
+      }
+    );
   }
 
+  const catalog = flattenCorpusPages(sites);
+  const allPages = catalog.map((hit) => hit.page);
   const query = [prompt, contentType].filter(Boolean).join(" — ");
+  const primaryDomain = primary.domain.toLowerCase();
+
+  const hitFor = (page: SitePage): CorpusPageHit =>
+    catalog.find((row) => row.page === page) ??
+    catalog.find((row) => row.page.url === page.url) ??
+    catalog.find(
+      (row) =>
+        row.page.path === page.path &&
+        row.site.domain.toLowerCase() === primaryDomain,
+    ) ??
+    catalog.find((row) => row.page.path === page.path) ?? {
+      site: primary,
+      page,
+    };
+
   if (query.trim()) {
-    const semantic = await rankPagesBySimilarity(site.pages, query);
+    const semantic = await rankPagesBySimilarity(allPages, query);
     if (semantic[0] && semantic[0].score > 0.3) {
+      const top = semantic[0];
+      const topHit = hitFor(top.page);
+      const topIsPrimary =
+        topHit.site.domain.toLowerCase() === primaryDomain;
+      if (!topIsPrimary && top.score < 0.45) {
+        const boosted = semantic.find((row) => {
+          const hit = hitFor(row.page);
+          return (
+            hit.site.domain.toLowerCase() === primaryDomain &&
+            row.score > 0.22 &&
+            (!boostPath || row.page.path === boostPath || row.score > 0.28)
+          );
+        });
+        if (boosted) return hitFor(boosted.page);
+      }
       if (
         boostPath &&
-        semantic[0].page.path !== boostPath &&
-        semantic[0].score < 0.45
+        top.page.path !== boostPath &&
+        top.score < 0.45
       ) {
-        const boosted = semantic.find((r) => r.page.path === boostPath);
-        if (boosted && boosted.score > 0.22) return boosted.page;
+        const boosted = semantic.find((row) => row.page.path === boostPath);
+        if (boosted && boosted.score > 0.22) return hitFor(boosted.page);
       }
-      return semantic[0].page;
+      return topHit;
     }
 
-    const scored = site.pages.map((page) => ({
-      page,
+    const scored = catalog.map((hit) => ({
+      hit,
       score:
-        scorePageRelevance(page, prompt, contentType) +
-        (boostPath && page.path === boostPath ? 22 : 0),
+        scorePageRelevance(hit.page, prompt, contentType) +
+        (hit.site.domain.toLowerCase() === primaryDomain ? 18 : 0) +
+        (boostPath && hit.page.path === boostPath ? 22 : 0),
     }));
     scored.sort((a, b) => b.score - a.score);
-    if (scored[0] && scored[0].score > 0) return scored[0].page;
+    if (scored[0] && scored[0].score > 0) return scored[0].hit;
   }
 
   if (boostPath) {
-    const boosted = site.pages.find((p) => p.path === boostPath);
+    const boosted = findPageInSites(sites, {
+      path: boostPath,
+      domain: primary.domain,
+    });
     if (boosted) return boosted;
   }
 
-  return site.pages.find((p) => p.path === "/") ?? site.pages[0];
+  return {
+    site: primary,
+    page: primary.pages.find((p) => p.path === "/") ?? primary.pages[0],
+  };
 }
 
 async function getRelatedPages(
+  sites: SiteData[],
   site: SiteData,
   page: SitePage,
   prompt: string,
   contentType: ContentType,
 ): Promise<SitePage[]> {
+  const catalog = flattenCorpusPages(sites);
+  const sameSiteFirst = [
+    ...catalog.filter((hit) => hit.site.domain === site.domain),
+    ...catalog.filter((hit) => hit.site.domain !== site.domain),
+  ];
   const query = [prompt, contentType, page.title].filter(Boolean).join(" — ");
-  const ranked = await rankPagesBySimilarity(site.pages, query);
-  return ranked
+  const ranked = await rankPagesBySimilarity(
+    sameSiteFirst.map((hit) => hit.page),
+    query,
+  );
+  const related = ranked
     .filter((r) => r.page.url !== page.url && r.score > 0.25)
-    .slice(0, 3)
+    .slice(0, 4)
     .map((r) => r.page);
+  if (related.length > 0) return related;
+
+  return sameSiteFirst
+    .filter((hit) => hit.page.url !== page.url)
+    .slice(0, 4)
+    .map((hit) => hit.page);
 }
 
 function emojiPrefix(style: UserSettings["emojiStyle"], platform: Platform): string {
@@ -660,7 +729,6 @@ export async function generateSmartPost(
 ): Promise<GeneratedPost> {
   const settings = getSettings(request);
   const {
-    site,
     contentType,
     platform,
     prompt = "",
@@ -671,15 +739,24 @@ export async function generateSmartPost(
     request.contentAngle === "auto" || !request.contentAngle
       ? pickFreshAngle(existingPosts, 0, request.contentAngle)
       : request.contentAngle;
-  const angleRequest = { ...request, contentAngle };
-  const page = await pickPage(
-    site,
+  const picked = await pickSource(
+    request.site,
+    request.crawledCorpus,
     sourcePageUrl,
     prompt,
     contentType,
     request.winningCopy?.topPage,
   );
-  const relatedPages = await getRelatedPages(site, page, prompt, contentType);
+  const site = picked.site;
+  const page = picked.page;
+  const angleRequest = { ...request, site, contentAngle };
+  const relatedPages = await getRelatedPages(
+    corpusSites(site, request.crawledCorpus),
+    site,
+    page,
+    prompt,
+    contentType,
+  );
 
   let text =
     platform === "email" && contentType === "Social Post"
@@ -698,6 +775,7 @@ export async function generateSmartPost(
         isInstagramFormat(contentType) ? "instagram" : platform,
       brief: prompt || undefined,
       personalization: request.influencer.personalization,
+      crawledCorpus: request.crawledCorpus,
     });
     text = truncate(influencerPost.text, PLATFORM_LIMITS[platform]);
     influencerInsights = [
@@ -782,6 +860,15 @@ export async function generateSmartPost(
     ),
     ...influencerInsights,
   ];
+
+  const corpus = request.crawledCorpus;
+  if (corpus && corpus.pageCount > 0) {
+    insights.push(
+      corpus.siteCount > 1
+        ? `Grounded in ${corpus.siteCount} crawled sites and ${corpus.pageCount} pages — only facts from those pages.`
+        : `Grounded in ${corpus.pageCount} crawled page${corpus.pageCount === 1 ? "" : "s"} from ${site.domain} — not just the homepage.`,
+    );
+  }
 
   if (preferAi && image.source !== "ai") {
     insights.push(
@@ -907,8 +994,13 @@ export async function generateCampaignPack(
 
   async function generatePackItem(index: number) {
     const item = items[index];
-    const page = site.pages.find((p) => p.path === item.pagePath);
-    if (!page) return null;
+    const resolved = resolvePlanPage(
+      corpusSites(site, request.crawledCorpus),
+      item,
+    );
+    if (!resolved) return null;
+    const page = resolved.page;
+    const itemSite = resolved.site;
 
     const itemPrompt = planItemToPrompt(item, prompt);
     const contentAngle = varyAngles
@@ -916,7 +1008,7 @@ export async function generateCampaignPack(
       : request.contentAngle ?? "auto";
 
     const post = await generateSmartPost({
-      site,
+      site: itemSite,
       contentType: planItemContentType(),
       platform: item.platform,
       prompt: itemPrompt,
@@ -927,6 +1019,7 @@ export async function generateCampaignPack(
       contentAngle,
       existingPosts: history,
       winningCopy: request.winningCopy,
+      crawledCorpus: request.crawledCorpus,
     });
 
     const scheduled = new Date();

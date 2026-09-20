@@ -75,8 +75,14 @@ export function validateQuoteAgainstFacts(
   return { valid: violations.length === 0, violations };
 }
 
-export function formatFactsForPrompt(facts: ProductFactsForm): string {
-  if (!hasLockedProductFacts(facts)) {
+export function formatFactsForPrompt(
+  facts: ProductFactsForm,
+  crawledBlock?: string,
+): string {
+  const crawled = crawledBlock?.trim();
+  const locked = hasLockedProductFacts(facts);
+
+  if (!locked && !crawled) {
     return "No locked product facts. Do not invent specific prices, specs, ingredients, or health claims. Keep the copy general.";
   }
 
@@ -87,18 +93,27 @@ export function formatFactsForPrompt(facts: ProductFactsForm): string {
         : ""
       : `Product: ${facts.name || "offering"}. Price: ${facts.price}.`;
 
+  const lockedBlock = locked
+    ? [
+        priceLine,
+        facts.features.length
+          ? `Verified features (ONLY these may be mentioned): ${facts.features.join("; ")}.`
+          : "",
+        facts.location ? `Location: ${facts.location}.` : "",
+        facts.hours ? `Hours: ${facts.hours}.` : "",
+        facts.ingredients?.length
+          ? `Ingredients: ${facts.ingredients.join(", ")}.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "";
+
   return [
-    priceLine,
-    facts.features.length
-      ? `Verified features (ONLY these may be mentioned): ${facts.features.join("; ")}.`
-      : "",
-    facts.location ? `Location: ${facts.location}.` : "",
-    facts.hours ? `Hours: ${facts.hours}.` : "",
-    facts.ingredients?.length
-      ? `Ingredients: ${facts.ingredients.join(", ")}.`
-      : "",
-    "Never add health claims, benefits, or specs beyond this list.",
+    lockedBlock,
+    crawled,
+    "Never add health claims, benefits, or specs beyond the verified crawl and locked facts.",
   ]
     .filter(Boolean)
-    .join(" ");
+    .join("\n");
 }

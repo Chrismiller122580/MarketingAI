@@ -13,11 +13,12 @@ import {
 } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { loadWinningCopyHints } from "@/lib/winning-copy";
+import { loadCrawledCorpus } from "@/lib/crawled-content";
 import {
   WEEK_PACK_PROMPT,
   WEEK_PACK_SIZE,
   resolveWeekPackPlatforms,
-  unusedPagePaths,
+  unusedCorpusFocus,
 } from "@/lib/week-pack";
 
 export async function POST(request: Request) {
@@ -72,15 +73,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const [promptPreferences, winningCopy, existingRows] = await Promise.all([
-      getPromptPreferences(userId),
-      loadWinningCopyHints(userId),
-      prisma.post.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        take: 80,
-      }),
-    ]);
+    const [promptPreferences, winningCopy, existingRows, crawledCorpus] =
+      await Promise.all([
+        getPromptPreferences(userId),
+        loadWinningCopyHints(userId),
+        prisma.post.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: 80,
+        }),
+        loadCrawledCorpus(userId, site),
+      ]);
 
     const existingPosts = existingRows.map((row) => {
       const post = postToSaved(row);
@@ -91,7 +94,7 @@ export async function POST(request: Request) {
       };
     });
 
-    const unused = unusedPagePaths(site, existingPosts);
+    const unused = unusedCorpusFocus(crawledCorpus.sites, existingPosts);
     const platforms = resolveWeekPackPlatforms({
       paid: usage.paid,
       preferred: (body.settings?.defaultPlatforms ?? []) as Platform[],
@@ -114,6 +117,7 @@ export async function POST(request: Request) {
       focusPagePaths: unused.length > 0 ? unused : undefined,
       winningCopy,
       spreadDaily: true,
+      crawledCorpus,
     };
 
     const result = await generateCampaignPack(batchRequest);
