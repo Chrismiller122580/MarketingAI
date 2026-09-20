@@ -36,19 +36,19 @@ export default async function PublicWorldGalleryPage() {
           </section>
 
           {places.length > 0 && (
-            <section className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <section className="mt-10 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {places.map((place) => (
                 <div
                   key={place.id}
-                  className="rounded-3xl border border-white/10 bg-white/5 p-4"
+                  className="min-w-0 rounded-3xl border border-white/10 bg-white/5 p-4"
                 >
                   <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">
                     {place.name}
                   </p>
-                  <p className="mt-2 text-sm font-medium">
+                  <p className="mt-2 truncate text-sm font-medium">
                     {place.keeperName ?? "Unattended"}
                   </p>
-                  <p className="mt-1 text-xs text-zinc-400">{place.note}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-zinc-400">{place.note}</p>
                 </div>
               ))}
             </section>
@@ -92,12 +92,12 @@ export default async function PublicWorldGalleryPage() {
               No public avatars yet. Check back after the world opens a few doors.
             </p>
           ) : (
-            <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="mt-10 grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {avatars.map((avatar) => (
-                <li key={avatar.id}>
+                <li key={avatar.id} className="min-w-0">
                   <Link
                     href={`/world/${avatar.id}`}
-                    className="flex h-full gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 transition hover:border-violet-400/50 hover:bg-white/10"
+                    className="flex h-full min-w-0 items-start gap-3 rounded-3xl border border-white/10 bg-white/5 p-4 transition hover:border-violet-400/50 hover:bg-white/10"
                   >
                     <div className="h-20 w-16 shrink-0 overflow-hidden rounded-2xl bg-zinc-900">
                       {avatar.videoUrl ? (

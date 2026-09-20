@@ -319,7 +319,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 overflow-x-hidden">
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="relative h-36 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-amber-400">
           {detail.assets.portraitUrl && (
@@ -332,7 +332,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
           )}
         </div>
         <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end">
-          <div className="-mt-12 h-24 w-20 overflow-hidden rounded-2xl border-4 border-card bg-muted shadow-md">
+          <div className="-mt-12 h-24 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-card bg-muted shadow-md">
             {detail.assets.videoUrl ? (
               <video
                 src={detail.assets.videoUrl}
@@ -349,16 +349,20 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
                 alt={detail.displayName}
                 className="h-full w-full object-cover object-top"
               />
-            ) : null}
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-violet-600">
+                {detail.displayName.slice(0, 1)}
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-semibold">{detail.displayName}</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="truncate text-xl font-semibold">{detail.displayName}</h2>
+            <p className="truncate text-sm text-muted-foreground">
               @{detail.handle} · {form.currentCity || detail.persona.location}
             </p>
-            <p className="mt-1 text-sm">{form.bio}</p>
+            <p className="mt-1 line-clamp-2 text-sm">{form.bio}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
               {form.mood}
             </span>

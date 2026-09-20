@@ -367,7 +367,7 @@ export function AvatarWorldHub() {
   const chats = data?.chats ?? [];
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8 overflow-x-hidden">
       <section className="overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-amber-50 p-6 dark:border-violet-900/60 dark:from-violet-950/40 dark:via-slate-950 dark:to-amber-950/20">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-600 dark:text-violet-300">
           Avatar World
@@ -498,17 +498,20 @@ export function AvatarWorldHub() {
           placeholder="Optional vibe — quiet, messy, devout, night-shift energy…"
           className="mt-3 min-h-16 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
         />
-        <label className="mt-3 flex items-center gap-2 text-sm">
+        <label className="mt-3 flex items-start gap-2 text-sm">
           <input
             type="checkbox"
             checked={quickFace}
             onChange={(e) => setQuickFace(e.target.checked)}
+            className="mt-1 shrink-0"
           />
-          Create a face
-          <span className="text-xs text-muted-foreground">
-            {quickCount > 1
-              ? `Paints all ${quickCount}. Takes a little longer.`
-              : "Skip the studio — they arrive with a portrait."}
+          <span className="min-w-0">
+            <span className="block font-medium">Create a face</span>
+            <span className="block text-xs text-muted-foreground">
+              {quickCount > 1
+                ? `Paints all ${quickCount}. Takes a little longer.`
+                : "Skip the studio — they arrive with a portrait."}
+            </span>
           </span>
         </label>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -601,16 +604,16 @@ export function AvatarWorldHub() {
           {data?.economy && (
             <>
               {(data.economy.places ?? []).length > 0 && (
-                <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <section className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {data.economy.places.map((place) => (
                     <div
                       key={place.id}
-                      className="rounded-2xl border border-border bg-card p-4"
+                      className="min-w-0 rounded-2xl border border-border bg-card p-4"
                     >
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         {place.name}
                       </p>
-                      <p className="mt-2 text-sm font-medium">
+                      <p className="mt-2 truncate text-sm font-medium">
                         {place.keeperName
                           ? `${place.keeperName}${
                               place.keeperOccupation
@@ -619,19 +622,19 @@ export function AvatarWorldHub() {
                             }`
                           : "Unattended"}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                         {place.note}
                       </p>
                     </div>
                   ))}
                 </section>
               )}
-              <section className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+              <section className="grid min-w-0 gap-4 lg:grid-cols-2">
+              <div className="min-w-0 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
                   City Bank
                 </h3>
-                <p className="mt-2 text-3xl font-semibold tabular-nums">
+                <p className="mt-2 break-words text-3xl font-semibold tabular-nums">
                   {data.economy.treasury.toLocaleString()} {data.economy.currencyLabel}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -642,16 +645,16 @@ export function AvatarWorldHub() {
                   {data.economy.accounts.slice(0, 8).map((row) => (
                     <li
                       key={row.influencerId}
-                      className="flex items-center justify-between gap-3"
+                      className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3"
                     >
-                      <span className="truncate">
+                      <span className="min-w-0 truncate">
                         {row.displayName}
                         <span className="text-muted-foreground">
                           {" "}
                           · {row.occupation || row.employer}
                         </span>
                       </span>
-                      <span className="shrink-0 tabular-nums">
+                      <span className="shrink-0 tabular-nums text-xs text-muted-foreground sm:text-sm sm:text-foreground">
                         {row.balance} · {row.wage}/day
                         {row.rent > 0 ? ` · rent ${row.rent}` : ""}
                       </span>
@@ -659,7 +662,7 @@ export function AvatarWorldHub() {
                   ))}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="min-w-0 rounded-2xl border border-border bg-card p-5">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Market
                 </h3>
@@ -696,10 +699,10 @@ export function AvatarWorldHub() {
             </>
           )}
 
-          <section>
-            <div className="mb-3 flex items-end justify-between gap-3">
+          <section className="min-w-0">
+            <div className="mb-3 flex min-w-0 flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
               <h3 className="text-lg font-semibold">Residents</h3>
-              <p className="text-xs text-muted-foreground">
+              <p className="min-w-0 text-xs text-muted-foreground">
                 {avatars.length} living ·{" "}
                 {avatars.filter((row) => row.isPublic).length} public
                 {data?.economy?.townReady
@@ -709,15 +712,15 @@ export function AvatarWorldHub() {
                     : ""}
               </p>
             </div>
-            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {avatars.map((avatar) => (
                 <li
                   key={avatar.id}
-                  className="flex h-full flex-col rounded-2xl border border-border bg-card transition hover:border-violet-300 hover:shadow-sm dark:hover:border-violet-700"
+                  className="flex h-full min-w-0 flex-col rounded-2xl border border-border bg-card transition hover:border-violet-300 hover:shadow-sm dark:hover:border-violet-700"
                 >
                   <Link
                     href={`/avatar-world/${avatar.id}`}
-                    className="flex flex-1 gap-4 p-4"
+                    className="flex min-w-0 flex-1 items-start gap-3 p-4"
                   >
                     <AvatarFace
                       name={avatar.displayName}
@@ -764,17 +767,22 @@ export function AvatarWorldHub() {
                       </div>
                     </div>
                   </Link>
-                  <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2">
+                  <div className="grid min-w-0 gap-2 border-t border-border px-4 py-3">
                     <p className="text-xs text-muted-foreground">
                       {avatar.isPublic
                         ? "Listed for the public"
                         : "Hidden from the public"}
                     </p>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div
+                      className={`grid w-full min-w-0 gap-1.5 ${
+                        avatar.portraitUrl ? "grid-cols-1" : "grid-cols-2"
+                      }`}
+                    >
                       {!avatar.portraitUrl && (
                         <Button
                           size="sm"
                           variant="outline"
+                          className="min-w-0 w-full"
                           disabled={
                             faceBusyId === avatar.id ||
                             liveBusy ||
@@ -795,8 +803,8 @@ export function AvatarWorldHub() {
                         variant={avatar.isPublic ? "outline" : "default"}
                         className={
                           avatar.isPublic
-                            ? ""
-                            : "bg-violet-600 hover:bg-violet-500"
+                            ? "min-w-0 w-full"
+                            : "min-w-0 w-full bg-violet-600 hover:bg-violet-500"
                         }
                         disabled={
                           publicBusyId === avatar.id ||
@@ -865,7 +873,7 @@ export function AvatarWorldHub() {
                 {lifeFeed.slice(0, 12).map((event) => (
                   <li
                     key={event.id}
-                    className="flex gap-3 rounded-xl border border-border bg-card p-3"
+                    className="flex min-w-0 items-start gap-3 rounded-xl border border-border bg-card p-3"
                   >
                     <AvatarFace
                       name={event.displayName}

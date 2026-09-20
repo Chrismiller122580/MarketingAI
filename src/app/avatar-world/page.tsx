@@ -17,7 +17,9 @@ export default async function AvatarWorldPage() {
 
   return (
     <AppShell>
-      <AvatarWorldHub />
+      <div className="min-w-0 overflow-x-hidden">
+        <AvatarWorldHub />
+      </div>
     </AppShell>
   );
 }

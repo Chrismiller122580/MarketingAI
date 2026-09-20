@@ -22,9 +22,11 @@ export default async function AvatarWorldProfilePage({
   const { id } = await params;
   return (
     <AppShell>
-      <Suspense>
-        <AvatarWorldProfile influencerId={id} />
-      </Suspense>
+      <div className="min-w-0 overflow-x-hidden">
+        <Suspense>
+          <AvatarWorldProfile influencerId={id} />
+        </Suspense>
+      </div>
     </AppShell>
   );
 }

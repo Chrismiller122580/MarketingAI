@@ -35,8 +35,8 @@ export function AvatarPublicProfile({
             </Link>
           </header>
 
-          <section className="flex flex-col gap-6 sm:flex-row sm:items-end">
-            <div className="h-44 w-36 overflow-hidden rounded-[28px] border border-white/10 bg-zinc-900 shadow-2xl shadow-violet-950/40">
+          <section className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-end">
+            <div className="h-44 w-36 shrink-0 overflow-hidden rounded-[28px] border border-white/10 bg-zinc-900 shadow-2xl shadow-violet-950/40">
               {profile.assets.videoUrl ? (
                 <video
                   src={profile.assets.videoUrl}
@@ -57,10 +57,10 @@ export function AvatarPublicProfile({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-violet-200">@{profile.handle}</p>
-              <h1 className="mt-1 text-4xl font-semibold tracking-tight">
+              <h1 className="mt-1 truncate text-4xl font-semibold tracking-tight">
                 {profile.displayName}
               </h1>
-              <p className="mt-2 max-w-xl text-zinc-300">
+              <p className="mt-2 max-w-xl line-clamp-4 text-zinc-300">
                 {profile.world.bio || profile.persona.personalityVoice}
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs">

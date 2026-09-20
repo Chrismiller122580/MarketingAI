@@ -149,7 +149,7 @@ export function WorldChatCard({ chat }: { chat: WorldChatCardType }) {
       </p>
       <ol className="mt-3 space-y-3">
         {chat.turns.map((turn, index) => (
-          <li key={`${chat.id}-${turn.influencerId}-${index}`} className="flex gap-3">
+          <li key={`${chat.id}-${turn.influencerId}-${index}`} className="flex min-w-0 items-start gap-3">
             <AvatarFace
               name={turn.displayName}
               portraitUrl={turn.portraitUrl}
@@ -255,7 +255,7 @@ export function WorldThreadCard({
 
   return (
     <article className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         <AvatarFace
           name={thread.displayName}
           portraitUrl={thread.portraitUrl}
@@ -280,7 +280,7 @@ export function WorldThreadCard({
       {thread.replies.length > 0 && (
         <ol className="mt-3 space-y-3 border-l-2 border-violet-200 pl-4 dark:border-violet-900">
           {thread.replies.map((reply) => (
-            <li key={reply.id} className="flex gap-3">
+            <li key={reply.id} className="flex min-w-0 items-start gap-3">
               <AvatarFace
                 name={reply.displayName}
                 portraitUrl={reply.portraitUrl}
