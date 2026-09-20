@@ -1,4 +1,8 @@
 import { chatCompletion, hasAnyAiKey } from "@/lib/ai-client";
+import {
+  generateImageFromPrompt,
+  getImageProviderAvailability,
+} from "@/lib/ai-image";
 import { prisma } from "@/lib/db";
 import {
   defaultCreatorAvatarValues,
@@ -25,6 +29,8 @@ import {
   type WorldPostCard,
 } from "./avatar-world";
 import { generateNames, handleFromName } from "./avatar-name-generator";
+import { buildAvatarImagePrompt } from "./avatar-prompts";
+import { savePortraitRender } from "./influencer-renders";
 import { upsertInfluencerWithFacts } from "./learning";
 import {
   ensureResidentAccount,
@@ -595,6 +601,7 @@ export type SpawnResult = {
   chatBeat?: string;
   balance?: number;
   wage?: number;
+  portraitUrl?: string;
 };
 
 export type QuickCreateHint = {
@@ -605,6 +612,7 @@ export type QuickCreateHint = {
   vibe?: string;
   welcome?: boolean;
   skipAi?: boolean;
+  withFace?: boolean;
 };
 
 function hashString(value: string): number {
@@ -1213,6 +1221,35 @@ Jobs already in this world: ${JOB_TITLES.join(", ")}`,
   return { ...merged, usedAi: Boolean(raw), archetype: arch };
 }
 
+export async function paintResidentFace(
+  userId: string,
+  influencerId: string,
+): Promise<{ portraitUrl: string } | null> {
+  const detail = await loadWorldDetail(userId, influencerId);
+  if (!detail) return null;
+  if (!getImageProviderAvailability().any) {
+    throw new Error("AI images aren't available right now.");
+  }
+
+  const prompt = buildAvatarImagePrompt(detail.persona);
+  const result = await generateImageFromPrompt(prompt, {
+    platform: "instagram",
+    size: "1024x1024",
+  });
+  if (!result) return null;
+
+  const { durableUrl } = await savePortraitRender({
+    userId,
+    influencerId,
+    imageUrl: result.url,
+    provider: result.provider,
+    prompt: result.prompt,
+    metadata: { source: "avatar-world", ownerless: true },
+  });
+
+  return { portraitUrl: durableUrl };
+}
+
 export async function spawnDiverseResident(
   userId: string,
   hint?: QuickCreateHint,
@@ -1267,6 +1304,16 @@ export async function spawnDiverseResident(
   const beat = `${parsed.data.displayName} arrived from ${parsed.data.location} as a ${occupation}.`;
   await rememberWorldBeat(userId, beat);
 
+  let portraitUrl: string | undefined;
+  if (hint?.withFace) {
+    try {
+      const painted = await paintResidentFace(userId, influencerId);
+      portraitUrl = painted?.portraitUrl;
+    } catch {
+      // Arriving without a face is still arriving.
+    }
+  }
+
   const shouldWelcome = hint?.welcome !== false;
   const welcome = shouldWelcome
     ? await welcomeResident(userId, influencerId)
@@ -1284,6 +1331,7 @@ export async function spawnDiverseResident(
     chatBeat: welcome.chatBeat,
     balance: account.balance,
     wage: account.wage,
+    portraitUrl,
   };
 }
 
@@ -1298,12 +1346,14 @@ export async function quickCreateResidents(
     throw new Error(`This world is full (${MAX_RESIDENTS} residents).`);
   }
   const want = Math.min(count, remaining);
+  const withFace = hint.withFace !== false;
   const created: SpawnResult[] = [];
   for (let i = 0; i < want; i += 1) {
     const welcome = hint.welcome === true || (hint.welcome !== false && want === 1);
     const result = await spawnDiverseResident(userId, {
       ...hint,
       welcome,
+      withFace,
     });
     created.push(result);
   }

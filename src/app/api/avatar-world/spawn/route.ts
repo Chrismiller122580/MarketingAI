@@ -16,6 +16,7 @@ const spawnSchema = z.object({
   count: z.number().int().min(1).max(5).optional(),
   welcome: z.boolean().optional(),
   foundTown: z.boolean().optional(),
+  withFace: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {

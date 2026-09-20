@@ -93,6 +93,8 @@ export function AvatarWorldHub() {
   const [quickCity, setQuickCity] = useState("");
   const [quickVibe, setQuickVibe] = useState("");
   const [quickCount, setQuickCount] = useState(1);
+  const [quickFace, setQuickFace] = useState(true);
+  const [faceBusyId, setFaceBusyId] = useState<string | null>(null);
   const autoLiveRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -206,12 +208,18 @@ export function AvatarWorldHub() {
         location?: string;
         count?: number;
         remaining?: number;
-        created?: Array<{ displayName: string; occupation: string; location: string }>;
+        created?: Array<{
+          displayName: string;
+          occupation: string;
+          location: string;
+          portraitUrl?: string;
+        }>;
         introReplyName?: string;
         chatBeat?: string;
         foundTown?: boolean;
         alreadyFounded?: boolean;
         listings?: number;
+        portraitUrl?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Could not invite a resident");
       const count = json.count ?? json.created?.length ?? 1;
@@ -226,14 +234,21 @@ export function AvatarWorldHub() {
           );
         }
       } else if (count > 1) {
+        const faced =
+          json.created?.filter((row) => Boolean(row.portraitUrl)).length ?? 0;
         toast.success(
-          `Arrived: ${json.created?.map((row) => row.displayName).join(", ")}. ${json.remaining ?? 0} slots left.`,
+          `Arrived: ${json.created?.map((row) => row.displayName).join(", ")}. ${
+            faced > 0 ? `${faced} with a face. ` : ""
+          }${json.remaining ?? 0} slots left.`,
         );
       } else {
         const hello = json.introReplyName
           ? `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"} and said hello. ${json.introReplyName} answered.`
           : `${json.displayName ?? "A new resident"} arrived from ${json.location ?? "somewhere"} as a ${json.occupation ?? "neighbor"} and said hello.`;
-        toast.success(json.chatBeat ? `${hello} ${json.chatBeat}` : hello);
+        const withFace = json.portraitUrl ? " They arrived with a face." : "";
+        toast.success(
+          json.chatBeat ? `${hello} ${json.chatBeat}${withFace}` : `${hello}${withFace}`,
+        );
       }
       setQuickName("");
       setQuickJob("");
@@ -272,6 +287,23 @@ export function AvatarWorldHub() {
       );
     } finally {
       setPublicBusyId(null);
+    }
+  }
+
+  async function paintFace(avatarId: string) {
+    setFaceBusyId(avatarId);
+    try {
+      const res = await fetch(`/api/avatar-world/${avatarId}/portrait`, {
+        method: "POST",
+      });
+      const json = (await res.json()) as { error?: string; portraitUrl?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not paint a face");
+      toast.success("They have a face now");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not paint a face");
+    } finally {
+      setFaceBusyId(null);
     }
   }
 
@@ -402,8 +434,8 @@ export function AvatarWorldHub() {
       <section className="rounded-2xl border border-border bg-card p-5">
         <h3 className="text-lg font-semibold">Quick create</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Fill none, one, or a few. The rest of their life is invented. Batch up
-          to 5.
+          Fill none, one, or a few. The rest of their life is invented — including
+          a face, if you want one. Batch up to 5.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-sm">
@@ -466,6 +498,19 @@ export function AvatarWorldHub() {
           placeholder="Optional vibe — quiet, messy, devout, night-shift energy…"
           className="mt-3 min-h-16 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
         />
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={quickFace}
+            onChange={(e) => setQuickFace(e.target.checked)}
+          />
+          Create a face
+          <span className="text-xs text-muted-foreground">
+            {quickCount > 1
+              ? `Paints all ${quickCount}. Takes a little longer.`
+              : "Skip the studio — they arrive with a portrait."}
+          </span>
+        </label>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
             className="bg-violet-600 hover:bg-violet-500"
@@ -478,13 +523,18 @@ export function AvatarWorldHub() {
                 vibe: quickVibe.trim() || undefined,
                 count: quickCount,
                 welcome: quickCount === 1,
+                withFace: quickFace,
               })
             }
           >
             {spawnBusy ? (
-              <InlineLoading label="Creating…" />
+              <InlineLoading
+                label={quickFace ? "Painting a face…" : "Creating…"}
+              />
             ) : quickCount > 1 ? (
               `Create ${quickCount} residents`
+            ) : quickFace ? (
+              "Create this person + face"
             ) : (
               "Create this person"
             )}
@@ -492,7 +542,9 @@ export function AvatarWorldHub() {
           <Button
             variant="outline"
             disabled={spawnBusy || liveBusy || foundBusy}
-            onClick={() => void inviteResident({ count: 1, welcome: true })}
+            onClick={() =>
+              void inviteResident({ count: 1, welcome: true, withFace: quickFace })
+            }
           >
             Surprise me
           </Button>
@@ -718,27 +770,54 @@ export function AvatarWorldHub() {
                         ? "Listed for the public"
                         : "Hidden from the public"}
                     </p>
-                    <Button
-                      size="sm"
-                      variant={avatar.isPublic ? "outline" : "default"}
-                      className={
-                        avatar.isPublic
-                          ? ""
-                          : "bg-violet-600 hover:bg-violet-500"
-                      }
-                      disabled={publicBusyId === avatar.id || liveBusy || spawnBusy || foundBusy}
-                      onClick={() =>
-                        void togglePublicUse(avatar.id, !avatar.isPublic)
-                      }
-                    >
-                      {publicBusyId === avatar.id ? (
-                        <InlineLoading label="Saving…" />
-                      ) : avatar.isPublic ? (
-                        "Make private"
-                      ) : (
-                        "Allow public"
+                    <div className="flex shrink-0 items-center gap-2">
+                      {!avatar.portraitUrl && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            faceBusyId === avatar.id ||
+                            liveBusy ||
+                            spawnBusy ||
+                            foundBusy
+                          }
+                          onClick={() => void paintFace(avatar.id)}
+                        >
+                          {faceBusyId === avatar.id ? (
+                            <InlineLoading label="Painting…" />
+                          ) : (
+                            "Give a face"
+                          )}
+                        </Button>
                       )}
-                    </Button>
+                      <Button
+                        size="sm"
+                        variant={avatar.isPublic ? "outline" : "default"}
+                        className={
+                          avatar.isPublic
+                            ? ""
+                            : "bg-violet-600 hover:bg-violet-500"
+                        }
+                        disabled={
+                          publicBusyId === avatar.id ||
+                          liveBusy ||
+                          spawnBusy ||
+                          foundBusy ||
+                          faceBusyId !== null
+                        }
+                        onClick={() =>
+                          void togglePublicUse(avatar.id, !avatar.isPublic)
+                        }
+                      >
+                        {publicBusyId === avatar.id ? (
+                          <InlineLoading label="Saving…" />
+                        ) : avatar.isPublic ? (
+                          "Make private"
+                        ) : (
+                          "Allow public"
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </li>
               ))}

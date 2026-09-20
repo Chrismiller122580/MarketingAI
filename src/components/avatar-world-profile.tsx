@@ -106,6 +106,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [savingEvent, setSavingEvent] = useState(false);
   const [teacherId, setTeacherId] = useState("");
   const [learning, setLearning] = useState(false);
+  const [painting, setPainting] = useState(false);
   const [collabBrief, setCollabBrief] = useState("");
   const [collabBusy, setCollabBusy] = useState(false);
 
@@ -217,6 +218,23 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
       toast.error(error instanceof Error ? error.message : "Merge failed");
     } finally {
       setMerging(false);
+    }
+  }
+
+  async function paintFace() {
+    setPainting(true);
+    try {
+      const res = await fetch(`/api/avatar-world/${influencerId}/portrait`, {
+        method: "POST",
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not paint a face");
+      toast.success("They have a face now");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not paint a face");
+    } finally {
+      setPainting(false);
     }
   }
 
@@ -349,6 +367,16 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
                 Public profile
               </Link>
             </Button>
+            {!detail.assets.portraitUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={painting}
+                onClick={() => void paintFace()}
+              >
+                {painting ? <InlineLoading label="Painting…" /> : "Give a face"}
+              </Button>
+            )}
             <Button asChild variant="outline" size="sm">
               <Link href={`/creator-studio?influencer=${detail.id}`}>
                 Studio
