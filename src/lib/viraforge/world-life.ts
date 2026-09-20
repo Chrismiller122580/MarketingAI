@@ -797,6 +797,68 @@ function pickChatPairs(
   return pairs;
 }
 
+type SocialHangout = (typeof SOCIAL_HANGOUTS)[number];
+
+function pickActivity(
+  social: SocialHangout,
+  dayKey: string,
+  speakers: WorldInfluencerCard[],
+): { line: string; beat: string } {
+  const acts = social.activities.length > 0 ? social.activities : [social.scene];
+  const line = acts[hashString(`${dayKey}:${social.id}:act`) % acts.length]!;
+  if (social.id !== "games" || speakers.length < 2) {
+    return { line, beat: line };
+  }
+  const winner =
+    speakers[hashString(`${dayKey}:${social.id}:win`) % speakers.length]!;
+  const loser = speakers.find((row) => row.id !== winner.id) ?? speakers[0]!;
+  return {
+    line,
+    beat: `${winner.displayName} took it from ${loser.displayName}. Close enough to argue.`,
+  };
+}
+
+function pickHangoutSeed(
+  social: SocialHangout,
+  unused: WorldInfluencerCard[],
+  dayKey: string,
+): WorldInfluencerCard | undefined {
+  if (unused.length === 0) return undefined;
+  const locals = unused.filter((row) => row.street === social.street);
+  if (social.id === "lake" || social.id === "park") {
+    const couple = unused.find(
+      (row) =>
+        row.partnerId && unused.some((other) => other.id === row.partnerId),
+    );
+    if (couple) return couple;
+    const family = unused.find((row) =>
+      unused.some(
+        (other) =>
+          other.id !== row.id &&
+          (row.familyNames.includes(other.displayName) ||
+            other.familyNames.includes(row.displayName)),
+      ),
+    );
+    if (family) return family;
+  }
+  if (social.id === "bar" || social.id === "games") {
+    const buddy = unused.find(
+      (row) =>
+        unused.some(
+          (other) =>
+            other.id !== row.id &&
+            (row.relationshipIds.includes(other.id) ||
+              other.relationshipIds.includes(row.id)),
+        ),
+    );
+    if (buddy) return buddy;
+  }
+  return (
+    locals[hashString(`${dayKey}:${social.id}`) % Math.max(1, locals.length)] ??
+    unused[hashString(`${dayKey}:${social.id}:crowd`) % unused.length]
+  );
+}
+
 function pickHangouts(
   avatars: WorldInfluencerCard[],
   dayKey: string,
@@ -864,9 +926,7 @@ function pickHangouts(
     const unused = avatars.filter((row) => !used.has(row.id));
     if (unused.length < 2) break;
     const locals = unused.filter((row) => row.street === social.street);
-    const seed =
-      locals[hashString(`${dayKey}:${social.id}`) % Math.max(1, locals.length)] ??
-      unused[hashString(`${dayKey}:${social.id}:crowd`) % unused.length];
+    const seed = pickHangoutSeed(social, unused, dayKey);
     if (!seed) continue;
     const guests = takeGuests(
       seed,
@@ -1218,18 +1278,22 @@ export async function liveWorldDay(input: {
       const social = SOCIAL_HANGOUTS.find(
         (row) => row.id === hangoutPick.place.id,
       );
+      const activity = social
+        ? pickActivity(social, dayKey, hangoutPick.speakers)
+        : { line: hangoutPick.place.name, beat: "" };
       const chat = await generateNeighborChat({
         userId: input.userId,
         aId: a.id,
         bId: b.id,
         cId: c?.id,
         place: hangoutPick.place,
-        scene: `Evening at ${hangoutPick.place.name}. ${social?.scene ?? ""} ${seeds || economy.beat || "The day is winding down."} You ran into each other here — friends, family, neighbors, people who share a street. Talk about the day. No audience. No brand.`,
+        activity: activity.line,
+        scene: `Evening at ${hangoutPick.place.name}. Tonight: ${activity.line} ${activity.beat !== activity.line ? activity.beat : ""} ${social?.scene ?? ""} ${seeds || economy.beat || "The day is winding down."} Do the thing together, then talk. Friends, family, neighbors. No audience. No brand.`,
       });
       hangoutPick.speakers.forEach((row) => hangoutUsed.add(row.id));
       usedPlaces.add(hangoutPick.place.id);
       hangoutNames.push(
-        `${hangoutPick.speakers.map((row) => row.displayName).join(" and ")} at ${hangoutPick.place.name}`,
+        `${hangoutPick.speakers.map((row) => row.displayName).join(" and ")} at ${hangoutPick.place.name} — ${activity.line}`,
       );
       if (!hangout) {
         hangout = {
@@ -1263,13 +1327,15 @@ export async function liveWorldDay(input: {
       SOCIAL_HANGOUTS[
         hashString(`${dayKey}:extra:${index}`) % SOCIAL_HANGOUTS.length
       ]!;
+    const activity = pickActivity(social, `${dayKey}:extra:${index}`, [a, b]);
     try {
       const chat = await generateNeighborChat({
         userId: input.userId,
         aId: a.id,
         bId: b.id,
         place: { id: social.id, name: social.name },
-        scene: `Evening at ${social.name}. ${social.scene} ${economy.seeds[0] || economy.beat || "The town is quieting down."} You already know each other, or you live on the same street. Talk like people with a minute. No audience. No brand.`,
+        activity: activity.line,
+        scene: `Evening at ${social.name}. Tonight: ${activity.line} ${activity.beat !== activity.line ? activity.beat : ""} ${social.scene} ${economy.seeds[0] || economy.beat || "The town is quieting down."} Do the thing, then talk like people with a minute. No audience. No brand.`,
       });
       chatBeats.push(chat.beat);
     } catch {

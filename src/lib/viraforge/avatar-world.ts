@@ -1712,6 +1712,7 @@ export async function generateNeighborChat(input: {
   cId?: string;
   scene?: string;
   place?: { id: string; name: string };
+  activity?: string;
 }): Promise<WorldChatCard> {
   const ids = [...new Set([input.aId, input.bId, input.cId].filter(Boolean))] as string[];
   if (ids.length < 2) {
@@ -1789,6 +1790,7 @@ Backstory: ${item.world.backstory}`,
         `Write a private conversation between people who live in the same world. They are ${atPlace}. Not a social post. Not a collab. Not for an audience.
 ${OWNERLESS_RULES}
 If they are partners or family, talk that way — a shared kettle, the rent, a look. Do not announce the relationship.
+${input.activity ? `They are doing this together: ${input.activity} Talk about the thing while you do it.` : ""}
 ${speakers.length > 2 ? "6–10" : "4–8"} short turns. They sound like neighbors who actually ran into each other. Specific, human, a little messy. Mention the place if they are in one.
 Return JSON only: { "turns": [{ "handle": string, "text": string }], "worldBeat": string }
 handle must be one of ${handleList}. worldBeat is one sentence about what passed between them.`,
@@ -1850,13 +1852,17 @@ ${input.scene?.trim() || `They have a moment ${atPlace}. Talk about the day, the
   const worldBeat =
     draft.worldBeat ||
     (placeName
-      ? `${names.join(" and ")} ran into each other at ${placeName}.`
+      ? input.activity
+        ? `${names.join(" and ")} at ${placeName}. ${input.activity}`
+        : `${names.join(" and ")} ran into each other at ${placeName}.`
       : `${names[0]} and ${names[1]} talked like people, not a campaign.`);
   const conversationId = `chat_${speakers.map((row) => row.id.slice(0, 6)).join("_")}_${Date.now().toString(36)}`;
   const preview = mappedTurns[0]?.text.slice(0, 280) || worldBeat;
   const eventType = input.place ? "world_hangout" : "world_chat";
   const relNote = input.place
-    ? `Ran into them at ${placeName}`
+    ? input.activity
+      ? `At ${placeName}: ${input.activity.replace(/\.$/, "")}`
+      : `Ran into them at ${placeName}`
     : "Talked like neighbors";
 
   const payloadBase = {
@@ -1894,7 +1900,7 @@ ${input.scene?.trim() || `They have a moment ${atPlace}. Talk about the day, the
         relationships: rels,
         learnedNotes: [
           placeName
-            ? `At ${placeName} with ${others.map((row) => `@${row.handle}`).join(", ")}: ${worldBeat}`
+            ? `Tonight at ${placeName} with ${others.map((row) => `@${row.handle}`).join(", ")}: ${input.activity || worldBeat}`
             : `Talked with ${others.map((row) => `@${row.handle}`).join(", ")}: ${worldBeat}`,
           ...item.world.learnedNotes,
         ].slice(0, 16),
@@ -2200,8 +2206,9 @@ export function formatWorldLifeForContent(
         }.`
       : "",
     world.learnedNotes[0]
-      ? `You recently learned: ${world.learnedNotes[0]}`
+      ? `Last thing you lived: ${world.learnedNotes[0]}`
       : "",
+    world.learnedNotes[1] ? `Before that: ${world.learnedNotes[1]}` : "",
     opts?.recent?.length
       ? `Recent days: ${opts.recent.slice(0, 3).join(" / ")}.`
       : "",

@@ -55,6 +55,23 @@ function isPlaceKind(value: string | undefined): value is PublicPlaceKind {
   );
 }
 
+function placeCardClass(kind: string, active?: boolean): string {
+  if (active) return "border-violet-400/70 bg-violet-500/20";
+  if (kind === "lake") {
+    return "border-sky-400/30 bg-sky-500/10 hover:border-sky-300/60 hover:bg-sky-500/15";
+  }
+  if (kind === "park") {
+    return "border-emerald-400/30 bg-emerald-500/10 hover:border-emerald-300/60 hover:bg-emerald-500/15";
+  }
+  if (kind === "bar") {
+    return "border-amber-400/30 bg-amber-500/10 hover:border-amber-300/60 hover:bg-amber-500/15";
+  }
+  if (kind === "games") {
+    return "border-fuchsia-400/30 bg-fuchsia-500/10 hover:border-fuchsia-300/60 hover:bg-fuchsia-500/15";
+  }
+  return "border-white/10 bg-white/5 hover:border-violet-400/50 hover:bg-white/10";
+}
+
 function livedLine(town: PublicWorldTown): string {
   if (town.livedToday) {
     const hang = town.chats.find((chat) => chat.placeName);
@@ -417,11 +434,6 @@ export function PublicWorldTown({
   const places = town.economy?.places ?? [];
   const listings = town.economy?.listings ?? [];
   const publicIds = new Set(town.avatars.map((row) => row.id));
-  const hangoutPlaces = new Set(
-    town.chats
-      .map((chat) => chat.placeName)
-      .filter((name): name is string => Boolean(name)),
-  );
   const selected = placeKind
     ? places.find((place) => place.kind === placeKind)
     : undefined;
@@ -506,15 +518,15 @@ export function PublicWorldTown({
           <section className="mt-10 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {places.map((place) => {
               const active = place.kind === placeKind;
+              const lastChat = town.chats.find(
+                (chat) =>
+                  chat.placeId === place.id || chat.placeName === place.name,
+              );
               return (
                 <Link
                   key={place.id}
                   href={`/world/place/${place.kind}`}
-                  className={`min-w-0 rounded-3xl border p-4 transition ${
-                    active
-                      ? "border-violet-400/70 bg-violet-500/20"
-                      : "border-white/10 bg-white/5 hover:border-violet-400/50 hover:bg-white/10"
-                  }`}
+                  className={`min-w-0 rounded-3xl border p-4 transition ${placeCardClass(place.kind, active)}`}
                 >
                   <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">
                     {place.name}
@@ -526,11 +538,11 @@ export function PublicWorldTown({
                     {place.keeperName ?? "Open · no keeper yet"}
                   </p>
                   <p className="mt-1 line-clamp-2 text-xs text-zinc-400">
-                    {place.note}
+                    {lastChat?.beat || place.note}
                   </p>
-                  {hangoutPlaces.has(place.name) && (
+                  {lastChat?.beat && (
                     <p className="mt-2 text-[11px] font-medium text-violet-200">
-                      They ran into each other here
+                      Last night
                     </p>
                   )}
                 </Link>

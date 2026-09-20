@@ -371,9 +371,6 @@ export function AvatarWorldHub() {
   const lore = data?.lore ?? [];
   const lastTickAt = data?.lastTickAt ?? null;
   const chats = data?.chats ?? [];
-  const hangoutPlaces = new Set(
-    chats.map((chat) => chat.placeName).filter((name): name is string => Boolean(name)),
-  );
 
   return (
     <div className="min-w-0 space-y-8 overflow-x-hidden">
@@ -616,10 +613,26 @@ export function AvatarWorldHub() {
             <>
               {(data.economy.places ?? []).length > 0 && (
                 <section className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {data.economy.places.map((place) => (
+                  {data.economy.places.map((place) => {
+                    const lastChat = chats.find(
+                      (chat) =>
+                        chat.placeId === place.id ||
+                        chat.placeName === place.name,
+                    );
+                    return (
                     <div
                       key={place.id}
-                      className="min-w-0 rounded-2xl border border-border bg-card p-4"
+                      className={`min-w-0 rounded-2xl border p-4 ${
+                        place.kind === "lake"
+                          ? "border-sky-200 bg-sky-50/70 dark:border-sky-900/50 dark:bg-sky-950/20"
+                          : place.kind === "park"
+                            ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/50 dark:bg-emerald-950/20"
+                            : place.kind === "bar"
+                              ? "border-amber-200 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/20"
+                              : place.kind === "games"
+                                ? "border-fuchsia-200 bg-fuchsia-50/70 dark:border-fuchsia-900/50 dark:bg-fuchsia-950/20"
+                                : "border-border bg-card"
+                      }`}
                     >
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         {place.name}
@@ -640,15 +653,16 @@ export function AvatarWorldHub() {
                           : "Unattended"}
                       </p>
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {place.note}
+                        {lastChat?.beat || place.note}
                       </p>
-                      {hangoutPlaces.has(place.name) && (
+                      {lastChat?.beat && (
                         <p className="mt-2 text-[11px] font-medium text-violet-700 dark:text-violet-300">
-                          They ran into each other here
+                          Last night
                         </p>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </section>
               )}
               <section className="grid min-w-0 gap-4 lg:grid-cols-2">

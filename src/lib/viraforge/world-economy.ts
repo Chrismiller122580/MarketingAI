@@ -482,30 +482,51 @@ export const SOCIAL_HANGOUTS: Array<{
   name: string;
   street: string;
   scene: string;
+  activities: string[];
 }> = [
   {
     id: "lake",
     name: "The Lake",
     street: "the shoreline",
     scene: "Dusk on the water. Skip a rock. Talk quiet.",
+    activities: [
+      "Skip rocks until one of you counts past ten.",
+      "Fish off the dock. The first one is always too small.",
+      "Sit on the cooler and watch the light go.",
+    ],
   },
   {
     id: "park",
     name: "The Park",
     street: "the green",
     scene: "A worn bench under the oak. The day is cooling off.",
+    activities: [
+      "Share the worn bench under the oak.",
+      "Walk the loop twice because neither of you wanted to go home.",
+      "Watch a pickup game you refuse to join.",
+    ],
   },
   {
     id: "bar",
     name: "The Bar",
     street: "last call",
     scene: "Low lights, a sticky rail. One more, then home.",
+    activities: [
+      "One more, then home. That's the lie.",
+      "The usual. Don't ask how the day went first.",
+      "Listen to whoever is at the piano tonight.",
+    ],
   },
   {
     id: "games",
     name: "The Rec Hall",
     street: "the rec hall",
     scene: "Darts, a scuffed table, someone keeping score wrong.",
+    activities: [
+      "Darts. Keep the chalk. Argue the score.",
+      "Cards until someone knocks the table.",
+      "Pickup on the back wall until the lights cut.",
+    ],
   },
 ];
 
