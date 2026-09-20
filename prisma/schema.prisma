@@ -288,6 +288,7 @@ model WorldAccount {
   balance      Int      @default(0)
   wage         Int      @default(40)
   employer     String   @default("the city")
+  rent         Int      @default(12)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

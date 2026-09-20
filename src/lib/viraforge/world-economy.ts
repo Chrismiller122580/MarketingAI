@@ -11,13 +11,28 @@ export type CatalogGood = {
   body: string;
 };
 
+export type JobRole = "worker" | "landlord" | "grocer" | "teller";
+
 export type JobSpec = {
   title: string;
   employer: string;
   wage: number;
   starter: number;
   goods: CatalogGood[];
+  rent?: number;
+  role?: JobRole;
 };
+
+export const TOWN_STARTER_JOBS = [
+  "community baker",
+  "grocer",
+  "landlord",
+  "bank teller",
+  "night-shift nurse",
+  "bike mechanic",
+  "bus driver",
+  "street poet",
+] as const;
 
 const JOBS: Record<string, JobSpec> = {
   "jazz pianist": {
@@ -220,9 +235,85 @@ const JOBS: Record<string, JobSpec> = {
       { title: "a bowl before the boats leave", kind: "good", price: 11, body: "Hot, cheap, no speech. Sit with the crew." },
     ],
   },
+  grocer: {
+    title: "grocer",
+    employer: "the corner shop",
+    wage: 62,
+    starter: 88,
+    role: "grocer",
+    goods: [
+      { title: "a bag of rice and onions", kind: "good", price: 9, body: "The onions are sweet. Don't skip the greens on top." },
+      { title: "milk, bread, and something for later", kind: "good", price: 11, body: "She already bagged it. Pay at the counter." },
+    ],
+  },
+  landlord: {
+    title: "landlord",
+    employer: "the rooms above the shop",
+    wage: 70,
+    starter: 140,
+    rent: 0,
+    role: "landlord",
+    goods: [
+      { title: "a room for the month", kind: "service", price: 48, body: "Window on the alley. Key on a string. Rent is due either way." },
+      { title: "a spare key", kind: "good", price: 6, body: "You lost yours. He has extras. Don't make it a habit." },
+    ],
+  },
+  "bank teller": {
+    title: "bank teller",
+    employer: "City Bank",
+    wage: 78,
+    starter: 100,
+    role: "teller",
+    goods: [
+      { title: "a quiet hour at the counter", kind: "service", price: 0, body: "She counts Sparks. You wait. The city stays solvent." },
+    ],
+  },
+  "bus driver": {
+    title: "bus driver",
+    employer: "the city route",
+    wage: 68,
+    starter: 85,
+    goods: [
+      { title: "a ride across town", kind: "service", price: 4, body: "Sit down. Hold the rail. He knows every stop by the smell of it." },
+    ],
+  },
 };
 
 export const JOB_TITLES = Object.keys(JOBS);
+
+export type ResolvedJob = JobSpec & { rent: number; role: JobRole };
+
+function roleForTitle(title: string): JobRole {
+  const t = title.toLowerCase();
+  if (t.includes("landlord") || t.includes("landlady")) return "landlord";
+  if (t.includes("grocer")) return "grocer";
+  if (t.includes("teller") || t.includes("bank clerk")) return "teller";
+  return "worker";
+}
+
+function rentForJob(job: Pick<JobSpec, "wage" | "rent" | "role" | "title">): number {
+  if (typeof job.rent === "number") return job.rent;
+  if ((job.role ?? roleForTitle(job.title)) === "landlord") return 0;
+  return Math.max(8, Math.round(job.wage * 0.18));
+}
+
+function resolveJob(job: JobSpec): ResolvedJob {
+  const role = job.role ?? roleForTitle(job.title);
+  return { ...job, role, rent: rentForJob({ ...job, role }) };
+}
+
+export function occupationMatches(occupation: string, title: string): boolean {
+  const a = occupation.trim().toLowerCase();
+  const b = title.trim().toLowerCase();
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+export function missingTownJobs(occupations: string[]): string[] {
+  return TOWN_STARTER_JOBS.filter(
+    (job) => !occupations.some((occ) => occupationMatches(occ, job)),
+  );
+}
 
 function hashString(value: string): number {
   let h = 0;
@@ -232,15 +323,17 @@ function hashString(value: string): number {
   return Math.abs(h);
 }
 
-export function jobForOccupation(occupation: string): JobSpec {
+export function jobForOccupation(occupation: string): ResolvedJob {
   const key = occupation.trim().toLowerCase();
-  if (JOBS[key]) return JOBS[key]!;
+  if (JOBS[key]) return resolveJob(JOBS[key]!);
   const partial = Object.keys(JOBS).find(
     (title) => key.includes(title) || title.includes(key),
   );
-  if (partial && JOBS[partial]) return { ...JOBS[partial]!, title: occupation || JOBS[partial]!.title };
+  if (partial && JOBS[partial]) {
+    return resolveJob({ ...JOBS[partial]!, title: occupation || JOBS[partial]!.title });
+  }
   const wage = 35 + (hashString(key || "odd jobs") % 60);
-  return {
+  return resolveJob({
     title: occupation.trim() || "odd jobs",
     employer: "the city",
     wage,
@@ -253,7 +346,7 @@ export function jobForOccupation(occupation: string): JobSpec {
         body: "Show up. Do the work. Get paid in Sparks.",
       },
     ],
-  };
+  });
 }
 
 export type WorldAccountCard = {
@@ -263,6 +356,7 @@ export type WorldAccountCard = {
   occupation: string;
   balance: number;
   wage: number;
+  rent: number;
   employer: string;
 };
 
@@ -291,14 +385,27 @@ export type WorldLedgerEntry = {
   createdAt: string;
 };
 
+export type WorldPlace = {
+  id: "bank" | "market" | "rooms" | "shop";
+  name: string;
+  kind: "bank" | "market" | "rooms" | "shop";
+  keeperName?: string;
+  keeperOccupation?: string;
+  note: string;
+};
+
 export type WorldEconomySnapshot = {
   currency: string;
   currencyLabel: string;
   treasury: number;
   jobTitles: string[];
+  townJobs: string[];
+  missingTownJobs: string[];
+  townReady: boolean;
   accounts: WorldAccountCard[];
   listings: WorldMarketListing[];
   transfers: WorldLedgerEntry[];
+  places: WorldPlace[];
 };
 
 async function ensureBank(userId: string) {
@@ -311,6 +418,7 @@ async function ensureBank(userId: string) {
       balance: 100_000,
       wage: 0,
       employer: "City Bank",
+      rent: 0,
     },
   });
 }
@@ -319,7 +427,7 @@ export async function ensureResidentAccount(input: {
   userId: string;
   influencerId: string;
   occupation: string;
-}): Promise<{ balance: number; wage: number; employer: string; opened: boolean }> {
+}): Promise<{ balance: number; wage: number; employer: string; rent: number; opened: boolean }> {
   await ensureBank(input.userId);
   const job = jobForOccupation(input.occupation);
   const existing = await prisma.worldAccount.findUnique({
@@ -328,15 +436,20 @@ export async function ensureResidentAccount(input: {
     },
   });
   if (existing) {
-    if (existing.wage !== job.wage || existing.employer !== job.employer) {
+    if (
+      existing.wage !== job.wage ||
+      existing.employer !== job.employer ||
+      existing.rent !== job.rent
+    ) {
       const updated = await prisma.worldAccount.update({
         where: { id: existing.id },
-        data: { wage: job.wage, employer: job.employer },
+        data: { wage: job.wage, employer: job.employer, rent: job.rent },
       });
       return {
         balance: updated.balance,
         wage: updated.wage,
         employer: updated.employer,
+        rent: updated.rent,
         opened: false,
       };
     }
@@ -344,6 +457,7 @@ export async function ensureResidentAccount(input: {
       balance: existing.balance,
       wage: existing.wage,
       employer: existing.employer,
+      rent: existing.rent,
       opened: false,
     };
   }
@@ -355,6 +469,7 @@ export async function ensureResidentAccount(input: {
       balance: job.starter,
       wage: job.wage,
       employer: job.employer,
+      rent: job.rent,
     },
   });
 
@@ -378,8 +493,78 @@ export async function ensureResidentAccount(input: {
     balance: created.balance,
     wage: created.wage,
     employer: created.employer,
+    rent: created.rent,
     opened: true,
   };
+}
+
+function occupationFromMemory(memory: unknown): string {
+  if (!memory || typeof memory !== "object" || !("world" in memory)) return "";
+  return String((memory as { world?: { occupation?: string } }).world?.occupation ?? "");
+}
+
+function findByRole(
+  accounts: WorldAccountCard[],
+  role: JobRole,
+): WorldAccountCard | undefined {
+  return accounts.find((row) => jobForOccupation(row.occupation).role === role);
+}
+
+function buildPlaces(
+  accounts: WorldAccountCard[],
+  listings: Array<{ status: string }>,
+  treasury: number,
+): WorldPlace[] {
+  const landlord = findByRole(accounts, "landlord");
+  const grocer = findByRole(accounts, "grocer");
+  const teller = findByRole(accounts, "teller");
+  const baker = accounts.find((row) => occupationMatches(row.occupation, "baker"));
+  const open = listings.filter((row) => row.status === "open").length;
+  const shopkeeper = grocer ?? baker;
+
+  return [
+    {
+      id: "bank",
+      name: "City Bank",
+      kind: "bank",
+      keeperName: teller?.displayName,
+      keeperOccupation: teller?.occupation,
+      note: teller
+        ? `${teller.displayName} keeps the window open. Treasury: ${treasury.toLocaleString()} Sparks.`
+        : `The vault is unattended. Treasury: ${treasury.toLocaleString()} Sparks.`,
+    },
+    {
+      id: "market",
+      name: "The Market",
+      kind: "market",
+      keeperName: grocer?.displayName,
+      keeperOccupation: grocer?.occupation,
+      note:
+        open > 0
+          ? `${open} thing${open === 1 ? "" : "s"} for sale. Neighbors buy with Sparks.`
+          : "Stalls are empty until someone lists a loaf, a room, a ride.",
+    },
+    {
+      id: "rooms",
+      name: "Rooms",
+      kind: "rooms",
+      keeperName: landlord?.displayName,
+      keeperOccupation: landlord?.occupation,
+      note: landlord
+        ? `${landlord.displayName} collects the rent. Window on the alley, key on a string.`
+        : "Nobody holds the keys yet. Rent still lands at City Bank.",
+    },
+    {
+      id: "shop",
+      name: "Corner Shop",
+      kind: "shop",
+      keeperName: shopkeeper?.displayName,
+      keeperOccupation: shopkeeper?.occupation,
+      note: shopkeeper
+        ? `${shopkeeper.displayName} sells the day's food. Milk, bread, something for later.`
+        : "The shop is dark. Found a grocer or a baker and it opens.",
+    },
+  ];
 }
 
 async function transferSparks(input: {
@@ -432,18 +617,12 @@ export async function loadWorldEconomy(userId: string): Promise<WorldEconomySnap
     take: 50,
   });
   const byId = new Map(avatars.map((row) => [row.id, row]));
+  const occupationById = new Map<string, string>();
 
   await ensureBank(userId);
   for (const avatar of avatars) {
-    const occupation =
-      avatar.memory &&
-      typeof avatar.memory === "object" &&
-      avatar.memory !== null &&
-      "world" in avatar.memory
-        ? String(
-            (avatar.memory as { world?: { occupation?: string } }).world?.occupation ?? "",
-          )
-        : "";
+    const occupation = occupationFromMemory(avatar.memory);
+    occupationById.set(avatar.id, occupation);
     await ensureResidentAccount({
       userId,
       influencerId: avatar.id,
@@ -469,26 +648,36 @@ export async function loadWorldEconomy(userId: string): Promise<WorldEconomySnap
   ]);
 
   const bank = accounts.find((row) => row.influencerId === WORLD_BANK_ID);
+  const residentCards: WorldAccountCard[] = accounts
+    .filter((row) => row.influencerId !== WORLD_BANK_ID)
+    .map((row) => {
+      const who = byId.get(row.influencerId);
+      const occupation = occupationById.get(row.influencerId) || row.employer;
+      return {
+        influencerId: row.influencerId,
+        displayName: who?.displayName ?? "Resident",
+        handle: who?.handle ?? "resident",
+        occupation,
+        balance: row.balance,
+        wage: row.wage,
+        rent: row.rent,
+        employer: row.employer,
+      };
+    });
+
+  const occupations = residentCards.map((row) => row.occupation);
+  const missing = missingTownJobs(occupations);
+  const places = buildPlaces(residentCards, listings, bank?.balance ?? 0);
 
   return {
     currency: WORLD_CURRENCY,
     currencyLabel: WORLD_CURRENCY_LABEL,
     treasury: bank?.balance ?? 0,
     jobTitles: JOB_TITLES,
-    accounts: accounts
-      .filter((row) => row.influencerId !== WORLD_BANK_ID)
-      .map((row) => {
-        const who = byId.get(row.influencerId);
-        return {
-          influencerId: row.influencerId,
-          displayName: who?.displayName ?? "Resident",
-          handle: who?.handle ?? "resident",
-          occupation: row.employer,
-          balance: row.balance,
-          wage: row.wage,
-          employer: row.employer,
-        };
-      }),
+    townJobs: [...TOWN_STARTER_JOBS],
+    missingTownJobs: missing,
+    townReady: missing.length === 0 && residentCards.length >= TOWN_STARTER_JOBS.length,
+    accounts: residentCards,
     listings: listings.map((row) => {
       const seller = byId.get(row.sellerId);
       const buyer = row.buyerId ? byId.get(row.buyerId) : undefined;
@@ -516,6 +705,7 @@ export async function loadWorldEconomy(userId: string): Promise<WorldEconomySnap
       note: row.note,
       createdAt: row.createdAt.toISOString(),
     })),
+    places,
   };
 }
 
@@ -523,6 +713,8 @@ export type EconomyDayResult = {
   wages: number;
   listings: number;
   sales: number;
+  rents: number;
+  groceries: number;
   beat: string;
 };
 
@@ -539,7 +731,7 @@ export async function runEconomyDay(input: {
     mood: string;
   }>;
 }): Promise<EconomyDayResult> {
-  const empty = { wages: 0, listings: 0, sales: 0, beat: "" };
+  const empty = { wages: 0, listings: 0, sales: 0, rents: 0, groceries: 0, beat: "" };
   if (input.avatars.length === 0) return empty;
 
   await ensureBank(input.userId);
@@ -596,6 +788,111 @@ export async function runEconomyDay(input: {
     });
   }
 
+  const landlord =
+    input.avatars.find((row) => jobForOccupation(row.occupation).role === "landlord") ??
+    null;
+  const grocer =
+    input.avatars.find((row) => jobForOccupation(row.occupation).role === "grocer") ??
+    input.avatars.find((row) => occupationMatches(row.occupation, "baker")) ??
+    input.avatars.find((row) => occupationMatches(row.occupation, "cook")) ??
+    null;
+
+  const alreadyRented = await prisma.worldTransfer.findMany({
+    where: {
+      userId: input.userId,
+      kind: "rent",
+      createdAt: { gte: dayStart },
+    },
+    select: { fromId: true },
+  });
+  const rentedIds = new Set(alreadyRented.map((row) => row.fromId).filter(Boolean));
+
+  let rents = 0;
+  const rentTo = landlord?.id ?? WORLD_BANK_ID;
+  for (const avatar of input.avatars) {
+    if (rentedIds.has(avatar.id)) continue;
+    if (landlord && avatar.id === landlord.id) continue;
+    const account = await prisma.worldAccount.findUnique({
+      where: {
+        userId_influencerId: { userId: input.userId, influencerId: avatar.id },
+      },
+    });
+    if (!account || account.rent <= 0) continue;
+    const ok = await transferSparks({
+      userId: input.userId,
+      fromId: avatar.id,
+      toId: rentTo,
+      amount: account.rent,
+      kind: "rent",
+      note: landlord
+        ? `${avatar.displayName} paid ${account.rent} Sparks rent to ${landlord.displayName}.`
+        : `${avatar.displayName} paid ${account.rent} Sparks rent to City Bank.`,
+    });
+    if (!ok) continue;
+    rents += 1;
+  }
+  if (rents > 0) {
+    await prisma.creatorLearningEvent.create({
+      data: {
+        userId: input.userId,
+        influencerId: landlord?.id ?? input.avatars[0]!.id,
+        eventType: "world_rent",
+        payload: {
+          kind: "rent",
+          title: "Rent came due",
+          body: landlord
+            ? `${rents} neighbor${rents === 1 ? "" : "s"} paid rent to ${landlord.displayName}.`
+            : `${rents} neighbor${rents === 1 ? "" : "s"} paid rent to City Bank.`,
+          mood: landlord?.mood ?? input.avatars[0]?.mood,
+        },
+      },
+    });
+  }
+
+  const alreadyGroceries = await prisma.worldTransfer.findMany({
+    where: {
+      userId: input.userId,
+      kind: "grocery",
+      createdAt: { gte: dayStart },
+    },
+    select: { fromId: true },
+  });
+  const groceryIds = new Set(alreadyGroceries.map((row) => row.fromId).filter(Boolean));
+
+  let groceries = 0;
+  if (grocer) {
+    for (const avatar of input.avatars) {
+      if (groceryIds.has(avatar.id)) continue;
+      if (avatar.id === grocer.id) continue;
+      const price = 7 + (hashString(`${avatar.id}:${dayStart.toISOString()}:food`) % 6);
+      const ok = await transferSparks({
+        userId: input.userId,
+        fromId: avatar.id,
+        toId: grocer.id,
+        amount: price,
+        kind: "grocery",
+        note: `${avatar.displayName} bought groceries from ${grocer.displayName} for ${price} Sparks.`,
+      });
+      if (!ok) continue;
+      groceries += 1;
+    }
+    if (groceries > 0) {
+      await prisma.creatorLearningEvent.create({
+        data: {
+          userId: input.userId,
+          influencerId: grocer.id,
+          eventType: "world_grocery",
+          payload: {
+            kind: "grocery",
+            title: "The shop did a day's business",
+            body: `${groceries} neighbor${groceries === 1 ? "" : "s"} bought food from ${grocer.displayName}.`,
+            mood: grocer.mood,
+          },
+        },
+      });
+    }
+  }
+
   const openCount = await prisma.worldListing.count({
     where: { userId: input.userId, status: "open" },
   });
@@ -606,7 +903,7 @@ export async function runEconomyDay(input: {
     if (seller) {
       const job = jobForOccupation(seller.occupation);
       const good = job.goods[hashString(seller.id + dayStart.toISOString()) % job.goods.length] ?? job.goods[0];
-      if (good) {
+      if (good && good.price > 0) {
         const listing = await prisma.worldListing.create({
           data: {
             userId: input.userId,
@@ -688,11 +985,68 @@ export async function runEconomyDay(input: {
 
   const beat = [
     wages > 0 ? `${wages} got paid.` : "",
+    rents > 0 ? `${rents} paid rent.` : "",
+    groceries > 0 ? `${groceries} bought groceries.` : "",
     listings > 0 ? "Someone listed a thing for sale." : "",
     sales > 0 ? `${sales} sale${sales === 1 ? "" : "s"} went through.` : "",
   ]
     .filter(Boolean)
     .join(" ");
 
-  return { wages, listings, sales, beat };
+  return { wages, listings, sales, rents, groceries, beat };
+}
+
+export async function seedEssentialListings(input: {
+  userId: string;
+  avatars: Array<{ id: string; displayName: string; occupation: string; mood?: string }>;
+}): Promise<number> {
+  if (input.avatars.length === 0) return 0;
+  const openCount = await prisma.worldListing.count({
+    where: { userId: input.userId, status: "open" },
+  });
+  if (openCount > 0) return 0;
+
+  const wanted = input.avatars.filter((row) => {
+    const job = jobForOccupation(row.occupation);
+    return (
+      job.role === "landlord" ||
+      job.role === "grocer" ||
+      occupationMatches(row.occupation, "baker") ||
+      occupationMatches(row.occupation, "mechanic")
+    );
+  });
+  const sellers = wanted.length > 0 ? wanted : input.avatars.slice(0, 3);
+  let created = 0;
+  for (const seller of sellers) {
+    const job = jobForOccupation(seller.occupation);
+    const good = job.goods.find((row) => row.price > 0) ?? job.goods[0];
+    if (!good || good.price <= 0) continue;
+    const listing = await prisma.worldListing.create({
+      data: {
+        userId: input.userId,
+        sellerId: seller.id,
+        title: good.title,
+        body: good.body,
+        kind: good.kind,
+        price: good.price,
+        status: "open",
+      },
+    });
+    created += 1;
+    await prisma.creatorLearningEvent.create({
+      data: {
+        userId: input.userId,
+        influencerId: seller.id,
+        eventType: "world_listing",
+        payload: {
+          kind: "listing",
+          title: "Opened a stall",
+          body: `${seller.displayName} listed ${good.title} for ${good.price} Sparks.`,
+          mood: seller.mood ?? "curious",
+          listingId: listing.id,
+        },
+      },
+    });
+  }
+  return created;
 }

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { listPublicWorldAvatars } from "@/lib/viraforge/avatar-world";
+import { listPublicWorldTown } from "@/lib/viraforge/avatar-world";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const avatars = await listPublicWorldAvatars();
-  return NextResponse.json({ avatars });
+  const town = await listPublicWorldTown();
+  return NextResponse.json(town);
 }

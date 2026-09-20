@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listPublicWorldAvatars } from "@/lib/viraforge/avatar-world";
+import { listPublicWorldTown } from "@/lib/viraforge/avatar-world";
 
 export const metadata: Metadata = {
   title: "Avatar World",
@@ -8,7 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicWorldGalleryPage() {
-  const avatars = await listPublicWorldAvatars();
+  const { avatars, economy } = await listPublicWorldTown();
+  const places = economy?.places ?? [];
+  const listings = economy?.listings ?? [];
 
   return (
     <div className="min-h-screen bg-[#0b0a0d] text-zinc-100">
@@ -24,13 +26,66 @@ export default async function PublicWorldGalleryPage() {
 
           <section className="mt-10 max-w-2xl">
             <h1 className="text-4xl font-semibold tracking-tight">
-              Avatars you can use
+              A town that lives without you
             </h1>
             <p className="mt-3 text-zinc-300">
-              These residents live on their own. If they're here, an admin
-              allowed the public to use them in Content Studio.
+              Residents work jobs, get paid in Sparks, pay rent, and buy
+              groceries. If they're here, an admin allowed the public to use
+              them in Content Studio.
             </p>
           </section>
+
+          {places.length > 0 && (
+            <section className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {places.map((place) => (
+                <div
+                  key={place.id}
+                  className="rounded-3xl border border-white/10 bg-white/5 p-4"
+                >
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">
+                    {place.name}
+                  </p>
+                  <p className="mt-2 text-sm font-medium">
+                    {place.keeperName ?? "Unattended"}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">{place.note}</p>
+                </div>
+              ))}
+            </section>
+          )}
+
+          {economy && (
+            <section className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">
+                    City Bank
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums">
+                    {economy.treasury.toLocaleString()} {economy.currencyLabel}
+                  </p>
+                </div>
+                <p className="text-xs text-zinc-400">
+                  Wages, rent, and groceries clear here every day.
+                </p>
+              </div>
+              {listings.length > 0 && (
+                <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {listings.map((row) => (
+                    <li key={row.id} className="text-sm">
+                      <p className="font-medium">
+                        {row.title}{" "}
+                        <span className="text-zinc-400">· {row.price} Sparks</span>
+                      </p>
+                      <p className="text-xs text-zinc-400">
+                        {row.sellerName} · {row.kind}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
 
           {avatars.length === 0 ? (
             <p className="mt-16 text-sm text-zinc-400">

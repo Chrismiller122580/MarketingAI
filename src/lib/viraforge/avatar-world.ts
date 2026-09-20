@@ -21,7 +21,7 @@ import {
   type InfluencerRenderRecord,
 } from "./influencer-renders";
 import { mergeInfluencerMemory, type InfluencerMemory } from "./learning";
-import { loadWorldEconomy } from "./world-economy";
+import { loadWorldEconomy, type WorldEconomySnapshot } from "./world-economy";
 
 export const WORLD_EVENT_TYPES = [
   "life_event",
@@ -36,6 +36,8 @@ export const WORLD_EVENT_TYPES = [
   "world_wage",
   "world_listing",
   "world_sale",
+  "world_rent",
+  "world_grocery",
 ] as const;
 
 export type WorldEventType = (typeof WORLD_EVENT_TYPES)[number];
@@ -53,7 +55,9 @@ export type LifeEventKind =
   | "chat"
   | "wage"
   | "listing"
-  | "sale";
+  | "sale"
+  | "rent"
+  | "grocery";
 
 export type AvatarRelationshipKind =
   | "friend"
@@ -383,6 +387,10 @@ function defaultEventTitle(type: WorldEventType): string {
       return "Put something up for sale";
     case "world_sale":
       return "Bought something";
+    case "world_rent":
+      return "Paid the rent";
+    case "world_grocery":
+      return "Bought groceries";
     default:
       return "A day in the world";
   }
@@ -407,6 +415,7 @@ export type WorldInfluencerCard = {
   relationshipIds: string[];
   balance: number;
   wage: number;
+  rent: number;
   employer: string;
   updatedAt: string;
 };
@@ -451,6 +460,7 @@ export async function listWorldInfluencers(
       relationshipIds: world.relationships.map((rel) => rel.influencerId),
       balance: 0,
       wage: 0,
+      rent: 0,
       employer: "",
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -496,6 +506,40 @@ export async function listPublicWorldAvatars(): Promise<PublicWorldCard[]> {
     }
   }
   return cards.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+export type PublicWorldTown = {
+  avatars: PublicWorldCard[];
+  economy: {
+    currencyLabel: string;
+    treasury: number;
+    listings: WorldEconomySnapshot["listings"];
+    places: WorldEconomySnapshot["places"];
+  } | null;
+};
+
+export async function listPublicWorldTown(): Promise<PublicWorldTown> {
+  const avatars = await listPublicWorldAvatars();
+  const admins = await prisma.user.findMany({
+    where: { role: "admin" },
+    select: { id: true },
+    take: 20,
+  });
+  for (const admin of admins) {
+    const owned = await prisma.influencer.count({ where: { userId: admin.id } });
+    if (owned === 0) continue;
+    const snap = await loadWorldEconomy(admin.id);
+    return {
+      avatars,
+      economy: {
+        currencyLabel: snap.currencyLabel,
+        treasury: snap.treasury,
+        listings: snap.listings.filter((row) => row.status === "open").slice(0, 8),
+        places: snap.places,
+      },
+    };
+  }
+  return { avatars, economy: null };
 }
 
 export async function findUsableInfluencer(userId: string, influencerId: string) {
@@ -753,6 +797,7 @@ export async function loadWorldHub(userId: string) {
       ...avatar,
       balance: account?.balance ?? 0,
       wage: account?.wage ?? 0,
+      rent: account?.rent ?? 0,
       employer: account?.employer ?? "",
     };
   });

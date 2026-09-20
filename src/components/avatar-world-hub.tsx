@@ -23,11 +23,15 @@ type WorldEconomySnapshot = {
   currencyLabel: string;
   treasury: number;
   jobTitles: string[];
+  townReady: boolean;
+  missingTownJobs: string[];
   accounts: Array<{
     influencerId: string;
     displayName: string;
+    occupation: string;
     balance: number;
     wage: number;
+    rent: number;
     employer: string;
   }>;
   listings: Array<{
@@ -39,6 +43,14 @@ type WorldEconomySnapshot = {
     price: number;
     status: string;
     buyerName?: string;
+  }>;
+  places: Array<{
+    id: string;
+    name: string;
+    kind: string;
+    keeperName?: string;
+    keeperOccupation?: string;
+    note: string;
   }>;
 };
 
@@ -74,6 +86,7 @@ export function AvatarWorldHub() {
   const [collabBusy, setCollabBusy] = useState(false);
   const [liveBusy, setLiveBusy] = useState(false);
   const [spawnBusy, setSpawnBusy] = useState(false);
+  const [foundBusy, setFoundBusy] = useState(false);
   const [publicBusyId, setPublicBusyId] = useState<string | null>(null);
   const [quickName, setQuickName] = useState("");
   const [quickJob, setQuickJob] = useState("");
@@ -177,7 +190,9 @@ export function AvatarWorldHub() {
   }
 
   async function inviteResident(body: Record<string, unknown> = {}) {
-    setSpawnBusy(true);
+    const founding = body.foundTown === true;
+    if (founding) setFoundBusy(true);
+    else setSpawnBusy(true);
     try {
       const res = await fetch("/api/avatar-world/spawn", {
         method: "POST",
@@ -194,10 +209,23 @@ export function AvatarWorldHub() {
         created?: Array<{ displayName: string; occupation: string; location: string }>;
         introReplyName?: string;
         chatBeat?: string;
+        foundTown?: boolean;
+        alreadyFounded?: boolean;
+        listings?: number;
       };
       if (!res.ok) throw new Error(json.error ?? "Could not invite a resident");
       const count = json.count ?? json.created?.length ?? 1;
-      if (count > 1) {
+      if (json.foundTown) {
+        if (json.alreadyFounded) {
+          toast.message("The town is already standing");
+        } else if ((json.count ?? 0) === 0) {
+          toast.message("No room to found more of the town");
+        } else {
+          toast.success(
+            `Town opened: ${json.created?.map((row) => row.displayName).join(", ")}. They have jobs, rent, and a shop.`,
+          );
+        }
+      } else if (count > 1) {
         toast.success(
           `Arrived: ${json.created?.map((row) => row.displayName).join(", ")}. ${json.remaining ?? 0} slots left.`,
         );
@@ -218,6 +246,7 @@ export function AvatarWorldHub() {
       );
     } finally {
       setSpawnBusy(false);
+      setFoundBusy(false);
     }
   }
 
@@ -315,20 +344,40 @@ export function AvatarWorldHub() {
           They live here without you.
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-          Every day they post, get paid, buy things, and chat. This world is
-          admin-only. Quick-create people with a job and a city — skip the
-          long form. Then allow the ones the public can use.
+          Found a town and they go to work. They get paid in Sparks, pay rent,
+          buy groceries, and talk to each other. This world is admin-only.
+          Allow the ones the public can use.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {liveBusy ? "They're living today…" : formatTick(lastTickAt)}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
+          {!(data?.economy?.townReady) && (
+            <Button
+              className="bg-violet-600 hover:bg-violet-500"
+              disabled={spawnBusy || liveBusy || foundBusy}
+              onClick={() => void inviteResident({ foundTown: true })}
+            >
+              {foundBusy || spawnBusy ? (
+                <InlineLoading label="Founding the town…" />
+              ) : avatars.length === 0 ? (
+                "Found a town"
+              ) : (
+                "Stock the town"
+              )}
+            </Button>
+          )}
           <Button
-            className="bg-violet-600 hover:bg-violet-500"
-            disabled={spawnBusy || liveBusy}
+            className={
+              data?.economy?.townReady
+                ? "bg-violet-600 hover:bg-violet-500"
+                : ""
+            }
+            variant={data?.economy?.townReady ? "default" : "outline"}
+            disabled={spawnBusy || liveBusy || foundBusy}
             onClick={() => void inviteResident()}
           >
-            {spawnBusy ? (
+            {spawnBusy && !foundBusy ? (
               <InlineLoading label="Inviting…" />
             ) : (
               "Surprise me"
@@ -336,7 +385,7 @@ export function AvatarWorldHub() {
           </Button>
           <Button
             variant="outline"
-            disabled={liveBusy || spawnBusy || avatars.length === 0}
+            disabled={liveBusy || spawnBusy || foundBusy || avatars.length === 0}
             onClick={() => void runLive(true)}
           >
             {liveBusy ? <InlineLoading label="Living today…" /> : "Live today"}
@@ -420,7 +469,7 @@ export function AvatarWorldHub() {
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
             className="bg-violet-600 hover:bg-violet-500"
-            disabled={spawnBusy || liveBusy}
+            disabled={spawnBusy || liveBusy || foundBusy}
             onClick={() =>
               void inviteResident({
                 name: quickName.trim() || undefined,
@@ -442,7 +491,7 @@ export function AvatarWorldHub() {
           </Button>
           <Button
             variant="outline"
-            disabled={spawnBusy || liveBusy}
+            disabled={spawnBusy || liveBusy || foundBusy}
             onClick={() => void inviteResident({ count: 1, welcome: true })}
           >
             Surprise me
@@ -454,23 +503,28 @@ export function AvatarWorldHub() {
         <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-700">
           <p className="text-lg font-medium">The world is empty</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Invite a baker, a pilot, a poet. They arrive with a job, a bank
-            account, and something to sell. You don't fill out a studio form.
+            Found a town and eight people arrive with jobs — baker, grocer,
+            landlord, teller, nurse, mechanic, bus driver, poet. They pay rent,
+            buy food, and live a day without you.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <Button
               className="bg-violet-600 hover:bg-violet-500"
-              disabled={spawnBusy || liveBusy}
-              onClick={() => void inviteResident()}
+              disabled={spawnBusy || liveBusy || foundBusy}
+              onClick={() => void inviteResident({ foundTown: true })}
             >
-              {spawnBusy ? (
-                <InlineLoading label="Inviting…" />
+              {foundBusy || spawnBusy ? (
+                <InlineLoading label="Founding the town…" />
               ) : (
-                "Surprise me"
+                "Found a town"
               )}
             </Button>
-            <Button asChild variant="outline">
-              <Link href="/creator-studio">Open Creator Studio</Link>
+            <Button
+              variant="outline"
+              disabled={spawnBusy || liveBusy || foundBusy}
+              onClick={() => void inviteResident()}
+            >
+              Surprise me
             </Button>
           </div>
         </div>
@@ -493,7 +547,34 @@ export function AvatarWorldHub() {
           )}
 
           {data?.economy && (
-            <section className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <>
+              {(data.economy.places ?? []).length > 0 && (
+                <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {data.economy.places.map((place) => (
+                    <div
+                      key={place.id}
+                      className="rounded-2xl border border-border bg-card p-4"
+                    >
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {place.name}
+                      </p>
+                      <p className="mt-2 text-sm font-medium">
+                        {place.keeperName
+                          ? `${place.keeperName}${
+                              place.keeperOccupation
+                                ? ` · ${place.keeperOccupation}`
+                                : ""
+                            }`
+                          : "Unattended"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {place.note}
+                      </p>
+                    </div>
+                  ))}
+                </section>
+              )}
+              <section className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
                   City Bank
@@ -502,7 +583,8 @@ export function AvatarWorldHub() {
                   {data.economy.treasury.toLocaleString()} {data.economy.currencyLabel}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Pays wages every day. Residents spend Sparks on each other.
+                  Pays wages. Collects rent when nobody holds the keys.
+                  Residents spend Sparks on food and each other.
                 </p>
                 <ul className="mt-4 space-y-2 text-sm">
                   {data.economy.accounts.slice(0, 8).map((row) => (
@@ -514,11 +596,12 @@ export function AvatarWorldHub() {
                         {row.displayName}
                         <span className="text-muted-foreground">
                           {" "}
-                          · {row.employer}
+                          · {row.occupation || row.employer}
                         </span>
                       </span>
                       <span className="shrink-0 tabular-nums">
                         {row.balance} · {row.wage}/day
+                        {row.rent > 0 ? ` · rent ${row.rent}` : ""}
                       </span>
                     </li>
                   ))}
@@ -530,8 +613,8 @@ export function AvatarWorldHub() {
                 </h3>
                 {data.economy.listings.length === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Nothing for sale yet. Live a day and someone will list a loaf,
-                    a tattoo, a seat on a plane.
+                    Nothing for sale yet. Found a town or live a day and someone
+                    will list a loaf, a room, a ride.
                   </p>
                 ) : (
                   <ul className="mt-3 space-y-3">
@@ -558,6 +641,7 @@ export function AvatarWorldHub() {
                 )}
               </div>
             </section>
+            </>
           )}
 
           <section>
@@ -566,6 +650,11 @@ export function AvatarWorldHub() {
               <p className="text-xs text-muted-foreground">
                 {avatars.length} living ·{" "}
                 {avatars.filter((row) => row.isPublic).length} public
+                {data?.economy?.townReady
+                  ? " · town is standing"
+                  : data?.economy?.missingTownJobs?.length
+                    ? ` · missing ${data.economy.missingTownJobs.slice(0, 3).join(", ")}`
+                    : ""}
               </p>
             </div>
             <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -610,6 +699,16 @@ export function AvatarWorldHub() {
                         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
                           {avatar.balance} Sparks
                         </span>
+                        {avatar.wage > 0 && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            {avatar.wage}/day
+                          </span>
+                        )}
+                        {avatar.rent > 0 && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            rent {avatar.rent}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Link>
@@ -627,7 +726,7 @@ export function AvatarWorldHub() {
                           ? ""
                           : "bg-violet-600 hover:bg-violet-500"
                       }
-                      disabled={publicBusyId === avatar.id || liveBusy || spawnBusy}
+                      disabled={publicBusyId === avatar.id || liveBusy || spawnBusy || foundBusy}
                       onClick={() =>
                         void togglePublicUse(avatar.id, !avatar.isPublic)
                       }

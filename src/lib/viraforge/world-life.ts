@@ -30,7 +30,9 @@ import {
   ensureResidentAccount,
   jobForOccupation,
   JOB_TITLES,
+  missingTownJobs,
   runEconomyDay,
+  seedEssentialListings,
 } from "./world-economy";
 
 const MAX_RESIDENTS = 40;
@@ -483,6 +485,82 @@ const ARCHETYPES: ResidentArchetype[] = [
     voice:
       "Personality: Blunt, feeding, secretly soft. Voice: Marseille French-English, salty, no branding.",
   },
+  {
+    occupation: "grocer",
+    location: "Addis Ababa, Ethiopia",
+    gender: "female",
+    age: 46,
+    religion: "Orthodox • feast days and ordinary Tuesdays",
+    socialClass: "Shopkeeper • family counter",
+    culturalNotes: "Injera stacked, coffee ceremony after close, cousins who still ask for credit",
+    wardrobe: "Printed dress, cardigan, a pencil in the hair",
+    hair: "Tight coils wrapped for work, a gold earring that never comes off",
+    faceShape: "Round",
+    height: "5'5\"",
+    bodyType: 63,
+    interests: ["coffee", "neighbors", "ledgers"],
+    values: ["feeding people", "accounts that balance"],
+    goals: ["keep the shop open when the street goes quiet"],
+    voice:
+      "Personality: Brisk, generous, remembers every debt. Voice: Ethiopian English, counter-close, never a pitch.",
+  },
+  {
+    occupation: "landlord",
+    location: "Chicago, Illinois",
+    gender: "male",
+    age: 58,
+    religion: "Baptist when his sister drags him",
+    socialClass: "Small property • keys on a ring",
+    culturalNotes: "South Side rooms, radiators that bang, tenants who became family anyway",
+    wardrobe: "Work jacket, pressed shirt, boots he won't throw away",
+    hair: "Gray fade, a mustache kept neat",
+    faceShape: "Square",
+    height: "5'11\"",
+    bodyType: 61,
+    interests: ["keys", "ball games", "soup"],
+    values: ["the building", "being fair when he can"],
+    goals: ["fix the stairs before winter without raising rent twice"],
+    voice:
+      "Personality: Dry, stubborn, softer than he sounds. Voice: Chicago, unhurried, talks like a lease and a story.",
+  },
+  {
+    occupation: "bank teller",
+    location: "Singapore",
+    gender: "female",
+    age: 29,
+    religion: "Buddhist family, numbers as meditation",
+    socialClass: "Clerk • bus then counter",
+    culturalNotes: "Hawker dinners, humid commutes, counting Sparks until the drawer is honest",
+    wardrobe: "Crisp blouse, navy slacks, a small jade pendant",
+    hair: "Black, low bun, not a strand for the camera",
+    faceShape: "Oval",
+    height: "5'4\"",
+    bodyType: 39,
+    interests: ["ledgers", "hawker food", "quiet trains"],
+    values: ["accuracy", "not making a scene"],
+    goals: ["close every drawer without a missing Spark"],
+    voice:
+      "Personality: Precise, kind in the margins. Voice: Singaporean English, even, never salesy.",
+  },
+  {
+    occupation: "bus driver",
+    location: "Cairo, Egypt",
+    gender: "male",
+    age: 53,
+    religion: "Muslim • radio Qur'an at dawn, traffic after",
+    socialClass: "City worker • route 14 for twenty years",
+    culturalNotes: "Nile haze, honking as language, tea in a plastic cup on the dash",
+    wardrobe: "Company shirt, worn trousers, sunglasses that have seen better decades",
+    hair: "Salt-and-pepper, receding, a cap when the sun is mean",
+    faceShape: "Long oval",
+    height: "5'10\"",
+    bodyType: 59,
+    interests: ["routes", "tea", "the river"],
+    values: ["getting people home", "patience in traffic"],
+    goals: ["finish the shift without a fight and still make Maghrib"],
+    voice:
+      "Personality: Patient, joking, never rushed by a passenger. Voice: Cairene English, street-level, no branding.",
+  },
 ];
 
 export type WorldDayResult = {
@@ -501,6 +579,8 @@ export type WorldDayResult = {
   wages?: number;
   listings?: number;
   sales?: number;
+  rents?: number;
+  groceries?: number;
 };
 
 export type SpawnResult = {
@@ -524,6 +604,7 @@ export type QuickCreateHint = {
   gender?: CreatorAvatarForm["gender"];
   vibe?: string;
   welcome?: boolean;
+  skipAi?: boolean;
 };
 
 function hashString(value: string): number {
@@ -958,6 +1039,8 @@ export async function liveWorldDay(input: {
     wages: economy.wages,
     listings: economy.listings,
     sales: economy.sales,
+    rents: economy.rents,
+    groceries: economy.groceries,
   };
 }
 
@@ -1080,7 +1163,7 @@ async function draftDiversePersona(
     handle: name.handle,
   });
 
-  if (!hasAnyAiKey()) {
+  if (!hasAnyAiKey() || hint?.skipAi) {
     return { persona: seed, extras: worldFromArchetype(arch, seed), usedAi: false, archetype: arch };
   }
 
@@ -1227,6 +1310,68 @@ export async function quickCreateResidents(
   return {
     created,
     remaining: remaining - created.length,
+  };
+}
+
+export async function foundTown(userId: string): Promise<{
+  created: SpawnResult[];
+  missing: string[];
+  remaining: number;
+  alreadyFounded: boolean;
+  listings: number;
+}> {
+  const existing = await listWorldInfluencers(userId);
+  const missing = missingTownJobs(existing.map((row) => row.occupation));
+  const remainingSlots = Math.max(0, MAX_RESIDENTS - existing.length);
+  if (missing.length === 0) {
+    return {
+      created: [],
+      missing: [],
+      remaining: remainingSlots,
+      alreadyFounded: true,
+      listings: 0,
+    };
+  }
+  if (remainingSlots === 0) {
+    throw new Error(`This world is full (${MAX_RESIDENTS} residents).`);
+  }
+
+  const want = missing.slice(0, remainingSlots);
+  const created: SpawnResult[] = [];
+  for (const occupation of want) {
+    const result = await spawnDiverseResident(userId, {
+      occupation,
+      welcome: false,
+      skipAi: true,
+    });
+    created.push(result);
+  }
+
+  const listings = await seedEssentialListings({
+    userId,
+    avatars: created.map((row) => ({
+      id: row.influencerId,
+      displayName: row.displayName,
+      occupation: row.occupation,
+    })),
+  });
+
+  const names = created.map((row) => `${row.displayName} (${row.occupation})`).join(", ");
+  await rememberWorldBeat(
+    userId,
+    created.length > 0
+      ? `The town opened: ${names}.`
+      : "The town was already standing.",
+  );
+
+  return {
+    created,
+    missing: missingTownJobs(
+      [...existing.map((row) => row.occupation), ...created.map((row) => row.occupation)],
+    ),
+    remaining: remainingSlots - created.length,
+    alreadyFounded: false,
+    listings,
   };
 }
 
