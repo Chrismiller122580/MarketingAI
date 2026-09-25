@@ -23,6 +23,7 @@ import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { prisma } from "@/lib/db";
+import { loadStoredMediaBytes } from "@/lib/media-url";
 import { hasReplicate } from "@/lib/replicate-client";
 import {
   analyzeTalkScript,
@@ -65,14 +66,12 @@ async function loadApprovedTalkAudio(
   }
 
   try {
-    const audioUrl = resolveDisplayMediaUrl(render.url);
-    const response = await fetch(audioUrl);
-    if (!response.ok) {
+    const { bytes } = await loadStoredMediaBytes(render.url);
+    if (bytes.length === 0) {
       return { error: "Could not load approved voice preview audio." };
     }
-    const buffer = Buffer.from(await response.arrayBuffer());
     return {
-      audioDataUrl: `data:audio/mpeg;base64,${buffer.toString("base64")}`,
+      audioDataUrl: `data:audio/mpeg;base64,${bytes.toString("base64")}`,
       voiceId: render.voiceId ?? "",
     };
   } catch {

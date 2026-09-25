@@ -52,6 +52,12 @@ async function readBlobBytes(
   return null;
 }
 
+export async function loadStoredMediaBytes(
+  url: string,
+): Promise<{ bytes: Buffer; contentType: string }> {
+  return fetchMediaForPersistence(url);
+}
+
 async function fetchMediaForPersistence(
   url: string,
 ): Promise<{ bytes: Buffer; contentType: string }> {
