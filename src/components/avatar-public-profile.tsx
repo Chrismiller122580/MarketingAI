@@ -94,6 +94,12 @@ export function AvatarPublicProfile({
                 Use this avatar
               </Link>
               <Link
+                href={`/world/${profile.id}/residence`}
+                className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10"
+              >
+                Their home
+              </Link>
+              <Link
                 href="/world"
                 className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10"
               >

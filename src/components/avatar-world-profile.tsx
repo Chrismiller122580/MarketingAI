@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,20 @@ function ChipInput({
   );
 }
 
+function clipToTalkLength(text: string): string {
+  return text.trim().split(/\s+/).filter(Boolean).slice(0, 24).join(" ");
+}
+
+function suggestQuickScript(detail: Detail): string {
+  const city = detail.world.currentCity || detail.persona.location || "town";
+  const job = detail.world.occupation || "the day job";
+  const partner = detail.world.relationships.find((rel) => rel.kind === "partner");
+  const raw = partner
+    ? `Got home to ${partner.displayName.split(" ")[0]} in ${city}. The ${job} shift is over, the street is quiet, and I still have the day on me.`
+    : `Just finished as a ${job} in ${city}. The walk home was slow. I am still thinking about the people I ran into today.`;
+  return clipToTalkLength(raw);
+}
+
 export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [form, setForm] = useState<WorldProfile | null>(null);
@@ -109,6 +123,19 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [painting, setPainting] = useState(false);
   const [collabBrief, setCollabBrief] = useState("");
   const [collabBusy, setCollabBusy] = useState(false);
+  const [talkScript, setTalkScript] = useState("");
+  const [talkTouched, setTalkTouched] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [clipBusy, setClipBusy] = useState(false);
+  const [clipStatus, setClipStatus] = useState("");
+  const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const [voicePreview, setVoicePreview] = useState<{
+    renderId: string;
+    scriptHash: string;
+    audioUrl: string;
+    script: string;
+  } | null>(null);
+  const pollStop = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,6 +157,17 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    return () => {
+      pollStop.current = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!detail || talkTouched) return;
+    setTalkScript(suggestQuickScript(detail));
+  }, [detail, talkTouched]);
 
   const videos = useMemo(
     () =>
@@ -235,6 +273,109 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
       toast.error(error instanceof Error ? error.message : "Could not paint a face");
     } finally {
       setPainting(false);
+    }
+  }
+
+  async function hearVoice() {
+    const script = talkScript.trim();
+    if (!script) {
+      toast.error("Write a short line first");
+      return;
+    }
+    setVoiceBusy(true);
+    setVoicePreview(null);
+    try {
+      const res = await fetch("/api/creator-studio/motion/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ influencerId, script }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        audioUrl?: string;
+        scriptHash?: string;
+        renderId?: string;
+      };
+      if (!res.ok) throw new Error(json.error ?? "Voice preview failed");
+      if (!json.audioUrl || !json.scriptHash || !json.renderId) {
+        throw new Error("Voice preview came back incomplete");
+      }
+      setVoicePreview({
+        renderId: json.renderId,
+        scriptHash: json.scriptHash,
+        audioUrl: json.audioUrl,
+        script,
+      });
+      toast.success("Voice is ready — make the clip when it sounds like them");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Voice preview failed");
+    } finally {
+      setVoiceBusy(false);
+    }
+  }
+
+  async function makeClip() {
+    if (!voicePreview || voicePreview.script !== talkScript.trim()) {
+      toast.error("Hear the voice again before making the clip");
+      return;
+    }
+    if (!detail?.assets.portraitUrl) {
+      toast.error("Give them a face first");
+      return;
+    }
+    setClipBusy(true);
+    setClipStatus("Starting motion and voice…");
+    setClipUrl(null);
+    pollStop.current = false;
+    try {
+      const res = await fetch("/api/creator-studio/motion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          influencerId,
+          motionType: "talk",
+          script: talkScript.trim(),
+          approvedVoiceRenderId: voicePreview.renderId,
+          approvedScriptHash: voicePreview.scriptHash,
+        }),
+      });
+      const json = (await res.json()) as { error?: string; jobId?: string };
+      if (!res.ok || !json.jobId) {
+        throw new Error(json.error ?? "Could not start the clip");
+      }
+      for (let attempt = 0; attempt < 36; attempt += 1) {
+        if (pollStop.current) return;
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+        if (pollStop.current) return;
+        const statusRes = await fetch(
+          `/api/creator-studio/motion/status/${json.jobId}`,
+        );
+        const status = (await statusRes.json()) as {
+          status?: string;
+          videoUrl?: string;
+          error?: string;
+        };
+        if (!statusRes.ok) {
+          throw new Error(status.error ?? "Could not check the clip");
+        }
+        if (status.status === "ready" && status.videoUrl) {
+          setClipUrl(status.videoUrl);
+          setClipStatus("");
+          toast.success("Short clip is in the vault");
+          await load();
+          return;
+        }
+        if (status.status === "failed") {
+          throw new Error(status.error ?? "The clip failed");
+        }
+        setClipStatus("Rendering motion and voice…");
+      }
+      toast.message("Still rendering. Check the vault in a minute.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not make the clip");
+      setClipStatus("");
+    } finally {
+      setClipBusy(false);
     }
   }
 
@@ -382,6 +523,11 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
               </Button>
             )}
             <Button asChild variant="outline" size="sm">
+              <Link href={`/avatar-world/${detail.id}/residence`}>
+                Residence
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
               <Link href={`/creator-studio?influencer=${detail.id}`}>
                 Studio
               </Link>
@@ -389,6 +535,86 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
           </div>
         </div>
       </div>
+
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Quick clip
+            </p>
+            <h3 className="mt-1 text-lg font-semibold">Motion and voice</h3>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              A short talking clip from their life. Hear the voice, then render
+              the close-up. Keep it around 16–24 words.
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {talkScript.trim() ? talkScript.trim().split(/\s+/).length : 0} words
+          </p>
+        </div>
+        <textarea
+          value={talkScript}
+          onChange={(e) => {
+            setTalkTouched(true);
+            setTalkScript(e.target.value);
+            setVoicePreview(null);
+          }}
+          maxLength={500}
+          placeholder="A line they would actually say at home."
+          className="mt-4 min-h-20 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+        />
+        {!detail.assets.portraitUrl && (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            Give them a face before the clip can move.
+          </p>
+        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={voiceBusy || clipBusy || !talkScript.trim()}
+            onClick={() => void hearVoice()}
+          >
+            {voiceBusy ? <InlineLoading label="Hearing…" /> : "Hear voice"}
+          </Button>
+          <Button
+            type="button"
+            className="bg-violet-600 hover:bg-violet-500"
+            disabled={
+              clipBusy ||
+              voiceBusy ||
+              !detail.assets.portraitUrl ||
+              !voicePreview ||
+              voicePreview.script !== talkScript.trim()
+            }
+            onClick={() => void makeClip()}
+          >
+            {clipBusy ? (
+              <InlineLoading label={clipStatus || "Making the clip…"} />
+            ) : (
+              "Make the clip"
+            )}
+          </Button>
+          {clipStatus && !clipBusy && (
+            <span className="text-xs text-muted-foreground">{clipStatus}</span>
+          )}
+        </div>
+        {voicePreview && (
+          <audio
+            src={voicePreview.audioUrl}
+            controls
+            className="mt-4 w-full max-w-md"
+          />
+        )}
+        {clipUrl && (
+          <video
+            src={clipUrl}
+            controls
+            playsInline
+            className="mt-4 aspect-[9/16] w-full max-w-[220px] rounded-2xl bg-black object-cover"
+          />
+        )}
+      </section>
 
       <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-1">
         {tabs.map((item) => (

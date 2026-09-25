@@ -2526,6 +2526,10 @@ export async function loadWorldDetail(userId: string, influencerId: string) {
     threads,
     suggestions,
     others: others.filter((row) => row.id !== influencer.id),
+    street: streetForOccupation(
+      world.occupation,
+      world.currentCity || persona.location,
+    ),
     createdAt: influencer.createdAt.toISOString(),
     updatedAt: influencer.updatedAt.toISOString(),
   };
