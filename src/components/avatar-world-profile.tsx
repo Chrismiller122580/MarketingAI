@@ -17,6 +17,11 @@ import type {
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { InfluencerAssets } from "@/lib/viraforge/influencer-assets";
 import type { InfluencerRenderRecord } from "@/lib/viraforge/influencer-renders";
+import {
+  isSpokenMotion,
+  MOTION_ACTIONS,
+} from "@/lib/viraforge/motion-actions";
+import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
 
 type Detail = {
   id: string;
@@ -105,6 +110,34 @@ function suggestQuickScript(detail: Detail): string {
   return clipToTalkLength(raw);
 }
 
+type ClipSource = "life" | "crawl" | "both";
+
+type CrawlBrief = {
+  domain: string;
+  name: string;
+  line: string;
+};
+
+function suggestFromSource(
+  detail: Detail,
+  source: ClipSource,
+  crawl: CrawlBrief | null,
+): string {
+  const life = suggestQuickScript(detail);
+  if (source === "life" || !crawl) return life;
+  const hook = crawl.line.split(/[.!?]/)[0]?.trim() || crawl.name;
+  if (source === "crawl") {
+    return clipToTalkLength(
+      `I keep coming back to ${crawl.name}. ${hook}. It is part of how I spend the day.`,
+    );
+  }
+  const city = detail.world.currentCity || detail.persona.location || "town";
+  const job = detail.world.occupation || "work";
+  return clipToTalkLength(
+    `After ${job} in ${city}, I still talk about ${crawl.name}. ${hook}.`,
+  );
+}
+
 export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [form, setForm] = useState<WorldProfile | null>(null);
@@ -125,10 +158,14 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [collabBusy, setCollabBusy] = useState(false);
   const [talkScript, setTalkScript] = useState("");
   const [talkTouched, setTalkTouched] = useState(false);
+  const [motionType, setMotionType] = useState<InfluencerMotionType>("walk-talk");
+  const [clipSource, setClipSource] = useState<ClipSource>("both");
+  const [crawl, setCrawl] = useState<CrawlBrief | null>(null);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [clipBusy, setClipBusy] = useState(false);
   const [clipStatus, setClipStatus] = useState("");
   const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const [voiceInClip, setVoiceInClip] = useState(false);
   const [voicePreview, setVoicePreview] = useState<{
     renderId: string;
     scriptHash: string;
@@ -165,9 +202,30 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   }, []);
 
   useEffect(() => {
+    void fetch("/api/db/site")
+      .then((res) => res.json())
+      .then((json: { site?: { domain?: string; brand?: { name?: string; tagline?: string; businessModel?: { valueProposition?: string } }; pages?: { title?: string; description?: string }[] } | null }) => {
+        const site = json.site;
+        if (!site?.domain) return;
+        const line =
+          site.brand?.businessModel?.valueProposition ||
+          site.brand?.tagline ||
+          site.pages?.[0]?.description ||
+          site.pages?.[0]?.title ||
+          "";
+        setCrawl({
+          domain: site.domain,
+          name: site.brand?.name?.trim() || site.domain,
+          line: line.replace(/\s+/g, " ").trim(),
+        });
+      })
+      .catch(() => undefined);
+  }, [influencerId]);
+
+  useEffect(() => {
     if (!detail || talkTouched) return;
-    setTalkScript(suggestQuickScript(detail));
-  }, [detail, talkTouched]);
+    setTalkScript(suggestFromSource(detail, clipSource, crawl));
+  }, [detail, talkTouched, clipSource, crawl]);
 
   const videos = useMemo(
     () =>
@@ -315,7 +373,8 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   }
 
   async function makeClip() {
-    if (!voicePreview || voicePreview.script !== talkScript.trim()) {
+    const spoken = isSpokenMotion(motionType);
+    if (spoken && (!voicePreview || voicePreview.script !== talkScript.trim())) {
       toast.error("Hear the voice again before making the clip");
       return;
     }
@@ -324,8 +383,9 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
       return;
     }
     setClipBusy(true);
-    setClipStatus("Starting motion and voice…");
+    setClipStatus(spoken ? "Starting the walk and the voice…" : "Starting the motion…");
     setClipUrl(null);
+    setVoiceInClip(false);
     pollStop.current = false;
     try {
       const res = await fetch("/api/creator-studio/motion", {
@@ -333,17 +393,22 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           influencerId,
-          motionType: "talk",
-          script: talkScript.trim(),
-          approvedVoiceRenderId: voicePreview.renderId,
-          approvedScriptHash: voicePreview.scriptHash,
+          motionType,
+          script: spoken ? talkScript.trim() : undefined,
+          scriptSource: clipSource,
+          ...(spoken && voicePreview
+            ? {
+                approvedVoiceRenderId: voicePreview.renderId,
+                approvedScriptHash: voicePreview.scriptHash,
+              }
+            : {}),
         }),
       });
       const json = (await res.json()) as { error?: string; jobId?: string };
       if (!res.ok || !json.jobId) {
         throw new Error(json.error ?? "Could not start the clip");
       }
-      for (let attempt = 0; attempt < 36; attempt += 1) {
+      for (let attempt = 0; attempt < 55; attempt += 1) {
         if (pollStop.current) return;
         await new Promise((resolve) => setTimeout(resolve, 4000));
         if (pollStop.current) return;
@@ -352,7 +417,9 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
         );
         const status = (await statusRes.json()) as {
           status?: string;
+          stage?: string;
           videoUrl?: string;
+          audioEmbeddedInVideo?: boolean;
           error?: string;
         };
         if (!statusRes.ok) {
@@ -360,15 +427,24 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
         }
         if (status.status === "ready" && status.videoUrl) {
           setClipUrl(status.videoUrl);
+          setVoiceInClip(spoken ? status.audioEmbeddedInVideo !== false : false);
           setClipStatus("");
-          toast.success("Short clip is in the vault");
+          toast.success(
+            spoken ? "Voice is inside the clip" : "Motion clip is in the vault",
+          );
           await load();
           return;
         }
         if (status.status === "failed") {
           throw new Error(status.error ?? "The clip failed");
         }
-        setClipStatus("Rendering motion and voice…");
+        setClipStatus(
+          status.stage === "voice"
+            ? "Putting the voice into the picture…"
+            : spoken
+              ? "Rendering motion, then the voice…"
+              : "Rendering the motion…",
+        );
       }
       toast.message("Still rendering. Check the vault in a minute.");
     } catch (error) {
@@ -544,23 +620,85 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
             </p>
             <h3 className="mt-1 text-lg font-semibold">Motion and voice</h3>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              A short talking clip from their life. Hear the voice, then render
-              the close-up. Keep it around 16–24 words.
+              One clip. They move the way you pick, and if they speak, the voice
+              is inside the video. About 16–24 words.
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
             {talkScript.trim() ? talkScript.trim().split(/\s+/).length : 0} words
           </p>
         </div>
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {MOTION_ACTIONS.map((action) => (
+            <button
+              key={action.type}
+              type="button"
+              onClick={() => {
+                setMotionType(action.type);
+                setClipUrl(null);
+                setVoiceInClip(false);
+              }}
+              className={`rounded-full px-3 py-1 text-xs ${
+                motionType === action.type
+                  ? "bg-violet-600 text-white"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {MOTION_ACTIONS.find((action) => action.type === motionType)?.description}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {(
+            [
+              ["life", "Their life"],
+              ["crawl", crawl ? `Crawl · ${crawl.name}` : "A crawl"],
+              ["both", "Life and crawl"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setClipSource(id);
+                setTalkTouched(false);
+                setVoicePreview(null);
+                setClipUrl(null);
+                setVoiceInClip(false);
+              }}
+              className={`rounded-full px-3 py-1 text-xs ${
+                clipSource === id
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {clipSource !== "life" && !crawl && (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            No crawled site yet. The line stays about their life until you crawl one.
+          </p>
+        )}
+        {crawl && clipSource !== "life" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Using {crawl.name} ({crawl.domain}). Facts come from that crawl only.
+          </p>
+        )}
         <textarea
           value={talkScript}
           onChange={(e) => {
             setTalkTouched(true);
             setTalkScript(e.target.value);
             setVoicePreview(null);
+            setVoiceInClip(false);
           }}
           maxLength={500}
-          placeholder="A line they would actually say at home."
+          placeholder="A line they would actually say."
           className="mt-4 min-h-20 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
         />
         {!detail.assets.portraitUrl && (
@@ -569,14 +707,16 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
           </p>
         )}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={voiceBusy || clipBusy || !talkScript.trim()}
-            onClick={() => void hearVoice()}
-          >
-            {voiceBusy ? <InlineLoading label="Hearing…" /> : "Hear voice"}
-          </Button>
+          {isSpokenMotion(motionType) && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={voiceBusy || clipBusy || !talkScript.trim()}
+              onClick={() => void hearVoice()}
+            >
+              {voiceBusy ? <InlineLoading label="Hearing…" /> : "Hear voice"}
+            </Button>
+          )}
           <Button
             type="button"
             className="bg-violet-600 hover:bg-violet-500"
@@ -584,8 +724,8 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
               clipBusy ||
               voiceBusy ||
               !detail.assets.portraitUrl ||
-              !voicePreview ||
-              voicePreview.script !== talkScript.trim()
+              (isSpokenMotion(motionType) &&
+                (!voicePreview || voicePreview.script !== talkScript.trim()))
             }
             onClick={() => void makeClip()}
           >
@@ -599,7 +739,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
             <span className="text-xs text-muted-foreground">{clipStatus}</span>
           )}
         </div>
-        {voicePreview && (
+        {voicePreview && !voiceInClip && (
           <audio
             src={voicePreview.audioUrl}
             controls
@@ -607,12 +747,19 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
           />
         )}
         {clipUrl && (
-          <video
-            src={clipUrl}
-            controls
-            playsInline
-            className="mt-4 aspect-[9/16] w-full max-w-[220px] rounded-2xl bg-black object-cover"
-          />
+          <div className="mt-4">
+            <p className="mb-2 text-xs text-muted-foreground">
+              {voiceInClip
+                ? "Voice and picture are one clip."
+                : "Motion clip."}
+            </p>
+            <video
+              src={clipUrl}
+              controls
+              playsInline
+              className="aspect-[9/16] w-full max-w-[260px] rounded-2xl bg-black object-contain"
+            />
+          </div>
         )}
       </section>
 

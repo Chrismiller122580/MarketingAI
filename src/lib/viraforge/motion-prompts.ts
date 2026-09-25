@@ -19,8 +19,8 @@ export function buildTalkCloseupPrompt(persona: CreatorAvatarForm): string {
     `Wardrobe: ${persona.wardrobe}`,
     `Mood: ${persona.personalityVoice.slice(0, 120)}.`,
     "Tight head-and-shoulders framing, eyes on lens, natural blinks.",
-    "Continuously speaking: jaw drops on vowels, lips close on M/B/P, teeth briefly visible, not a frozen smile.",
-    "Subtle head nods and micro-expressions, no walking, no spinning, no looking away.",
+    "Clearly talking the whole time: jaw, lips, and cheeks move with each word, small nods, one hand gesture into frame.",
+    "Alive and in motion, never a frozen photo. No walking away, no spin.",
     "Maintain consistent face from the reference portrait.",
     "Soft key light, shallow bokeh, no text, no watermarks, no subtitles.",
   ]
@@ -38,10 +38,9 @@ export function buildWalkTalkPrompt(persona: CreatorAvatarForm): string {
     hood ? `Neighborhood streets and landmarks that feel like ${hood}.` : "",
     `Wardrobe: ${persona.wardrobe}`,
     `Mood: ${persona.personalityVoice.slice(0, 120)}.`,
-    "Medium shot, waist-up to mid-thigh, not a tight face close-up.",
-    "Handheld vlog camera tracking beside them as they walk a city sidewalk.",
-    "Natural arm swing, confident pace, looking toward camera while talking.",
-    "Mouth opening and closing mid-sentence so later lip-sync has a usable talking mouth, not a closed smile.",
+    "Medium shot, waist-up, camera tracking beside them as they walk.",
+    "They take several clear steps down the sidewalk. Arms swing. Hair and clothes shift. The background moves past.",
+    "They look toward the camera and talk while walking. Mouth opens and closes. Not a still portrait.",
     "Maintain consistent face and body from the reference portrait.",
     "Natural daylight, cinematic, shallow street bokeh, no text, no watermarks.",
   ]
@@ -64,11 +63,11 @@ export function buildMotionPrompt(
   ];
 
   const motion: Record<SilentMotionType, string> = {
-    walk: "Walking forward confidently with natural arm swing, steady camera tracking, full upper-body in frame.",
-    spin: "Smooth 360-degree spin with hair movement, playful energy, camera holds center framing.",
-    jump: "Energetic jump with soft landing, dynamic motion, fitness influencer energy.",
-    wave: "Friendly wave hello to camera with warm smile, subtle upper-body movement, inviting social energy.",
-    point: "Pointing toward camera with confident gesture, as if highlighting a product or CTA, engaging eye contact.",
+    walk: "They walk several steps toward and past the camera, full arm swing, background sliding by. Clearly moving, not a still photo.",
+    spin: "A full smooth turn in place, hair and clothes moving, camera stays centered.",
+    jump: "A real jump off the ground and a soft landing, body in motion the whole clip.",
+    wave: "They raise a hand and wave at the camera, smiling, upper body moving.",
+    point: "They point toward the camera like they are showing a product, then a small step closer.",
   };
 
   return [...base, motion[motionType]].join(" ");

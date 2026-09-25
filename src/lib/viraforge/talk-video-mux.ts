@@ -5,15 +5,16 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import ffmpegPath from "ffmpeg-static";
 import { parseBuffer } from "music-metadata";
+import { loadStoredMediaBytes } from "@/lib/media-url";
 
 const execFileAsync = promisify(execFile);
 
 async function fetchMediaBytes(url: string): Promise<Buffer> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch media (${response.status})`);
+  const loaded = await loadStoredMediaBytes(url);
+  if (!loaded.bytes.length) {
+    throw new Error("Media file was empty");
   }
-  return Buffer.from(await response.arrayBuffer());
+  return loaded.bytes;
 }
 
 export async function getAudioDurationSec(buffer: Buffer): Promise<number> {

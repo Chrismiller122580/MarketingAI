@@ -73,10 +73,8 @@ export async function GET(_request: Request, context: RouteContext) {
       if (!("error" in advanced)) {
         return NextResponse.json({
           status: "processing",
+          stage: "voice",
           motionType: job.motionType,
-          voiceAudioUrl: job.voiceAudioUrl
-            ? resolveDisplayMediaUrl(job.voiceAudioUrl)
-            : undefined,
         });
       }
       // Lip-sync model unavailable — mux voice onto the plate instead of failing.
@@ -98,10 +96,33 @@ export async function GET(_request: Request, context: RouteContext) {
         );
         audioEmbeddedInVideo = true;
       } catch (error) {
-        console.error(
-          "Talk mux failed — using raw motion output:",
-          error instanceof Error ? error.message : error,
-        );
+        const message =
+          error instanceof Error ? error.message : "Could not combine the voice";
+        const lipsyncApplied =
+          meta.lipsyncStage === "running" &&
+          typeof meta.lipsyncPredictionId === "string";
+        console.error("Talk mux failed:", message);
+        if (!lipsyncApplied) {
+          await updateInfluencerMotionJob(job.renderId, {
+            status: "failed",
+            error: message,
+          });
+          if (job.renderId) {
+            await finalizeInfluencerRender({
+              userId: authResult,
+              influencerId: job.influencerId,
+              renderId: job.renderId,
+              status: "failed",
+              error: message,
+            });
+          }
+          return NextResponse.json({
+            status: "failed",
+            error: message,
+            motionType: job.motionType,
+          });
+        }
+        audioEmbeddedInVideo = true;
       }
     }
 
@@ -196,11 +217,14 @@ export async function GET(_request: Request, context: RouteContext) {
     });
   }
 
+  const waitingOnVoice =
+    job.metadata &&
+    typeof job.metadata === "object" &&
+    (job.metadata as { lipsyncStage?: string }).lipsyncStage === "running";
+
   return NextResponse.json({
     status: "processing",
+    stage: waitingOnVoice ? "voice" : "motion",
     motionType: job.motionType,
-    voiceAudioUrl: job.voiceAudioUrl
-      ? resolveDisplayMediaUrl(job.voiceAudioUrl)
-      : undefined,
   });
 }

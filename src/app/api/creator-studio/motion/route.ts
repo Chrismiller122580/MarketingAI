@@ -36,6 +36,7 @@ const motionSchema = z.object({
   script: z.string().max(500).optional(),
   approvedVoiceRenderId: z.string().min(1).optional(),
   approvedScriptHash: z.string().max(32).optional(),
+  scriptSource: z.enum(["life", "crawl", "both"]).optional(),
 });
 
 async function loadApprovedTalkAudio(
@@ -120,6 +121,7 @@ export async function POST(request: Request) {
       script,
       approvedVoiceRenderId,
       approvedScriptHash,
+      scriptSource,
     } = parsed.data;
 
     if ((motionType === "talk" || motionType === "walk-talk") && !hasElevenLabs()) {
@@ -170,6 +172,7 @@ export async function POST(request: Request) {
       );
     }
 
+    let useApprovedVoice = false;
     if (motionType === "talk" || motionType === "walk-talk") {
       const analysis = analyzeTalkScript(talkScript);
       if (!analysis.canRender) {
@@ -182,30 +185,34 @@ export async function POST(request: Request) {
         );
       }
 
-      if (motionType === "talk") {
-        if (!approvedVoiceRenderId || !approvedScriptHash) {
-          return NextResponse.json(
-            {
-              error:
-                "Preview and approve voice before rendering Talk. Run preflight first.",
-            },
-            { status: 422 },
-          );
-        }
+      useApprovedVoice = Boolean(approvedVoiceRenderId && approvedScriptHash);
 
-        if (approvedScriptHash !== analysis.scriptHash) {
-          return NextResponse.json(
-            { error: "Script changed since preview. Preview voice again." },
-            { status: 422 },
-          );
-        }
+      if (motionType === "talk" && !useApprovedVoice) {
+        return NextResponse.json(
+          {
+            error:
+              "Preview and approve voice before rendering Talk. Run preflight first.",
+          },
+          { status: 422 },
+        );
+      }
+
+      if (useApprovedVoice && approvedScriptHash !== analysis.scriptHash) {
+        return NextResponse.json(
+          { error: "Script changed since preview. Preview voice again." },
+          { status: 422 },
+        );
       }
     }
 
     const motionVoiceId = resolveMotionVoiceId(assets.voiceId);
 
     if (motionType === "talk") {
-      const facts = factsFromRecord(influencer.productFacts);
+      const groundedInCrawl =
+        scriptSource === "crawl" || scriptSource === "both";
+      const facts = groundedInCrawl
+        ? factsFromRecord(null)
+        : factsFromRecord(influencer.productFacts);
       const quoteCheck = validateQuoteAgainstFacts(talkScript, facts);
       if (!quoteCheck.valid) {
         return NextResponse.json(
@@ -226,7 +233,7 @@ export async function POST(request: Request) {
         influencerId,
         assets.portraitUrl,
       );
-      if (motionType === "talk") {
+      if (useApprovedVoice) {
         const [preparedPortrait, approvedAudio] = await Promise.all([
           portraitPromise,
           loadApprovedTalkAudio(
