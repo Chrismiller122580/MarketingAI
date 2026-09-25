@@ -2,6 +2,7 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import type { VoiceSettings } from "@elevenlabs/elevenlabs-js/api/types/VoiceSettings";
 import { uploadToBlob } from "@/lib/blob-storage";
 import { TALK_VOICE_SETTINGS } from "@/lib/viraforge/talk-settings";
+import { speechModelForLanguage } from "@/lib/viraforge/avatar-language";
 
 /** Rachel — widely available default; override with ELEVENLABS_VOICE_ID */
 const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
@@ -65,6 +66,7 @@ async function streamToBuffer(
 export type SpeechSynthesisOptions = {
   voiceId?: string;
   modelId?: string;
+  languageCode?: string;
   voiceSettings?: VoiceSettings;
   purpose?: "talk" | "default";
 };
@@ -86,6 +88,9 @@ export async function synthesizeSpeech(
   const voiceSettings =
     options?.voiceSettings ??
     (options?.purpose === "talk" ? TALK_VOICE_SETTINGS : undefined);
+  const spoken = options?.languageCode
+    ? speechModelForLanguage(options.languageCode)
+    : null;
 
   try {
     const client = new ElevenLabsClient({ apiKey });
@@ -93,8 +98,9 @@ export async function synthesizeSpeech(
       options?.voiceId ?? getDefaultVoiceId(),
       {
         text: text.trim(),
-        modelId: options?.modelId ?? DEFAULT_MODEL_ID,
+        modelId: options?.modelId ?? spoken?.modelId ?? DEFAULT_MODEL_ID,
         outputFormat: DEFAULT_OUTPUT_FORMAT,
+        ...(spoken?.languageCode ? { languageCode: spoken.languageCode } : {}),
         ...(voiceSettings ? { voiceSettings } : {}),
       },
     );

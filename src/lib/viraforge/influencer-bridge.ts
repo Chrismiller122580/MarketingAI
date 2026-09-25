@@ -80,5 +80,6 @@ export async function loadInfluencerGenerateContext(
     handle: persona.data.handle,
     personalization: personalization || undefined,
     worldLife,
+    language: world.language,
   };
 }

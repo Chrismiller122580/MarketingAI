@@ -10,6 +10,7 @@ import {
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
 import { hasLockedProductFacts } from "@/lib/schemas/product-facts-schema";
+import { avatarLanguageLabel, normalizeAvatarLanguage } from "./avatar-language";
 
 export type InfluencerScriptScene =
   | "intro"
@@ -43,6 +44,7 @@ export async function generateInfluencerScript(input: {
   personalization?: string;
   maxWords?: number;
   worldLife?: string;
+  language?: string;
 }): Promise<{
   script: string;
   validation: { valid: boolean; violations: string[] };
@@ -66,6 +68,12 @@ export async function generateInfluencerScript(input: {
     ? "ONLY mention verified product facts below. Never invent specs, prices, benefits, or health claims."
     : "No product facts are locked. Do not invent prices, specs, ingredients, or health claims. Keep the copy general.";
 
+  const language = normalizeAvatarLanguage(input.language ?? "en");
+  const languageRule =
+    language === "en"
+      ? ""
+      : `- Write the entire script in ${avatarLanguageLabel(language)}. Keep personal names and product names as they are.`;
+
   const systemPrompt = `You write short spoken scripts for ${input.persona.displayName} (@${input.persona.handle}).
 Voice: ${input.persona.personalityVoice}
 Sample tone: "${input.persona.sampleQuote}"
@@ -74,6 +82,7 @@ STRICT RULES:
 - ${factRule}
 - Write for the mouth — natural speech, ${wordRule}.
 - Return ONLY the script text. No quotes, labels, or stage directions.
+${languageRule}
 ${input.worldLife ? `\n${input.worldLife}` : ""}
 ${input.personalization ? `\n${input.personalization}` : ""}`;
 

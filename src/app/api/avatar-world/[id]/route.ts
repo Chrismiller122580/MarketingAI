@@ -33,6 +33,7 @@ const patchSchema = z.object({
   mood: z.string().max(40).optional(),
   moodNote: z.string().max(200).optional(),
   catchphrase: z.string().max(200).optional(),
+  language: z.string().max(12).optional(),
   isPublic: z.boolean().optional(),
 });
 

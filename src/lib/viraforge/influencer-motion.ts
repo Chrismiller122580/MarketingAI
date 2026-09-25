@@ -102,6 +102,7 @@ export async function startInfluencerMotion(
   script?: string,
   voiceId?: string,
   preparedTalk?: PreparedTalkAudio,
+  languageCode?: string,
 ): Promise<MotionStartResult> {
   let imageUrl: string;
   try {
@@ -126,7 +127,11 @@ export async function startInfluencerMotion(
         usedVoiceId = preparedTalk.voiceId;
         audioDurationSec = durationFromAudioDataUrl(preparedTalk.audioDataUrl);
       } else if (script?.trim()) {
-        const speech = await synthesizeSpeech(script.trim(), { voiceId, purpose: "talk" });
+        const speech = await synthesizeSpeech(script.trim(), {
+          voiceId,
+          purpose: "talk",
+          languageCode,
+        });
         audioDataUrl = speech.audioDataUrl;
         usedVoiceId = speech.voiceId;
         audioDurationSec = speech.durationSec;

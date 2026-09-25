@@ -14,7 +14,11 @@ export function getElevenLabsVoiceId(): string {
 
 export async function synthesizeSpeech(
   script: string,
-  options?: { voiceId?: string; purpose?: "talk" | "default" },
+  options?: {
+    voiceId?: string;
+    purpose?: "talk" | "default";
+    languageCode?: string;
+  },
 ): Promise<{
   audioDataUrl: string;
   voiceId: string;
@@ -29,6 +33,7 @@ export async function synthesizeSpeech(
   const result = await synthesizeSpeechDataUrl(script.trim(), {
     voiceId: options?.voiceId,
     purpose: options?.purpose ?? "talk",
+    languageCode: options?.languageCode,
   });
 
   if (!result) {

@@ -57,6 +57,8 @@ async function resolveTalkScript(input: {
       siteDomain: input.siteDomain,
       draftText: input.draftText,
       personalization: input.influencer.personalization,
+      worldLife: input.influencer.worldLife,
+      language: input.influencer.language,
     });
     return { script: scriptResult.script };
   } catch (error) {
@@ -156,6 +158,8 @@ export async function startContentStudioMotionClip(input: {
     spoken
       ? resolveMotionVoiceId(input.influencer.assets.voiceId)
       : undefined,
+    undefined,
+    spoken ? input.influencer.language : undefined,
   );
 
   if ("error" in started) {
@@ -173,6 +177,7 @@ export async function startContentStudioMotionClip(input: {
         const speech = await synthesizeSpeech(script, {
           voiceId: resolveMotionVoiceId(input.influencer.assets.voiceId),
           purpose: "talk",
+          languageCode: input.influencer.language,
         });
       const voiceBytes = Buffer.from(
         speech.audioDataUrl.replace(/^data:[^;]+;base64,/, ""),

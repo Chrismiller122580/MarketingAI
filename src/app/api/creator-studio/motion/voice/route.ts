@@ -18,6 +18,7 @@ import {
   analyzeTalkScript,
   hashTalkScript,
 } from "@/lib/viraforge/talk-settings";
+import { worldFromMemory } from "@/lib/viraforge/avatar-world";
 import { getAudioDurationSec } from "@/lib/viraforge/talk-video-mux";
 
 const voiceSchema = z.object({
@@ -99,9 +100,11 @@ export async function POST(request: Request) {
 
     const assets = (influencer.assets ?? {}) as { voiceId?: string };
     const voiceId = assets.voiceId;
+    const languageCode = worldFromMemory(influencer.memory).language;
     const speech = await synthesizeSpeechWithMeta(script.trim(), {
       voiceId,
       purpose: "talk",
+      languageCode,
     });
     if (!speech) {
       return NextResponse.json(

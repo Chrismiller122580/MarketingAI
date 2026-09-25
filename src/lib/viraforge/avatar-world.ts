@@ -21,6 +21,7 @@ import {
   type InfluencerRenderRecord,
 } from "./influencer-renders";
 import { mergeInfluencerMemory, type InfluencerMemory } from "./learning";
+import { normalizeAvatarLanguage } from "./avatar-language";
 import { loadWorldEconomy, streetForOccupation, type WorldEconomySnapshot, type WorldPlaceKind } from "./world-economy";
 
 export const WORLD_EVENT_TYPES = [
@@ -97,6 +98,8 @@ export type AvatarWorldProfile = {
   mood: string;
   moodNote: string;
   catchphrase: string;
+  /** ISO 639-1 code used for talk scripts and voice. */
+  language: string;
   isPublic: boolean;
   relationships: AvatarRelationship[];
   learnedNotes: string[];
@@ -221,6 +224,7 @@ export const defaultWorldProfile: AvatarWorldProfile = {
   mood: "inspired",
   moodNote: "",
   catchphrase: "",
+  language: "en",
   isPublic: false,
   relationships: [],
   learnedNotes: [],
@@ -252,6 +256,7 @@ export function parseWorldProfile(input: unknown): AvatarWorldProfile {
     mood: typeof raw.mood === "string" && raw.mood.trim() ? raw.mood : "inspired",
     moodNote: typeof raw.moodNote === "string" ? raw.moodNote : "",
     catchphrase: typeof raw.catchphrase === "string" ? raw.catchphrase : "",
+    language: normalizeAvatarLanguage(raw.language),
     isPublic: raw.isPublic === true,
     relationships: Array.isArray(raw.relationships)
       ? raw.relationships

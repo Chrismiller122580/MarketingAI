@@ -28,6 +28,12 @@ import {
   type CrawlConcept,
 } from "@/lib/viraforge/crawl-words";
 import type { SiteData } from "@/lib/types";
+import {
+  AVATAR_LANGUAGES,
+  avatarLanguageLabel,
+  suggestLanguageFromPlace,
+  suggestLanguageFromSite,
+} from "@/lib/viraforge/avatar-language";
 
 type Detail = {
   id: string;
@@ -167,6 +173,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [clipStatus, setClipStatus] = useState("");
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const [voiceInClip, setVoiceInClip] = useState(false);
+  const [rewriteBusy, setRewriteBusy] = useState(false);
   const [voicePreview, setVoicePreview] = useState<{
     renderId: string;
     scriptHash: string;
@@ -259,6 +266,51 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
     setVoiceInClip(false);
     setClipUrl(null);
     if (clipSource === "life") setClipSource("both");
+  }
+
+  async function setAvatarLanguage(code: string) {
+    if (!form) return;
+    patchForm({ language: code });
+    setVoicePreview(null);
+    setVoiceInClip(false);
+    try {
+      const res = await fetch(`/api/avatar-world/${influencerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: code }),
+      });
+      const json = (await res.json()) as { world?: WorldProfile; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Could not save language");
+      if (json.world) setForm(json.world);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save language");
+    }
+  }
+
+  async function writeInLanguage() {
+    const script = talkScript.trim();
+    if (!script || !form) return;
+    setRewriteBusy(true);
+    try {
+      const res = await fetch(`/api/avatar-world/${influencerId}/language`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script, language: form.language }),
+      });
+      const json = (await res.json()) as { script?: string; error?: string };
+      if (!res.ok || !json.script) {
+        throw new Error(json.error ?? "Could not rewrite the line");
+      }
+      setTalkScript(json.script);
+      setTalkTouched(true);
+      setVoicePreview(null);
+      setVoiceInClip(false);
+      setClipUrl(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not rewrite the line");
+    } finally {
+      setRewriteBusy(false);
+    }
   }
 
   const videos = useMemo(
@@ -569,6 +621,21 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
     { id: "together", label: "Together" },
   ];
 
+  const placeLanguage = suggestLanguageFromPlace(
+    [form.currentCity, form.hometown, detail.persona.location]
+      .filter(Boolean)
+      .join(" "),
+  );
+  const siteLanguage = crawl
+    ? suggestLanguageFromSite({
+        domain: crawl.domain,
+        text: [crawl.valueProposition, crawl.excerpt, crawl.line, crawl.tagline]
+          .filter(Boolean)
+          .join(" "),
+      })
+    : null;
+  const talkLanguage = form.language || "en";
+
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden">
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -685,6 +752,65 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
         <p className="mt-2 text-xs text-muted-foreground">
           {MOTION_ACTIONS.find((action) => action.type === motionType)?.description}
         </p>
+        <div className="mt-4">
+          <label className="block text-sm">
+            <span className="mb-1 block text-xs text-muted-foreground">
+              Talk language
+            </span>
+            <select
+              value={talkLanguage}
+              onChange={(e) => void setAvatarLanguage(e.target.value)}
+              className="w-full max-w-xs rounded-lg border border-border bg-background px-3 py-2"
+            >
+              {AVATAR_LANGUAGES.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {placeLanguage && placeLanguage !== talkLanguage && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void setAvatarLanguage(placeLanguage)}
+              >
+                Use location · {avatarLanguageLabel(placeLanguage)}
+              </Button>
+            )}
+            {siteLanguage && siteLanguage !== talkLanguage && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void setAvatarLanguage(siteLanguage)}
+              >
+                Use site · {avatarLanguageLabel(siteLanguage)}
+              </Button>
+            )}
+            {talkLanguage !== "en" && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={rewriteBusy || !talkScript.trim()}
+                onClick={() => void writeInLanguage()}
+              >
+                {rewriteBusy ? (
+                  <InlineLoading label="Writing…" />
+                ) : (
+                  `Write the line in ${avatarLanguageLabel(talkLanguage)}`
+                )}
+              </Button>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Set this before the voice. Hear voice and the clip both speak{" "}
+            {avatarLanguageLabel(talkLanguage)}.
+          </p>
+        </div>
         <div className="mt-4 flex flex-wrap gap-1.5">
           {(
             [
@@ -939,6 +1065,22 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
               onChange={(e) => patchForm({ currentCity: e.target.value })}
               className="w-full rounded-lg border border-border bg-background px-3 py-2"
             />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted-foreground">
+              Talk language
+            </span>
+            <select
+              value={form.language || "en"}
+              onChange={(e) => void setAvatarLanguage(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2"
+            >
+              {AVATAR_LANGUAGES.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="text-sm">
             <span className="mb-1 block text-xs text-muted-foreground">Mood</span>

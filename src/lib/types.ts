@@ -323,6 +323,8 @@ export type InfluencerGenerateContext = {
   personalization?: string;
   /** Lived life from Avatar World — voice texture, not product facts. */
   worldLife?: string;
+  /** Talk language (ISO 639-1) saved on the avatar. */
+  language?: string;
 };
 
 export type CrawledCorpusPage = {

@@ -23,6 +23,7 @@ import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { prisma } from "@/lib/db";
+import { worldFromMemory } from "@/lib/viraforge/avatar-world";
 import { loadStoredMediaBytes } from "@/lib/media-url";
 import { hasReplicate } from "@/lib/replicate-client";
 import {
@@ -271,6 +272,7 @@ export async function POST(request: Request) {
     }
 
     const spoken = motionType === "talk" || motionType === "walk-talk";
+    const languageCode = worldFromMemory(influencer.memory).language;
     const started = await startInfluencerMotion(
       motionType as InfluencerMotionType,
       portrait,
@@ -278,6 +280,7 @@ export async function POST(request: Request) {
       spoken ? talkScript : undefined,
       spoken ? motionVoiceId : undefined,
       preparedTalk,
+      spoken ? languageCode : undefined,
     );
 
     if ("error" in started) {
