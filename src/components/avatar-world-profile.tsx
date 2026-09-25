@@ -22,6 +22,12 @@ import {
   MOTION_ACTIONS,
 } from "@/lib/viraforge/motion-actions";
 import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
+import {
+  generateCrawlWords,
+  speakCrawlWord,
+  type CrawlConcept,
+} from "@/lib/viraforge/crawl-words";
+import type { SiteData } from "@/lib/types";
 
 type Detail = {
   id: string;
@@ -112,16 +118,10 @@ function suggestQuickScript(detail: Detail): string {
 
 type ClipSource = "life" | "crawl" | "both";
 
-type CrawlBrief = {
-  domain: string;
-  name: string;
-  line: string;
-};
-
 function suggestFromSource(
   detail: Detail,
   source: ClipSource,
-  crawl: CrawlBrief | null,
+  crawl: CrawlConcept | null,
 ): string {
   const life = suggestQuickScript(detail);
   if (source === "life" || !crawl) return life;
@@ -160,7 +160,8 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [talkTouched, setTalkTouched] = useState(false);
   const [motionType, setMotionType] = useState<InfluencerMotionType>("walk-talk");
   const [clipSource, setClipSource] = useState<ClipSource>("both");
-  const [crawl, setCrawl] = useState<CrawlBrief | null>(null);
+  const [crawl, setCrawl] = useState<CrawlConcept | null>(null);
+  const [wordSeed, setWordSeed] = useState(0);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [clipBusy, setClipBusy] = useState(false);
   const [clipStatus, setClipStatus] = useState("");
@@ -204,19 +205,31 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   useEffect(() => {
     void fetch("/api/db/site")
       .then((res) => res.json())
-      .then((json: { site?: { domain?: string; brand?: { name?: string; tagline?: string; businessModel?: { valueProposition?: string } }; pages?: { title?: string; description?: string }[] } | null }) => {
+      .then((json: { site?: SiteData | null }) => {
         const site = json.site;
         if (!site?.domain) return;
+        const brand = site.brand;
+        const page = site.pages?.[0];
         const line =
-          site.brand?.businessModel?.valueProposition ||
-          site.brand?.tagline ||
-          site.pages?.[0]?.description ||
-          site.pages?.[0]?.title ||
+          brand?.businessModel?.valueProposition ||
+          brand?.tagline ||
+          page?.description ||
+          page?.title ||
           "";
         setCrawl({
           domain: site.domain,
-          name: site.brand?.name?.trim() || site.domain,
+          name: brand?.name?.trim() || site.domain,
           line: line.replace(/\s+/g, " ").trim(),
+          tagline: brand?.tagline?.trim() ?? "",
+          valueProposition: brand?.businessModel?.valueProposition?.trim() ?? "",
+          keywords: brand?.keywords ?? [],
+          topics: brand?.topics ?? [],
+          pillars: brand?.synthesis?.messagingPillars ?? [],
+          themes: brand?.synthesis?.contentThemes ?? [],
+          audience: brand?.synthesis?.audiencePersona ?? "",
+          avoid: brand?.synthesis?.doNotSay ?? [],
+          headings: page?.headings ?? [],
+          excerpt: page?.excerpt?.trim() || page?.description?.trim() || "",
         });
       })
       .catch(() => undefined);
@@ -226,6 +239,27 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
     if (!detail || talkTouched) return;
     setTalkScript(suggestFromSource(detail, clipSource, crawl));
   }, [detail, talkTouched, clipSource, crawl]);
+
+  const wordPack = useMemo(() => {
+    if (!crawl) return null;
+    const life =
+      clipSource === "both" && detail
+        ? {
+            city: detail.world.currentCity || detail.persona.location || "",
+            job: detail.world.occupation || "",
+          }
+        : undefined;
+    return generateCrawlWords(crawl, { seed: wordSeed, life });
+  }, [crawl, wordSeed, clipSource, detail]);
+
+  function useCrawlLine(line: string) {
+    setTalkScript(line);
+    setTalkTouched(true);
+    setVoicePreview(null);
+    setVoiceInClip(false);
+    setClipUrl(null);
+    if (clipSource === "life") setClipSource("both");
+  }
 
   const videos = useMemo(
     () =>
@@ -688,6 +722,70 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
           <p className="mt-2 text-xs text-muted-foreground">
             Using {crawl.name} ({crawl.domain}). Facts come from that crawl only.
           </p>
+        )}
+        {wordPack && (
+          <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Crawl words
+                </p>
+                <p className="mt-1 text-sm">{wordPack.concept}</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setWordSeed((seed) => seed + 1)}
+              >
+                New words
+              </Button>
+            </div>
+            {wordPack.words.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {wordPack.words.map((word) => (
+                  <button
+                    key={word}
+                    type="button"
+                    onClick={() =>
+                      useCrawlLine(
+                        speakCrawlWord(
+                          crawl!,
+                          word,
+                          clipSource === "both" && detail
+                            ? {
+                                city:
+                                  detail.world.currentCity ||
+                                  detail.persona.location,
+                                job: detail.world.occupation,
+                              }
+                            : undefined,
+                        ),
+                      )
+                    }
+                    className="rounded-full bg-background px-2.5 py-1 text-xs"
+                  >
+                    {word}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-3 space-y-1.5">
+              {wordPack.lines.map((line) => (
+                <button
+                  key={line}
+                  type="button"
+                  onClick={() => useCrawlLine(line)}
+                  className="block w-full rounded-lg bg-background px-3 py-2 text-left text-sm hover:bg-violet-50 dark:hover:bg-violet-950"
+                >
+                  {line}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              From the site's core concept. Tap a line to use it. Nothing is added that the crawl did not say.
+            </p>
+          </div>
         )}
         <textarea
           value={talkScript}
