@@ -24,6 +24,9 @@ import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { prisma } from "@/lib/db";
 import { worldFromMemory } from "@/lib/viraforge/avatar-world";
+
+export const maxDuration = 120;
+export const runtime = "nodejs";
 import { loadStoredMediaBytes } from "@/lib/media-url";
 import { hasReplicate } from "@/lib/replicate-client";
 import {
@@ -355,6 +358,9 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Motion generation failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const friendly = /unexpected token|not valid json/i.test(message)
+      ? "The video service sent a bad response. Try again."
+      : message;
+    return NextResponse.json({ error: friendly }, { status: 500 });
   }
 }

@@ -26,6 +26,9 @@ const voiceSchema = z.object({
   script: z.string().min(1).max(500),
 });
 
+export const maxDuration = 60;
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   const authResult = await requirePaidUserId();
   if (isAuthError(authResult)) return authResult;

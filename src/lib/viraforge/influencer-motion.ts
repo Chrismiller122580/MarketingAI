@@ -24,7 +24,7 @@ const KLING_MODELS = [
 ] as const;
 
 function klingRetired(error: string): boolean {
-  return /discontinued|no longer available|not found|404|unavailable|1203/i.test(
+  return /discontinued|no longer available|not found|404|unavailable|1203|unexpected token|not valid json|error page|timed out|bad gateway/i.test(
     error,
   );
 }

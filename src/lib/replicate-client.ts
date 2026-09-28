@@ -5,12 +5,6 @@ type ReplicatePrediction = {
   error?: string | null;
 };
 
-type ReplicateModel = {
-  latest_version?: { id?: string };
-  detail?: string;
-};
-
-/** Pinned fallbacks when model metadata lookup fails. */
 const PINNED_VERSIONS: Record<string, string> = {
   "cjwbw/sadtalker":
     "3aa3dac9353cc4d6bd62a8f95957bd844003b401ca4e4a9b33baa574c549d376",
@@ -29,6 +23,47 @@ function modelEnvVersion(model: string): string | undefined {
   return process.env[`REPLICATE_${slug}_VERSION`]?.trim();
 }
 
+async function readReplicateJson(
+  response: Response,
+): Promise<Record<string, unknown>> {
+  const raw = await response.text();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return { detail: response.ok ? "" : raw.replace(/\s+/g, " ").slice(0, 180) };
+  }
+}
+
+function replicateMessage(
+  response: Response,
+  data: Record<string, unknown>,
+): string {
+  const detail = data.detail ?? data.title ?? data.error;
+  if (typeof detail === "string" && detail.trim()) {
+    if (detail.trim().startsWith("<")) {
+      return `Video service returned an error page (${response.status}). Try again.`;
+    }
+    return detail.trim().slice(0, 280);
+  }
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "msg" in item) {
+          return String((item as { msg?: unknown }).msg ?? "");
+        }
+        return "";
+      })
+      .filter(Boolean);
+    if (parts.length > 0) return parts.join("; ").slice(0, 280);
+  }
+  return `Video service error (${response.status}). Try again.`;
+}
+
 async function resolveModelVersion(model: string): Promise<string | null> {
   const pinned = modelEnvVersion(model) ?? PINNED_VERSIONS[model];
   if (pinned) return pinned;
@@ -40,9 +75,13 @@ async function resolveModelVersion(model: string): Promise<string | null> {
     const response = await fetch(`https://api.replicate.com/v1/models/${model}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const data = (await response.json()) as ReplicateModel;
+    const data = await readReplicateJson(response);
     if (!response.ok) return null;
-    return data.latest_version?.id ?? null;
+    return typeof data.latest_version === "object" &&
+      data.latest_version &&
+      typeof (data.latest_version as { id?: unknown }).id === "string"
+      ? (data.latest_version as { id: string }).id
+      : null;
   } catch {
     return null;
   }
@@ -66,23 +105,15 @@ async function createVersionedPrediction(
     body: JSON.stringify({ version, input }),
   });
 
-  const data = (await response.json()) as ReplicatePrediction & {
-    detail?: string;
-    title?: string;
-  };
+  const data = await readReplicateJson(response);
 
   if (!response.ok) {
-    return {
-      error:
-        data.detail ??
-        data.title ??
-        data.error ??
-        `Replicate error (${response.status})`,
-    };
+    return { error: replicateMessage(response, data) };
   }
 
-  if (!data.id) return { error: "Replicate did not return a prediction id" };
-  return { predictionId: data.id };
+  const predictionId = typeof data.id === "string" ? data.id : "";
+  if (!predictionId) return { error: "Replicate did not return a prediction id" };
+  return { predictionId };
 }
 
 async function createModelEndpointPrediction(
@@ -106,23 +137,15 @@ async function createModelEndpointPrediction(
     },
   );
 
-  const data = (await response.json()) as ReplicatePrediction & {
-    detail?: string;
-    title?: string;
-  };
+  const data = await readReplicateJson(response);
 
   if (!response.ok) {
-    return {
-      error:
-        data.detail ??
-        data.title ??
-        data.error ??
-        `Replicate error (${response.status})`,
-    };
+    return { error: replicateMessage(response, data) };
   }
 
-  if (!data.id) return { error: "Replicate did not return a prediction id" };
-  return { predictionId: data.id };
+  const predictionId = typeof data.id === "string" ? data.id : "";
+  if (!predictionId) return { error: "Replicate did not return a prediction id" };
+  return { predictionId };
 }
 
 export async function createModelPrediction(
@@ -160,7 +183,7 @@ export async function getPredictionStatus(predictionId: string): Promise<{
     );
 
     if (!response.ok) return null;
-    const data = (await response.json()) as ReplicatePrediction;
+    const data = (await readReplicateJson(response)) as ReplicatePrediction;
 
     if (data.status === "succeeded") {
       const url = extractOutputUrl(data.output);
@@ -169,9 +192,13 @@ export async function getPredictionStatus(predictionId: string): Promise<{
     }
 
     if (data.status === "failed" || data.status === "canceled") {
+      const message =
+        typeof data.error === "string" && data.error.trim()
+          ? data.error.trim()
+          : "Prediction failed";
       return {
         status: "failed",
-        error: data.error ?? "Prediction failed",
+        error: message,
       };
     }
 
@@ -226,8 +253,9 @@ export async function uploadBytesToReplicate(
     throw new Error(`Replicate file upload failed: ${detail.slice(0, 200)}`);
   }
 
-  const data = (await response.json()) as { urls?: { get?: string } };
-  const url = data.urls?.get;
+  const data = await readReplicateJson(response);
+  const urls = data.urls as { get?: string } | undefined;
+  const url = urls?.get;
   if (!url) throw new Error("Replicate file upload returned no URL");
   return url;
 }

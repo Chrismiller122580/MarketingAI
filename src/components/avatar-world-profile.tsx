@@ -109,6 +109,24 @@ function ChipInput({
   );
 }
 
+async function readClipJson<T extends { error?: string }>(
+  res: Response,
+): Promise<T> {
+  const text = await res.text();
+  if (!text.trim()) {
+    throw new Error("The video service did not answer. Try again.");
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(
+      res.status === 504 || res.status === 502
+        ? "The video service timed out. Try again."
+        : "The video service sent a bad response. Try again.",
+    );
+  }
+}
+
 function clipToTalkLength(text: string): string {
   return text.trim().split(/\s+/).filter(Boolean).slice(0, 24).join(" ");
 }
@@ -488,12 +506,12 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ influencerId, script }),
       });
-      const json = (await res.json()) as {
+      const json = await readClipJson<{
         error?: string;
         audioUrl?: string;
         scriptHash?: string;
         renderId?: string;
-      };
+      }>(res);
       if (!res.ok) throw new Error(json.error ?? "Voice preview failed");
       if (!json.audioUrl || !json.scriptHash || !json.renderId) {
         throw new Error("Voice preview came back incomplete");
@@ -544,7 +562,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
             : {}),
         }),
       });
-      const json = (await res.json()) as { error?: string; jobId?: string };
+      const json = await readClipJson<{ error?: string; jobId?: string }>(res);
       if (!res.ok || !json.jobId) {
         throw new Error(json.error ?? "Could not start the clip");
       }
@@ -555,13 +573,13 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
         const statusRes = await fetch(
           `/api/creator-studio/motion/status/${json.jobId}`,
         );
-        const status = (await statusRes.json()) as {
+        const status = await readClipJson<{
           status?: string;
           stage?: string;
           videoUrl?: string;
           audioEmbeddedInVideo?: boolean;
           error?: string;
-        };
+        }>(statusRes);
         if (!statusRes.ok) {
           throw new Error(status.error ?? "Could not check the clip");
         }
