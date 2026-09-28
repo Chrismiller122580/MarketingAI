@@ -31,6 +31,7 @@ import type { SiteData } from "@/lib/types";
 import {
   AVATAR_LANGUAGES,
   avatarLanguageLabel,
+  dominantLanguage,
   suggestLanguageFromPlace,
   suggestLanguageFromSite,
 } from "@/lib/viraforge/avatar-language";
@@ -131,16 +132,24 @@ function suggestFromSource(
 ): string {
   const life = suggestQuickScript(detail);
   if (source === "life" || !crawl) return life;
-  const hook = crawl.line.split(/[.!?]/)[0]?.trim() || crawl.name;
+  const talk = detail.world.language || "en";
+  const sentences = [crawl.line, crawl.tagline, crawl.valueProposition, crawl.excerpt]
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const inTalk = sentences.find((item) => dominantLanguage(item) === talk);
+  const foreign = sentences.find((item) => dominantLanguage(item) !== "en");
+  const english = sentences.find((item) => dominantLanguage(item) === "en");
+  const match = inTalk || foreign || english || crawl.name;
+  if (talk !== "en" || dominantLanguage(match) !== "en") {
+    return clipToTalkLength(match);
+  }
   if (source === "crawl") {
-    return clipToTalkLength(
-      `I keep coming back to ${crawl.name}. ${hook}. It is part of how I spend the day.`,
-    );
+    return clipToTalkLength(`${crawl.name}. ${match}`);
   }
   const city = detail.world.currentCity || detail.persona.location || "town";
   const job = detail.world.occupation || "work";
   return clipToTalkLength(
-    `After ${job} in ${city}, I still talk about ${crawl.name}. ${hook}.`,
+    `After ${job} in ${city}, I still talk about ${crawl.name}. ${match}.`,
   );
 }
 
@@ -244,8 +253,11 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
 
   useEffect(() => {
     if (!detail || talkTouched) return;
-    setTalkScript(suggestFromSource(detail, clipSource, crawl));
-  }, [detail, talkTouched, clipSource, crawl]);
+    const spoken = form?.language
+      ? { ...detail, world: { ...detail.world, language: form.language } }
+      : detail;
+    setTalkScript(suggestFromSource(spoken, clipSource, crawl));
+  }, [detail, talkTouched, clipSource, crawl, form?.language]);
 
   const wordPack = useMemo(() => {
     if (!crawl) return null;
@@ -284,6 +296,47 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
       if (json.world) setForm(json.world);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save language");
+    }
+  }
+
+  async function regenerateLine() {
+    const script = talkScript.trim();
+    if (!script || !form || !detail) return;
+    setRewriteBusy(true);
+    const facts = [
+      crawl ? `${crawl.name}. ${crawl.line || crawl.tagline || crawl.valueProposition}` : "",
+      clipSource !== "crawl"
+        ? `${detail.world.occupation} in ${detail.world.currentCity || detail.persona.location}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    try {
+      const res = await fetch(`/api/avatar-world/${influencerId}/language`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script,
+          language: form.language,
+          mode: "regenerate",
+          context: facts,
+        }),
+      });
+      const json = (await res.json()) as { script?: string; error?: string };
+      if (!res.ok || !json.script) {
+        throw new Error(json.error ?? "Could not regenerate the line");
+      }
+      setTalkScript(json.script);
+      setTalkTouched(true);
+      setVoicePreview(null);
+      setVoiceInClip(false);
+      setClipUrl(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not regenerate the line",
+      );
+    } finally {
+      setRewriteBusy(false);
     }
   }
 
@@ -922,9 +975,24 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
             setVoiceInClip(false);
           }}
           maxLength={500}
-          placeholder="A line they would actually say."
+          placeholder="A line they would actually say, in one language."
           className="mt-4 min-h-20 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
         />
+        <div className="mt-2 flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={rewriteBusy || clipBusy || !talkScript.trim()}
+            onClick={() => void regenerateLine()}
+          >
+            {rewriteBusy ? (
+              <InlineLoading label="Writing…" />
+            ) : (
+              "Regenerate with AI"
+            )}
+          </Button>
+        </div>
         {!detail.assets.portraitUrl && (
           <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
             Give them a face before the clip can move.

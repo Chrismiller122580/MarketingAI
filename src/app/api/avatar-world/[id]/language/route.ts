@@ -4,6 +4,7 @@ import { chatCompletion } from "@/lib/ai-client";
 import { isAuthError, requireAvatarWorldAdmin } from "@/lib/auth-helpers";
 import {
   avatarLanguageLabel,
+  dominantLanguage,
   normalizeAvatarLanguage,
 } from "@/lib/viraforge/avatar-language";
 import {
@@ -17,6 +18,8 @@ type RouteContext = { params: Promise<{ id: string }> };
 const bodySchema = z.object({
   script: z.string().min(1).max(500),
   language: z.string().max(12).optional(),
+  mode: z.enum(["translate", "regenerate"]).optional(),
+  context: z.string().max(800).optional(),
 });
 
 export async function POST(request: Request, context: RouteContext) {
@@ -45,21 +48,30 @@ export async function POST(request: Request, context: RouteContext) {
     await patchWorldProfile(authResult, id, { language });
   }
 
-  if (language === "en") {
-    return NextResponse.json({
-      script: parsed.data.script.trim(),
-      language,
-    });
+  const label = avatarLanguageLabel(language);
+  const draft = parsed.data.script.trim();
+  const mixed =
+    dominantLanguage(draft) !== language &&
+    /\b(the|and|for|with|keep|coming|part|how|after|still)\b/i.test(draft) &&
+    dominantLanguage(draft) !== "en";
+  if (language === "en" && parsed.data.mode !== "regenerate" && !mixed) {
+    return NextResponse.json({ script: draft, language });
   }
 
-  const label = avatarLanguageLabel(language);
   const raw = await chatCompletion(
-    `You rewrite a short spoken line into ${label}.
+    parsed.data.mode === "regenerate"
+      ? `Write one spoken video line entirely in ${label}.
+Every word must be ${label}, except personal names, place names, and brand names.
+Do not mix languages. Do not add facts, prices, or claims that are not in the facts.
+16 to 24 words. Return only the line.`
+      : `You rewrite a short spoken line into ${label}.
 Keep personal names, place names, and product names unchanged.
-Do not add facts, prices, or claims that were not in the original.
+Do not mix languages. Do not add facts, prices, or claims that were not in the original.
 Stay within 24 words. Return only the rewritten line.`,
-    parsed.data.script.trim(),
-    { maxTokens: 160, temperature: 0.3 },
+    parsed.data.mode === "regenerate"
+      ? `Facts:\n${parsed.data.context?.trim() || draft}\n\nReplace this draft:\n${draft}`
+      : draft,
+    { maxTokens: 160, temperature: parsed.data.mode === "regenerate" ? 0.5 : 0.3 },
   );
 
   const script = raw?.trim().replace(/^["']|["']$/g, "");

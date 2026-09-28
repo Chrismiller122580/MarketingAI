@@ -1,3 +1,5 @@
+import { dominantLanguage } from "./avatar-language";
+
 export type CrawlConcept = {
   domain: string;
   name: string;
@@ -78,7 +80,10 @@ export function coreConcept(crawl: CrawlConcept): string {
     return asSentence(tagline);
   }
   const pillar = phrase(crawl.pillars[0] ?? "", 12);
-  if (pillar) return asSentence(`${name} comes down to ${pillar}`);
+  if (pillar) {
+    if (dominantLanguage(pillar) !== "en") return asSentence(pillar);
+    return asSentence(`${name} comes down to ${pillar}`);
+  }
   const excerpt = phrase(crawl.excerpt || crawl.line, 16);
   if (excerpt) return asSentence(excerpt);
   return asSentence(name);
@@ -114,6 +119,7 @@ export function speakCrawlWord(
 ): string {
   const name = clean(crawl.name) || crawl.domain;
   const bit = phrase(word, 6);
+  if (dominantLanguage(bit) !== "en") return clipWords(asSentence(bit));
   const city = clean(life?.city);
   const job = clean(life?.job);
   if (city && job) {
@@ -139,17 +145,33 @@ export function generateCrawlWords(
   const city = clean(options?.life?.city);
   const job = clean(options?.life?.job);
   const audience = phrase(crawl.audience, 10);
+  const nativeBits = unique(
+    [crawl.line, crawl.tagline, crawl.valueProposition, crawl.excerpt, lead, next]
+      .filter((item) => item && dominantLanguage(item) !== "en")
+      .map((item) => clipWords(asSentence(item)))
+      .filter((item) => item && !blocked(item, crawl.avoid)),
+  );
+
+  const english = (fragment: string, line: string) =>
+    fragment && dominantLanguage(fragment) === "en" ? line : "";
 
   const drafts = [
-    `${name}. ${concept}`,
-    `The core of ${name} is ${lead}. That is the part worth saying out loud.`,
-    next === lead
-      ? `What ${name} is for, in one breath: ${lead}.`
-      : `If ${next} matters, that is what ${name} is built around.`,
-    audience ? `${name} is for ${audience}.` : "",
-    city && job
+    dominantLanguage(concept) === "en" ? `${name}. ${concept}` : "",
+    english(
+      lead,
+      `The core of ${name} is ${lead}. That is the part worth saying out loud.`,
+    ),
+    english(
+      next,
+      next === lead
+        ? `What ${name} is for, in one breath: ${lead}.`
+        : `If ${next} matters, that is what ${name} is built around.`,
+    ),
+    english(audience, `${name} is for ${audience}.`),
+    city && job && dominantLanguage(lead) === "en"
       ? `After ${job} in ${city}, I still come back to ${name} for ${lead}.`
       : "",
+    ...nativeBits,
   ];
 
   const lines = unique(

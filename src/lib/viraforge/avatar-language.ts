@@ -113,6 +113,19 @@ export function suggestLanguageFromPlace(place: string): string | null {
   return null;
 }
 
+/** Best-effort language of a short crawled phrase. English if nothing else matches. */
+export function dominantLanguage(text: string): string {
+  const sample = text.toLowerCase();
+  if (/\b(ang|mga|nang|ito|iyan)\b/.test(sample)) return "tl";
+  if (/\b(não|nao|você|voce|obrigado)\b/.test(sample)) return "pt";
+  if (/\b(und|nicht|eine|der|die|das)\b/.test(sample)) return "de";
+  if (/\b(une|pour|dans|avec|les|des|est)\b/.test(sample)) return "fr";
+  if (/\b(el|la|los|las|que|para|con|una|del|necesitas|confianza)\b/.test(sample)) {
+    return "es";
+  }
+  return "en";
+}
+
 export function suggestLanguageFromSite(input: {
   domain?: string;
   text?: string;
