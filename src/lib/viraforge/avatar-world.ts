@@ -817,8 +817,10 @@ export function postToWorldCard(
     text: post.text,
     platform: post.platform,
     insights: post.insights,
-    videoUrl: image.videoUrl,
-    imageUrl: image.url,
+    videoUrl: image.videoUrl
+      ? resolveDisplayMediaUrl(image.videoUrl)
+      : undefined,
+    imageUrl: image.url ? resolveDisplayMediaUrl(image.url) : undefined,
     createdAt: post.createdAt.toISOString(),
     parentPostId: thread.parentPostId,
     rootPostId: thread.rootPostId,

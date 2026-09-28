@@ -183,6 +183,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const [voiceInClip, setVoiceInClip] = useState(false);
   const [rewriteBusy, setRewriteBusy] = useState(false);
+  const [backdropFailed, setBackdropFailed] = useState(false);
   const [voicePreview, setVoicePreview] = useState<{
     renderId: string;
     scriptHash: string;
@@ -689,77 +690,38 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
     : null;
   const talkLanguage = form.language || "en";
   const portrait = detail.assets.portraitUrl;
-  const postStill = detail.posts.find(
-    (post) => post.imageUrl && post.imageUrl !== portrait,
-  )?.imageUrl;
-  const postClip = detail.posts.find((post) => post.videoUrl)?.videoUrl;
-  const motionClip = detail.renders.find(
-    (row) =>
-      (row.type === "motion" || row.type === "merged") &&
-      row.status === "ready" &&
-      row.url,
-  )?.url;
+  const postStill = detail.posts.find((post) => post.imageUrl)?.imageUrl;
   const contentStill = detail.renders.find(
     (row) => row.type === "site_content" && row.status === "ready" && row.url,
   )?.url;
-  const backdrop = postStill
-    ? { kind: "image" as const, url: postStill }
-    : postClip
-      ? { kind: "video" as const, url: postClip }
-      : motionClip
-        ? { kind: "video" as const, url: motionClip }
-        : contentStill
-          ? { kind: "image" as const, url: contentStill }
-          : detail.posts.find((post) => post.imageUrl)?.imageUrl
-            ? {
-                kind: "image" as const,
-                url: detail.posts.find((post) => post.imageUrl)!.imageUrl!,
-              }
-            : null;
+  const scene = backdropFailed ? portrait : postStill || contentStill || portrait;
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden">
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="relative h-44 bg-muted sm:h-52">
-          {backdrop?.kind === "video" ? (
-            <video
-              src={backdrop.url}
-              muted
-              playsInline
-              autoPlay
-              loop
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : backdrop?.kind === "image" ? (
+        <div className="relative h-48 bg-muted sm:h-56">
+          {scene ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={backdrop.url}
+              src={scene}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              onError={() => setBackdropFailed(true)}
+              className="absolute inset-0 h-full w-full object-cover object-top"
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-r from-violet-700 via-fuchsia-600 to-amber-500" />
           )}
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
         </div>
         <div className="px-4 pb-4">
           <div className="flex items-end gap-3">
-            <div className="-mt-10 h-20 w-16 shrink-0 overflow-hidden rounded-2xl border-4 border-card bg-muted shadow-md">
-              {detail.assets.videoUrl ? (
-                <video
-                  src={detail.assets.videoUrl}
-                  muted
-                  playsInline
-                  autoPlay
-                  loop
-                  className="h-full w-full object-cover object-top"
-                />
-              ) : portrait ? (
+            <div className="-mt-8 h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-card bg-muted shadow-md">
+              {portrait ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={portrait}
                   alt={detail.displayName}
-                  className="h-full w-full object-cover object-top"
+                  className="h-full w-full object-contain object-top"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-violet-600">
