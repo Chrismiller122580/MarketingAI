@@ -716,12 +716,12 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
         <div className="px-4 pb-4">
           <div className="flex items-end gap-3">
             <div className="-mt-8 h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-card bg-muted shadow-md">
-              {portrait ? (
+              {scene || portrait ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={portrait}
+                  src={scene || portrait}
                   alt={detail.displayName}
-                  className="h-full w-full object-contain object-top"
+                  className="h-full w-full object-cover object-center"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-violet-600">
