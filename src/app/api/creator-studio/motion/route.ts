@@ -24,15 +24,15 @@ import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { prisma } from "@/lib/db";
 import { worldFromMemory } from "@/lib/viraforge/avatar-world";
-
-export const maxDuration = 120;
-export const runtime = "nodejs";
 import { loadStoredMediaBytes } from "@/lib/media-url";
 import { hasReplicate } from "@/lib/replicate-client";
 import {
   analyzeTalkScript,
   hashTalkScript,
 } from "@/lib/viraforge/talk-settings";
+
+export const maxDuration = 120;
+export const runtime = "nodejs";
 
 const motionSchema = z.object({
   influencerId: z.string().min(1),
