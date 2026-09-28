@@ -24,7 +24,12 @@ export function PlanBadge({ compact = false }: { compact?: boolean }) {
         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider transition group-hover:opacity-80 ${style}`}
         title="Manage billing"
       >
-        {plan === "enterprise_plus" ? "Enterprise Plus" : plan}
+        <span className="sm:hidden">
+          {plan === "enterprise_plus" ? "Plus" : plan === "enterprise" ? "Ent" : plan}
+        </span>
+        <span className="hidden sm:inline">
+          {plan === "enterprise_plus" ? "Enterprise Plus" : plan}
+        </span>
         {!compact && (
           <span className="ml-1 hidden sm:inline text-[10px] opacity-70">plan</span>
         )}

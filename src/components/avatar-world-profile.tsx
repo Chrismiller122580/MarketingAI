@@ -688,52 +688,98 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
       })
     : null;
   const talkLanguage = form.language || "en";
+  const portrait = detail.assets.portraitUrl;
+  const postStill = detail.posts.find(
+    (post) => post.imageUrl && post.imageUrl !== portrait,
+  )?.imageUrl;
+  const postClip = detail.posts.find((post) => post.videoUrl)?.videoUrl;
+  const motionClip = detail.renders.find(
+    (row) =>
+      (row.type === "motion" || row.type === "merged") &&
+      row.status === "ready" &&
+      row.url,
+  )?.url;
+  const contentStill = detail.renders.find(
+    (row) => row.type === "site_content" && row.status === "ready" && row.url,
+  )?.url;
+  const backdrop = postStill
+    ? { kind: "image" as const, url: postStill }
+    : postClip
+      ? { kind: "video" as const, url: postClip }
+      : motionClip
+        ? { kind: "video" as const, url: motionClip }
+        : contentStill
+          ? { kind: "image" as const, url: contentStill }
+          : detail.posts.find((post) => post.imageUrl)?.imageUrl
+            ? {
+                kind: "image" as const,
+                url: detail.posts.find((post) => post.imageUrl)!.imageUrl!,
+              }
+            : null;
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden">
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="relative h-36 bg-gradient-to-r from-violet-600 via-fuchsia-500 to-amber-400">
-          {detail.assets.portraitUrl && (
+        <div className="relative h-44 bg-muted sm:h-52">
+          {backdrop?.kind === "video" ? (
+            <video
+              src={backdrop.url}
+              muted
+              playsInline
+              autoPlay
+              loop
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : backdrop?.kind === "image" ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={detail.assets.portraitUrl}
+              src={backdrop.url}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover object-top opacity-30"
+              className="absolute inset-0 h-full w-full object-cover"
             />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-700 via-fuchsia-600 to-amber-500" />
           )}
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
         </div>
-        <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end">
-          <div className="-mt-12 h-24 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-card bg-muted shadow-md">
-            {detail.assets.videoUrl ? (
-              <video
-                src={detail.assets.videoUrl}
-                muted
-                playsInline
-                autoPlay
-                loop
-                className="h-full w-full object-cover object-top"
-              />
-            ) : detail.assets.portraitUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={detail.assets.portraitUrl}
-                alt={detail.displayName}
-                className="h-full w-full object-cover object-top"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-violet-600">
-                {detail.displayName.slice(0, 1)}
-              </div>
-            )}
+        <div className="px-4 pb-4">
+          <div className="flex items-end gap-3">
+            <div className="-mt-10 h-20 w-16 shrink-0 overflow-hidden rounded-2xl border-4 border-card bg-muted shadow-md">
+              {detail.assets.videoUrl ? (
+                <video
+                  src={detail.assets.videoUrl}
+                  muted
+                  playsInline
+                  autoPlay
+                  loop
+                  className="h-full w-full object-cover object-top"
+                />
+              ) : portrait ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={portrait}
+                  alt={detail.displayName}
+                  className="h-full w-full object-cover object-top"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-violet-600">
+                  {detail.displayName.slice(0, 1)}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1 pb-0.5">
+              <h2 className="truncate text-xl font-semibold leading-tight">
+                {detail.displayName}
+              </h2>
+              <p className="truncate text-sm text-muted-foreground">
+                @{detail.handle} · {form.currentCity || detail.persona.location}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-xl font-semibold">{detail.displayName}</h2>
-            <p className="truncate text-sm text-muted-foreground">
-              @{detail.handle} · {form.currentCity || detail.persona.location}
-            </p>
-            <p className="mt-1 line-clamp-2 text-sm">{form.bio}</p>
-          </div>
-          <div className="flex min-w-0 flex-wrap gap-2">
+          {form.bio ? (
+            <p className="mt-3 line-clamp-2 text-sm leading-snug">{form.bio}</p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
               {form.mood}
             </span>
@@ -742,7 +788,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
                 Public profile
               </Link>
             </Button>
-            {!detail.assets.portraitUrl && (
+            {!portrait && (
               <Button
                 variant="outline"
                 size="sm"
