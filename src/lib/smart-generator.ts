@@ -7,7 +7,7 @@ import {
   type CampaignPlan,
 } from "./campaign-planner";
 import { rankPagesBySimilarity } from "./embeddings";
-import { generateAiImage } from "./ai-image";
+import { generateAiImage, generateAvatarGroupScene } from "./ai-image";
 import {
   buildBusinessInsights,
   suggestVisualTargeting,
@@ -31,7 +31,13 @@ import {
   hasActiveVisualTargeting,
 } from "./visual-targeting";
 import { generateInfluencerSiteContent } from "./viraforge/influencer-content";
-import { loadInfluencerGenerateContext } from "./viraforge/influencer-bridge";
+import {
+  listCampaignCast,
+  loadInfluencerGenerateContext,
+  type CampaignCastMember,
+} from "./viraforge/influencer-bridge";
+import { loadValidatedImageBytes } from "./media-url";
+import { SOCIAL_HANGOUTS } from "./viraforge/world-economy";
 import { calendarDatePlus } from "./week-pack";
 import {
   corpusSites,
@@ -970,6 +976,29 @@ export async function generateSmartPost(
   };
 }
 
+function pickAvatarGroup(
+  cast: CampaignCastMember[],
+  index: number,
+): CampaignCastMember[] {
+  if (cast.length === 0) return [];
+  const lead = cast[index % cast.length]!;
+  const group = [lead];
+  for (const friend of cast) {
+    if (group.length >= 3) break;
+    if (friend.id === lead.id) continue;
+    if (!lead.relationshipIds.includes(friend.id)) continue;
+    group.push(friend);
+  }
+  let cursor = (index + 1) % cast.length;
+  while (group.length < Math.min(3, cast.length)) {
+    const next = cast[cursor]!;
+    if (!group.some((member) => member.id === next.id)) group.push(next);
+    cursor = (cursor + 1) % cast.length;
+    if (cursor === index % cast.length) break;
+  }
+  return group;
+}
+
 export async function generateCampaignPack(
   request: BatchGenerateRequest,
 ): Promise<{ posts: SavedPost[]; plan: CampaignPlan }> {
@@ -998,7 +1027,10 @@ export async function generateCampaignPack(
   const varyAngles = request.varyAngles !== false;
 
   const items = plan.items.slice(0, maxPosts);
-  const CONCURRENCY = 3;
+  const CONCURRENCY = 2;
+  const cast = request.campaignUserId
+    ? await listCampaignCast(request.campaignUserId)
+    : [];
 
   async function generatePackItem(index: number) {
     const item = items[index];
@@ -1016,25 +1048,51 @@ export async function generateCampaignPack(
       : request.contentAngle ?? "auto";
 
     const avatarIds = request.campaignAvatarIds ?? [];
-    const avatarId = avatarIds.length
-      ? avatarIds[index % avatarIds.length]
-      : undefined;
-    const influencer =
-      avatarId && request.campaignUserId
-        ? await loadInfluencerGenerateContext(
-            request.campaignUserId,
-            avatarId,
-            itemSite,
-            page,
-            request.crawledCorpus?.sites,
+    const castForPost =
+      cast.length > 0
+        ? pickAvatarGroup(cast, index)
+        : avatarIds.slice(index, index + 1).map((id) => ({
+            id,
+            displayName: "",
+            relationshipIds: [],
+            location: "",
+          }));
+    const loaded = request.campaignUserId
+      ? (
+          await Promise.all(
+            castForPost.map((member) =>
+              loadInfluencerGenerateContext(
+                request.campaignUserId!,
+                member.id,
+                itemSite,
+                page,
+                request.crawledCorpus?.sites,
+              ),
+            ),
           )
-        : null;
+        ).filter((member): member is NonNullable<typeof member> => Boolean(member))
+      : [];
+    const influencer = loaded[0] ?? null;
+    const hangout = SOCIAL_HANGOUTS[index % SOCIAL_HANGOUTS.length]!;
+    const city =
+      influencer?.persona.location ||
+      castForPost[0]?.location ||
+      "town";
+    const names = loaded.map((member) => member.displayName).filter(Boolean);
+    const activity =
+      hangout.activities[index % hangout.activities.length] ?? hangout.scene;
+    const together =
+      names.length > 1
+        ? `You are with ${names.slice(1).join(" and ")} at ${hangout.name} in ${city}. ${hangout.scene} ${activity} Write as that moment in Avatar World, then connect it to this page. Mention who is there. Not a solo selfie.`
+        : names.length === 1
+          ? `You are at ${hangout.name} in ${city}. ${hangout.scene} ${activity} Write as that moment in Avatar World, then connect it to this page.`
+          : "";
 
     const post = await generateSmartPost({
       site: itemSite,
       contentType: planItemContentType(),
       platform: item.platform,
-      prompt: itemPrompt,
+      prompt: [itemPrompt, together].filter(Boolean).join(" "),
       sourcePageUrl: page.url,
       settings,
       preferAiImage: influencer
@@ -1052,16 +1110,54 @@ export async function generateCampaignPack(
       influencerVisualMode: "portrait",
     });
 
-    if (
-      influencer?.assets.videoUrl &&
-      influencer.assets.motionStatus === "ready"
-    ) {
-      post.image = {
-        ...post.image,
-        videoUrl: influencer.assets.videoUrl,
-        videoStatus: "ready",
-        motionType: influencer.assets.motionType,
-      };
+    if (loaded.length > 0) {
+      const people: { name: string; bytes: Buffer; mime: string }[] = [];
+      for (const member of loaded) {
+        if (!member.assets.portraitUrl) continue;
+        try {
+          const image = await loadValidatedImageBytes(
+            member.assets.portraitUrl,
+            member.displayName,
+          );
+          people.push({
+            name: member.displayName,
+            bytes: image.bytes,
+            mime: image.format.mime,
+          });
+        } catch {
+          /* skip a face we cannot load */
+        }
+      }
+      const scene = await generateAvatarGroupScene({
+        people,
+        placeName: hangout.name,
+        scene: hangout.scene,
+        activity,
+        city,
+        topic: page.title,
+      });
+      if (scene) {
+        let sceneUrl = scene;
+        if (scene.startsWith("data:") && process.env.BLOB_READ_WRITE_TOKEN) {
+          try {
+            const buffer = Buffer.from(scene.split(",")[1] || "", "base64");
+            sceneUrl = await uploadToBlob(
+              `ai-images/world-scene-${Date.now()}-${index}.png`,
+              buffer,
+              "image/png",
+            );
+          } catch {
+            sceneUrl = scene;
+          }
+        }
+        post.image = {
+          url: sceneUrl,
+          source: "influencer",
+          alt: `${names.join(", ")} at ${hangout.name}`,
+          originalUrl: sceneUrl,
+          aspectRatio: "16:9",
+        };
+      }
     }
 
     const scheduled = new Date();
@@ -1079,9 +1175,12 @@ export async function generateCampaignPack(
           : scheduled.toISOString().split("T")[0],
         insights: [
           `Campaign: ${plan.theme} (${plan.source === "ai" ? "AI-planned" : "smart calendar"}).`,
+          names.length > 0
+            ? `Avatar World: ${names.join(", ")} together at ${hangout.name}.`
+            : "",
           `Angle: ${item.angle} on ${item.platform}.`,
           ...post.insights,
-        ],
+        ].filter(Boolean),
       } as SavedPost,
       historyEntry: {
         text: post.text,

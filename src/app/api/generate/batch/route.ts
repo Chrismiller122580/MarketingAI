@@ -14,6 +14,8 @@ import { loadWinningCopyHints, preferWinningPlatform } from "@/lib/winning-copy"
 import { loadCrawledCorpus } from "@/lib/crawled-content";
 import { listCampaignAvatarIds } from "@/lib/viraforge/influencer-bridge";
 
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;

@@ -24,9 +24,30 @@ import {
 import { streetForOccupation } from "./world-economy";
 
 /** Avatars that already have a created face. Campaigns use these instead of cartoon art. */
-export async function listCampaignAvatarIds(userId: string): Promise<string[]> {
+export type CampaignCastMember = {
+  id: string;
+  displayName: string;
+  relationshipIds: string[];
+  location: string;
+};
+
+export async function listCampaignCast(
+  userId: string,
+): Promise<CampaignCastMember[]> {
   const cards = await listWorldInfluencers(userId);
-  return cards.filter((card) => Boolean(card.portraitUrl)).map((card) => card.id);
+  return cards
+    .filter((card) => Boolean(card.portraitUrl))
+    .map((card) => ({
+      id: card.id,
+      displayName: card.displayName,
+      relationshipIds: card.relationshipIds,
+      location: card.location,
+    }));
+}
+
+export async function listCampaignAvatarIds(userId: string): Promise<string[]> {
+  const cast = await listCampaignCast(userId);
+  return cast.map((card) => card.id);
 }
 
 export async function loadInfluencerGenerateContext(

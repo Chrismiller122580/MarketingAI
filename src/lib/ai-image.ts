@@ -168,6 +168,73 @@ async function generateXaiImage(
   }
 }
 
+/** One photograph of several created avatars together, using their faces as reference. */
+export async function generateAvatarGroupScene(input: {
+  people: { name: string; bytes: Buffer; mime: string }[];
+  placeName: string;
+  scene: string;
+  activity: string;
+  city: string;
+  topic: string;
+}): Promise<string | null> {
+  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!openaiKey || input.people.length === 0) return null;
+
+  const who = input.people
+    .map((person, index) => `Reference ${index + 1} is ${person.name}.`)
+    .join(" ");
+  const prompt = [
+    "Photorealistic wide photograph of these exact people together.",
+    who,
+    "Keep every face recognizable from its reference photo.",
+    "Show them together in one real place, three-quarter or full length, not a headshot and not a collage.",
+    `Place: ${input.placeName} in ${input.city}. ${input.scene}`,
+    `They are ${input.activity}`,
+    input.topic ? `The moment is about ${input.topic}.` : "",
+    "Natural light, real clothes, real location.",
+    "No cartoon, illustration, anime, mascot, text, logo, or watermark.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  try {
+    const form = new FormData();
+    form.append("model", DEFAULT_OPENAI_IMAGE_MODEL);
+    form.append("prompt", prompt);
+    form.append("size", "1536x1024");
+    form.append("n", "1");
+    input.people.forEach((person, index) => {
+      const ext = person.mime.includes("png") ? "png" : "jpg";
+      form.append(
+        "image",
+        new Blob([new Uint8Array(person.bytes)], { type: person.mime }),
+        `avatar-${index}.${ext}`,
+      );
+    });
+
+    const response = await fetch("https://api.openai.com/v1/images/edits", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openaiKey}` },
+      body: form,
+    });
+
+    if (!response.ok) {
+      console.error(
+        "Avatar group scene failed:",
+        response.status,
+        await response.text(),
+      );
+      return null;
+    }
+
+    const data = await response.json();
+    return parseOpenAiImage(data);
+  } catch (err) {
+    console.error("Avatar group scene error:", err);
+    return null;
+  }
+}
+
 export async function generateAiImage(
   site: SiteData,
   page: SitePage,

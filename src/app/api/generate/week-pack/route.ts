@@ -22,6 +22,8 @@ import {
   unusedCorpusFocus,
 } from "@/lib/week-pack";
 
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
   if (isAuthError(userId)) return userId;

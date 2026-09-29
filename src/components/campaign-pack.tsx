@@ -252,7 +252,7 @@ export function CampaignPack() {
             </div>
 
             <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-              Posts use your created avatars — their face and voice — not cartoon art.
+              Each post puts a few of your avatars together in the world — the lake, the park, the bar — and writes the caption from that moment.
             </p>
 
             <ContentAnglePicker
@@ -392,7 +392,7 @@ export function CampaignPack() {
                         alt={post.image.alt}
                         fill
                         unoptimized
-                        className="object-cover object-[center_15%]"
+                        className="object-cover object-center"
                       />
                     )}
                   </div>
