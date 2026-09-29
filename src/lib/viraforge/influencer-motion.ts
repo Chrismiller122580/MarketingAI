@@ -68,14 +68,26 @@ export type PreparedTalkAudio = {
   voiceId: string;
 };
 
+async function klingReadyPortrait(
+  portrait: PreparedMotionPortrait,
+): Promise<{ bytes: Buffer; format: PreparedMotionPortrait["format"] }> {
+  if (portrait.format.mime === "image/jpeg" || portrait.format.mime === "image/png") {
+    return { bytes: portrait.bytes, format: portrait.format };
+  }
+  try {
+    const sharp = (await import("sharp")).default;
+    const bytes = await sharp(portrait.bytes).jpeg({ quality: 90 }).toBuffer();
+    return { bytes, format: { mime: "image/jpeg", ext: "jpg" } };
+  } catch {
+    return { bytes: portrait.bytes, format: portrait.format };
+  }
+}
+
 async function uploadPortraitToReplicate(
   portrait: PreparedMotionPortrait,
 ): Promise<string> {
-  return uploadImageBytesToReplicate(
-    portrait.bytes,
-    portrait.format,
-    "portrait",
-  );
+  const ready = await klingReadyPortrait(portrait);
+  return uploadImageBytesToReplicate(ready.bytes, ready.format, "portrait");
 }
 
 async function uploadVoiceToReplicate(audioDataUrl: string): Promise<string> {

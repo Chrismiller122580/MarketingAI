@@ -148,19 +148,42 @@ async function createModelEndpointPrediction(
   return { predictionId };
 }
 
+function stopTryingThisModel(error: string): boolean {
+  return /1203|discontinued|insufficient credit|billing|payment required|unauthorized|401|403/i.test(
+    error,
+  );
+}
+
 export async function createModelPrediction(
   model: string,
   input: Record<string, unknown>,
 ): Promise<{ predictionId: string } | { error: string }> {
   try {
-    const version = await resolveModelVersion(model);
-    if (version) {
-      const result = await createVersionedPrediction(version, input);
-      if (!("error" in result)) return result;
-      if (!result.error.toLowerCase().includes("not found")) return result;
+    const pinned = modelEnvVersion(model) ?? PINNED_VERSIONS[model];
+    if (pinned) {
+      const pinnedResult = await createVersionedPrediction(pinned, input);
+      if (!("error" in pinnedResult) || stopTryingThisModel(pinnedResult.error)) {
+        return pinnedResult;
+      }
     }
 
-    return await createModelEndpointPrediction(model, input);
+    // Official models accept owner/name here. A bare version hash is what
+    // was coming back as Kling 1203 after the upstream model moved.
+    const named = await createVersionedPrediction(model, input);
+    if (!("error" in named) || stopTryingThisModel(named.error)) return named;
+
+    const endpoint = await createModelEndpointPrediction(model, input);
+    if (!("error" in endpoint) || stopTryingThisModel(endpoint.error)) {
+      return endpoint;
+    }
+
+    const version = await resolveModelVersion(model);
+    if (version && version !== pinned && version !== model) {
+      const versioned = await createVersionedPrediction(version, input);
+      if (!("error" in versioned)) return versioned;
+    }
+
+    return named;
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Replicate request failed",
