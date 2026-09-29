@@ -7,11 +7,8 @@ import { useSession } from "next-auth/react";
 import { useSite } from "@/context/site-context";
 import { useSettings } from "@/context/settings-context";
 import { usePosts } from "@/context/posts-context";
-import type { ContentAngle, Platform, SavedPost, VisualTargeting } from "@/lib/types";
-import { suggestVisualTargeting } from "@/lib/business-context";
-import { DEFAULT_VISUAL_TARGETING } from "@/lib/visual-targeting";
+import type { ContentAngle, Platform, SavedPost } from "@/lib/types";
 import { ContentAnglePicker } from "./content-angle-picker";
-import { VisualTargetingPicker } from "./visual-targeting-picker";
 import { LoadingOverlay } from "./loading-indicator";
 import { CrawledPagesFilter } from "./crawled-pages-filter";
 import { recommendSourcePage } from "@/lib/crawled-page-utils";
@@ -63,25 +60,15 @@ export function CampaignPack() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [preferAiImage, setPreferAiImage] = useState(settings.preferAiImages);
-  const [visualTargeting, setVisualTargeting] =
-    useState<VisualTargeting>(DEFAULT_VISUAL_TARGETING);
   const [contentAngle, setContentAngle] = useState<ContentAngle>("auto");
   const [varyAngles, setVaryAngles] = useState(true);
   const [focusPagePaths, setFocusPagePaths] = useState<string[]>([]);
 
-  const primaryPlatform = settings.defaultPlatforms[0] ?? "instagram";
   const postHistory = libraryPosts.map((p) => ({
     text: p.text,
     sourcePage: p.sourcePage,
     platform: p.platform,
   }));
-
-  useEffect(() => {
-    Promise.resolve().then(() => {
-      setPreferAiImage(settings.preferAiImages);
-    });
-  }, [settings.preferAiImages]);
 
   useEffect(() => {
     fetch("/api/account/usage")
@@ -91,15 +78,6 @@ export function CampaignPack() {
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!site) return;
-    Promise.resolve().then(() => {
-      setVisualTargeting((prev) =>
-        suggestVisualTargeting(site.brand, primaryPlatform, prev),
-      );
-    });
-  }, [site, primaryPlatform]);
 
   // Simulated progress for long-running campaign generation (real progress would require streaming)
   useEffect(() => {
@@ -143,8 +121,6 @@ export function CampaignPack() {
           contentAngle,
           existingPosts: postHistory,
           varyAngles,
-          preferAiImage,
-          visualTargeting: preferAiImage ? visualTargeting : undefined,
           focusPagePaths:
             focusPagePaths.length > 0 ? focusPagePaths : undefined,
         }),
@@ -275,25 +251,9 @@ export function CampaignPack() {
               </div>
             </div>
 
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={preferAiImage}
-                onChange={(e) => setPreferAiImage(e.target.checked)}
-                className="rounded border-slate-300 text-amber-600"
-              />
-              <span className="text-sm text-slate-700 dark:text-slate-300">
-                Generate AI images (DALL-E / Grok) instead of site photos
-              </span>
-            </label>
-
-            {preferAiImage && (
-              <VisualTargetingPicker
-                value={visualTargeting}
-                onChange={setVisualTargeting}
-                compact
-              />
-            )}
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+              Posts use your created avatars — their face and voice — not cartoon art.
+            </p>
 
             <ContentAnglePicker
               value={contentAngle}
@@ -417,13 +377,24 @@ export function CampaignPack() {
                   className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"
                 >
                   <div className="relative aspect-video bg-slate-100 dark:bg-slate-800">
-                    <Image
-                      src={post.image.url}
-                      alt={post.image.alt}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                    />
+                    {post.image.videoUrl ? (
+                      <video
+                        src={post.image.videoUrl}
+                        poster={post.image.url}
+                        className="h-full w-full object-cover object-[center_15%]"
+                        muted
+                        playsInline
+                        controls
+                      />
+                    ) : (
+                      <Image
+                        src={post.image.url}
+                        alt={post.image.alt}
+                        fill
+                        unoptimized
+                        className="object-cover object-[center_15%]"
+                      />
+                    )}
                   </div>
                   <div className="p-3">
                     <div className="flex items-center justify-between">

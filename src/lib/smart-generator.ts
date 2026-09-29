@@ -31,6 +31,7 @@ import {
   hasActiveVisualTargeting,
 } from "./visual-targeting";
 import { generateInfluencerSiteContent } from "./viraforge/influencer-content";
+import { loadInfluencerGenerateContext } from "./viraforge/influencer-bridge";
 import { calendarDatePlus } from "./week-pack";
 import {
   corpusSites,
@@ -1014,6 +1015,21 @@ export async function generateCampaignPack(
       ? pickFreshAngle(history, index, request.contentAngle)
       : request.contentAngle ?? "auto";
 
+    const avatarIds = request.campaignAvatarIds ?? [];
+    const avatarId = avatarIds.length
+      ? avatarIds[index % avatarIds.length]
+      : undefined;
+    const influencer =
+      avatarId && request.campaignUserId
+        ? await loadInfluencerGenerateContext(
+            request.campaignUserId,
+            avatarId,
+            itemSite,
+            page,
+            request.crawledCorpus?.sites,
+          )
+        : null;
+
     const post = await generateSmartPost({
       site: itemSite,
       contentType: planItemContentType(),
@@ -1021,13 +1037,32 @@ export async function generateCampaignPack(
       prompt: itemPrompt,
       sourcePageUrl: page.url,
       settings,
-      preferAiImage: request.preferAiImage ?? settings?.preferAiImages,
-      visualTargeting: request.visualTargeting,
+      preferAiImage: influencer
+        ? false
+        : request.preferAiImage ?? settings?.preferAiImages,
+      visualTargeting: influencer ? undefined : request.visualTargeting,
       contentAngle,
       existingPosts: history,
       winningCopy: request.winningCopy,
       crawledCorpus: request.crawledCorpus,
+      influencer: influencer ?? undefined,
+      useInfluencerPortrait: true,
+      useInfluencerMotion: false,
+      influencerVoice: Boolean(influencer),
+      influencerVisualMode: "portrait",
     });
+
+    if (
+      influencer?.assets.videoUrl &&
+      influencer.assets.motionStatus === "ready"
+    ) {
+      post.image = {
+        ...post.image,
+        videoUrl: influencer.assets.videoUrl,
+        videoStatus: "ready",
+        motionType: influencer.assets.motionType,
+      };
+    }
 
     const scheduled = new Date();
     scheduled.setDate(scheduled.getDate() + item.dayOffset);
@@ -1037,6 +1072,7 @@ export async function generateCampaignPack(
       post: {
         ...post,
         id: `${Date.now()}-${index}`,
+        influencerId: influencer?.id ?? post.influencerId,
         createdAt: new Date().toISOString(),
         scheduledFor: request.spreadDaily
           ? calendarDatePlus(item.dayOffset)

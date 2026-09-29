@@ -401,6 +401,9 @@ export type BatchGenerateRequest = {
   /** Spread items one per calendar day starting today (this-week pack). */
   spreadDaily?: boolean;
   crawledCorpus?: CrawledCorpus;
+  /** Server-only. Created avatars with a real portrait, rotated across the pack. */
+  campaignUserId?: string;
+  campaignAvatarIds?: string[];
 };
 
 export type PublishRequest = {

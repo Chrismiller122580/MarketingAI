@@ -12,6 +12,7 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { loadWinningCopyHints, preferWinningPlatform } from "@/lib/winning-copy";
 import { loadCrawledCorpus } from "@/lib/crawled-content";
+import { listCampaignAvatarIds } from "@/lib/viraforge/influencer-bridge";
 
 export async function POST(request: Request) {
   const userId = await requireAuthUserId();
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     const promptPreferences = await getPromptPreferences(userId);
     const winningCopy = await loadWinningCopyHints(userId);
     const crawledCorpus = await loadCrawledCorpus(userId, body.site);
+    const campaignAvatarIds = await listCampaignAvatarIds(userId);
     const platforms = preferWinningPlatform(
       body.platforms ??
         body.settings?.defaultPlatforms ??
@@ -65,8 +67,9 @@ export async function POST(request: Request) {
       prompt: body.prompt ?? "",
       platforms,
       maxPosts,
-      preferAiImage: body.preferAiImage,
-      visualTargeting: body.visualTargeting,
+      preferAiImage: campaignAvatarIds.length > 0 ? false : body.preferAiImage,
+      visualTargeting:
+        campaignAvatarIds.length > 0 ? undefined : body.visualTargeting,
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
       varyAngles: body.varyAngles,
@@ -74,6 +77,8 @@ export async function POST(request: Request) {
       winningCopy,
       spreadDaily: body.spreadDaily,
       crawledCorpus,
+      campaignUserId: userId,
+      campaignAvatarIds,
     };
 
     const result = await generateCampaignPack(batchRequest);

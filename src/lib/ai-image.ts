@@ -47,7 +47,7 @@ function buildImagePrompt(
     `Keywords: ${keywords}.`,
     formatHint,
     "No text overlays, no watermarks, no logos.",
-    "Photorealistic or polished illustration suitable for a brand campaign.",
+    "Photorealistic photograph of a real person. Never a cartoon, illustration, anime, mascot, or 3D character.",
   ]
     .filter(Boolean)
     .join(" ");

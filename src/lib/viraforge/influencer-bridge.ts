@@ -13,6 +13,7 @@ import {
   formatWorldLifeForContent,
   hydrateWorldProfile,
   listInfluencerWorldEvents,
+  listWorldInfluencers,
 } from "./avatar-world";
 import { buildPersonalizationContext, type InfluencerMemory } from "./learning";
 import { mergeInfluencerAssets, resolveInfluencerAssets } from "./influencer-assets";
@@ -21,6 +22,12 @@ import {
   mergeFactsWithSites,
 } from "./site-facts-extractor";
 import { streetForOccupation } from "./world-economy";
+
+/** Avatars that already have a created face. Campaigns use these instead of cartoon art. */
+export async function listCampaignAvatarIds(userId: string): Promise<string[]> {
+  const cards = await listWorldInfluencers(userId);
+  return cards.filter((card) => Boolean(card.portraitUrl)).map((card) => card.id);
+}
 
 export async function loadInfluencerGenerateContext(
   userId: string,
