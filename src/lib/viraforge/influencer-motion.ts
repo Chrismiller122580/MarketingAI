@@ -171,10 +171,14 @@ export async function startInfluencerMotion(
     }
 
     const plateDurationSec = klingDurationForAudio(audioDurationSec);
+    const line = script?.trim().replace(/\s+/g, " ").slice(0, 160);
+    const speaking = line
+      ? ` They are saying this out loud, one phrase at a time, mouth moving on every word: "${line}". Never print the words on screen.`
+      : "";
     const klingPrompt =
-      motionType === "talk"
+      (motionType === "talk"
         ? buildTalkCloseupPrompt(persona)
-        : buildWalkTalkPrompt(persona);
+        : buildWalkTalkPrompt(persona)) + speaking;
     const klingResult = await startKlingPlate({
       prompt: klingPrompt,
       startImage: imageUrl,

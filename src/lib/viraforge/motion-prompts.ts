@@ -38,9 +38,10 @@ export function buildWalkTalkPrompt(persona: CreatorAvatarForm): string {
     hood ? `Neighborhood streets and landmarks that feel like ${hood}.` : "",
     `Wardrobe: ${persona.wardrobe}`,
     `Mood: ${persona.personalityVoice.slice(0, 120)}.`,
-    "Medium shot, waist-up, camera tracking beside them as they walk.",
-    "They take several clear steps down the sidewalk. Arms swing. Hair and clothes shift. The background moves past.",
-    "They look toward the camera and talk while walking. Mouth opens and closes. Not a still portrait.",
+    "Medium-close shot, chest up, walking a few steps toward the camera.",
+    "Face stays large in frame and locked on the lens the whole clip. Both eyes visible. Mouth easy to read.",
+    "They speak the entire time they walk. Jaw and lips move on every word. Not a profile, not a glance away.",
+    "Arms swing, hair and clothes shift, the background moves past. Not a still portrait.",
     "Maintain consistent face and body from the reference portrait.",
     "Natural daylight, cinematic, shallow street bokeh, no text, no watermarks.",
   ]

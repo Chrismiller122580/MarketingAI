@@ -9,19 +9,9 @@ export type VideoLipsyncOptions = {
   audioDurationSec?: number;
 };
 
-function pickSyncMode(options?: VideoLipsyncOptions): string {
-  const plate = options?.plateDurationSec;
-  const audio = options?.audioDurationSec;
-  if (
-    typeof plate === "number" &&
-    typeof audio === "number" &&
-    Number.isFinite(plate) &&
-    Number.isFinite(audio) &&
-    audio <= plate + 0.4
-  ) {
-    return "cut_off";
-  }
-  return options?.motionType === "talk" ? "bounce" : "loop";
+function pickSyncMode(_options?: VideoLipsyncOptions): string {
+  // End the clip with the voice. Looping the walk repeats a mouth that does not match.
+  return "cut_off";
 }
 
 /**

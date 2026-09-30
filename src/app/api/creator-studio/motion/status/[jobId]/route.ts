@@ -84,8 +84,13 @@ export async function GET(_request: Request, context: RouteContext) {
           : prediction.outputUrl;
     }
 
-    let audioEmbeddedInVideo = false;
-    if (spoken && job.voiceAudioUrl) {
+    const lipsyncReady =
+      meta.lipsyncStage === "running" &&
+      typeof meta.lipsyncPredictionId === "string" &&
+      meta.lipsyncPredictionId === job.predictionId;
+
+    let audioEmbeddedInVideo = lipsyncReady;
+    if (spoken && job.voiceAudioUrl && !lipsyncReady) {
       try {
         videoUrl = await muxSpokenVoice(
           authResult,

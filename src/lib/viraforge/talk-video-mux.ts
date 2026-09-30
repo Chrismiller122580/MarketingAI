@@ -82,13 +82,9 @@ export async function muxTalkVideoWithVoice(
     await writeFile(audioPath, audioBytes);
 
     const videoDurationSec = await probeVideoDurationSec(videoPath);
-    const padSec = Math.max(0, audioDurationSec - videoDurationSec + 0.05);
-    const trimSec = audioDurationSec;
+    const trimSec = Math.min(audioDurationSec, videoDurationSec);
 
-    const filter =
-      padSec > 0.12
-        ? `[0:v]setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${padSec.toFixed(3)}[v];[1:a]aresample=async=1:first_pts=0[a]`
-        : `[0:v]setpts=PTS-STARTPTS,trim=duration=${trimSec.toFixed(3)},setpts=PTS-STARTPTS[v];[1:a]aresample=async=1:first_pts=0[a]`;
+    const filter = `[0:v]setpts=PTS-STARTPTS,trim=duration=${trimSec.toFixed(3)},setpts=PTS-STARTPTS[v];[1:a]atrim=duration=${trimSec.toFixed(3)},aresample=async=1:first_pts=0[a]`;
 
     await execFileAsync(
       ffmpegPath,
