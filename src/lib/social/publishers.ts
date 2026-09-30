@@ -60,29 +60,19 @@ async function sceneImage(
   }
 }
 
-async function shrinkForX(bytes: Buffer, mime: string): Promise<{ bytes: Buffer; mime: string }> {
-  const limit = 4_800_000;
-  if (bytes.length <= limit) return { bytes, mime };
-  try {
-    const sharp = (await import("sharp")).default;
-    const smaller = await sharp(bytes).jpeg({ quality: 80 }).toBuffer();
-    return { bytes: smaller, mime: "image/jpeg" };
-  } catch {
-    return { bytes, mime };
-  }
-}
-
 async function uploadXImage(
   token: string,
   bytes: Buffer,
   mime: string,
 ): Promise<string | { error: string }> {
-  const ready = await shrinkForX(bytes, mime);
+  if (bytes.length > 5_000_000) {
+    return { error: "The scene image is over 5MB, which X will not accept." };
+  }
   const form = new FormData();
-  const ext = ready.mime.includes("png") ? "png" : "jpg";
+  const ext = mime.includes("png") ? "png" : "jpg";
   form.append(
     "media",
-    new Blob([new Uint8Array(ready.bytes)], { type: ready.mime }),
+    new Blob([new Uint8Array(bytes)], { type: mime }),
     `scene.${ext}`,
   );
   form.append("media_category", "tweet_image");
