@@ -67,11 +67,13 @@ export async function publishPostRecord(
     extractExternalId(platform, result.url) ??
     null;
 
+  const delivered = result.success && result.method === "api";
+
   const updated = await prisma.post.update({
     where: { id: postId },
     data: {
-      publishStatus: result.success ? "published" : "failed",
-      publishedAt: result.publishedAt ? new Date(result.publishedAt) : new Date(),
+      publishStatus: delivered ? "published" : "failed",
+      publishedAt: delivered ? new Date(result.publishedAt ?? Date.now()) : null,
       publishUrl: result.url ?? null,
       externalPostId,
     },

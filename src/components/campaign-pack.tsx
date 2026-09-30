@@ -252,7 +252,7 @@ export function CampaignPack() {
             </div>
 
             <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-              Each post puts a few of your avatars together in the world — the lake, the park, the bar — and writes the caption from that moment.
+              Each post puts a few of your avatars together in the world. Saving the pack schedules those posts, scene included, for the dates on the cards.
             </p>
 
             <ContentAnglePicker
@@ -346,7 +346,7 @@ export function CampaignPack() {
                 disabled={saving || saved}
                 className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
               >
-                {saving ? "Saving…" : saved ? "Saved to library ✓" : "Save pack to library"}
+                {saving ? "Saving…" : saved ? "Scheduled ✓" : "Save and schedule"}
               </button>
               <button
                 type="button"

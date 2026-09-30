@@ -5,6 +5,7 @@ import { sendViaResend, textToHtml } from "../email";
 import { publishFacebookPost } from "./facebook";
 import { instagramMediaType } from "../content-formats";
 import { publishInstagramPost } from "./instagram";
+import { loadStoredMediaBytes } from "../media-url";
 import type { Platform, PublishResult, SavedPost } from "../types";
 
 type PublishContext = {
@@ -39,6 +40,124 @@ function shareLinks(post: SavedPost): string {
   return links[post.platform];
 }
 
+async function sceneImage(
+  post: SavedPost,
+): Promise<{ bytes: Buffer; mime: string } | null> {
+  const url = post.image.originalUrl || post.image.url;
+  if (!url) return null;
+  if (url.startsWith("data:")) {
+    const mime = url.match(/^data:([^;,]+)/)?.[1] || "image/png";
+    const bytes = Buffer.from(url.split(",")[1] || "", "base64");
+    return bytes.length ? { bytes, mime } : null;
+  }
+  try {
+    const loaded = await loadStoredMediaBytes(url);
+    const mime = loaded.contentType.split(";")[0]?.trim() || "image/jpeg";
+    if (!mime.startsWith("image/") || !loaded.bytes.length) return null;
+    return { bytes: loaded.bytes, mime };
+  } catch {
+    return null;
+  }
+}
+
+async function shrinkForX(bytes: Buffer, mime: string): Promise<{ bytes: Buffer; mime: string }> {
+  const limit = 4_800_000;
+  if (bytes.length <= limit) return { bytes, mime };
+  try {
+    const sharp = (await import("sharp")).default;
+    const smaller = await sharp(bytes).jpeg({ quality: 80 }).toBuffer();
+    return { bytes: smaller, mime: "image/jpeg" };
+  } catch {
+    return { bytes, mime };
+  }
+}
+
+async function uploadXImage(
+  token: string,
+  bytes: Buffer,
+  mime: string,
+): Promise<string | { error: string }> {
+  const ready = await shrinkForX(bytes, mime);
+  const form = new FormData();
+  const ext = ready.mime.includes("png") ? "png" : "jpg";
+  form.append(
+    "media",
+    new Blob([new Uint8Array(ready.bytes)], { type: ready.mime }),
+    `scene.${ext}`,
+  );
+  form.append("media_category", "tweet_image");
+  const response = await fetch("https://api.x.com/2/media/upload", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const raw = await response.text();
+  if (!response.ok) {
+    return { error: `X image upload failed (${response.status}): ${raw.slice(0, 180)}` };
+  }
+  try {
+    const data = JSON.parse(raw) as { data?: { id?: string } };
+    if (data.data?.id) return data.data.id;
+  } catch {
+    return { error: "X image upload returned a bad response" };
+  }
+  return { error: "X image upload did not return a media id" };
+}
+
+async function uploadLinkedInImage(
+  token: string,
+  owner: string,
+  bytes: Buffer,
+  mime: string,
+): Promise<{ urn: string } | { error: string }> {
+  const init = await fetch(
+    "https://api.linkedin.com/rest/images?action=initializeUpload",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "LinkedIn-Version": "202609",
+        "X-Restli-Protocol-Version": "2.0.0",
+      },
+      body: JSON.stringify({ initializeUploadRequest: { owner } }),
+    },
+  );
+  const initRaw = await init.text();
+  if (!init.ok) {
+    return {
+      error: `LinkedIn image upload failed (${init.status}): ${initRaw.slice(0, 180)}`,
+    };
+  }
+  let uploadUrl = "";
+  let urn = "";
+  try {
+    const data = JSON.parse(initRaw) as {
+      value?: { uploadUrl?: string; image?: string };
+    };
+    uploadUrl = data.value?.uploadUrl ?? "";
+    urn = data.value?.image ?? "";
+  } catch {
+    return { error: "LinkedIn image upload returned a bad response" };
+  }
+  if (!uploadUrl || !urn) {
+    return { error: "LinkedIn image upload did not return an upload URL" };
+  }
+
+  const put = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": mime },
+    body: new Uint8Array(bytes),
+  });
+  if (!put.ok) {
+    const detail = await put.text();
+    return {
+      error: `LinkedIn rejected the scene (${put.status}): ${detail.slice(0, 160)}`,
+    };
+  }
+  return { urn };
+}
+
 function parseEmailContent(text: string, fallbackSubject: string) {
   const subjectMatch = text.match(/^Subject:\s*(.+)$/m);
   const subject = subjectMatch?.[1]?.trim() ?? fallbackSubject;
@@ -68,13 +187,32 @@ async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
   }
 
   try {
+    const image = await sceneImage(ctx.post);
+    let mediaId: string | undefined;
+    if (image) {
+      const uploaded = await uploadXImage(token, image.bytes, image.mime);
+      if (typeof uploaded !== "string") {
+        return {
+          success: false,
+          platform: "twitter",
+          method: "api",
+          message: uploaded.error,
+          url: shareLinks(ctx.post),
+        };
+      }
+      mediaId = uploaded;
+    }
+
     const response = await fetch("https://api.twitter.com/2/tweets", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ text: ctx.post.text.slice(0, 280) }),
+      body: JSON.stringify({
+        text: ctx.post.text.slice(0, 280),
+        ...(mediaId ? { media: { media_ids: [mediaId] } } : {}),
+      }),
     });
 
     if (!response.ok) {
@@ -93,7 +231,9 @@ async function publishTwitter(ctx: PublishContext): Promise<PublishResult> {
       success: true,
       platform: "twitter",
       method: "api",
-      message: "Published to X/Twitter successfully.",
+      message: mediaId
+        ? "Published the scene to X."
+        : "Published to X/Twitter successfully.",
       url: tweetId ? `https://twitter.com/i/web/status/${tweetId}` : undefined,
       externalId: tweetId,
       publishedAt: new Date().toISOString(),
@@ -125,34 +265,58 @@ async function publishLinkedIn(ctx: PublishContext): Promise<PublishResult> {
   }
 
   try {
-    const response = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+    const image = await sceneImage(ctx.post);
+    let imageUrn: string | undefined;
+    if (image) {
+      const uploaded = await uploadLinkedInImage(
+        token,
+        authorUrn,
+        image.bytes,
+        image.mime,
+      );
+      if ("error" in uploaded) {
+        return {
+          success: false,
+          platform: "linkedin",
+          method: "api",
+          message: uploaded.error,
+          url: shareLinks(ctx.post),
+        };
+      }
+      imageUrn = uploaded.urn;
+    }
+
+    const response = await fetch("https://api.linkedin.com/rest/posts", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        "LinkedIn-Version": "202609",
         "X-Restli-Protocol-Version": "2.0.0",
       },
       body: JSON.stringify({
         author: authorUrn,
+        commentary: ctx.post.text.slice(0, 3000),
+        visibility: "PUBLIC",
+        distribution: {
+          feedDistribution: "MAIN_FEED",
+          targetEntities: [],
+          thirdPartyDistributionChannels: [],
+        },
+        ...(imageUrn
+          ? { content: { media: { id: imageUrn } } }
+          : {}),
         lifecycleState: "PUBLISHED",
-        specificContent: {
-          "com.linkedin.ugc.ShareContent": {
-            shareCommentary: { text: ctx.post.text },
-            shareMediaCategory: "NONE",
-          },
-        },
-        visibility: {
-          "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
-        },
       }),
     });
 
     if (!response.ok) {
+      const detail = await response.text();
       return {
         success: false,
         platform: "linkedin",
         method: "api",
-        message: `LinkedIn API error: ${response.status}`,
+        message: `LinkedIn API error: ${response.status} ${detail.slice(0, 160)}`,
         url: shareLinks(ctx.post),
       };
     }
@@ -163,7 +327,9 @@ async function publishLinkedIn(ctx: PublishContext): Promise<PublishResult> {
       success: true,
       platform: "linkedin",
       method: "api",
-      message: "Published to LinkedIn successfully.",
+      message: imageUrn
+        ? "Published the scene to LinkedIn."
+        : "Published to LinkedIn successfully.",
       externalId: linkedInId,
       publishedAt: new Date().toISOString(),
     };
@@ -397,6 +563,19 @@ async function publishPinterest(ctx: PublishContext): Promise<PublishResult> {
   }
 
   try {
+    const imageUrl = resolvePublicMediaUrl(
+      ctx.post.image.originalUrl ?? ctx.post.image.url,
+    );
+    if (!imageUrl.startsWith("http")) {
+      return {
+        success: false,
+        platform: "pinterest",
+        method: "api",
+        message: "The scene image is not a public URL, so Pinterest cannot use it.",
+        url: shareLinks(ctx.post),
+      };
+    }
+
     const response = await fetch("https://api.pinterest.com/v5/pins", {
       method: "POST",
       headers: {
@@ -408,6 +587,10 @@ async function publishPinterest(ctx: PublishContext): Promise<PublishResult> {
         title: ctx.post.text.slice(0, 100),
         description: ctx.post.text,
         link: ctx.post.cta.startsWith("http") ? ctx.post.cta : `https://${ctx.post.cta}`,
+        media_source: {
+          source_type: "image_url",
+          url: imageUrl,
+        },
       }),
     });
 

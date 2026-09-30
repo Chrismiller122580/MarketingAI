@@ -1173,6 +1173,7 @@ export async function generateCampaignPack(
         scheduledFor: request.spreadDaily
           ? calendarDatePlus(item.dayOffset)
           : scheduled.toISOString().split("T")[0],
+        publishStatus: "scheduled",
         insights: [
           `Campaign: ${plan.theme} (${plan.source === "ai" ? "AI-planned" : "smart calendar"}).`,
           names.length > 0

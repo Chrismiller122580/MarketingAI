@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { publishPostRecord } from "@/lib/publish-post";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function authorizeCron(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
