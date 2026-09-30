@@ -98,31 +98,11 @@ export async function GET(_request: Request, context: RouteContext) {
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Could not combine the voice";
-        const lipsyncApplied =
-          meta.lipsyncStage === "running" &&
-          typeof meta.lipsyncPredictionId === "string";
         console.error("Talk mux failed:", message);
-        if (!lipsyncApplied) {
-          await updateInfluencerMotionJob(job.renderId, {
-            status: "failed",
-            error: message,
-          });
-          if (job.renderId) {
-            await finalizeInfluencerRender({
-              userId: authResult,
-              influencerId: job.influencerId,
-              renderId: job.renderId,
-              status: "failed",
-              error: message,
-            });
-          }
-          return NextResponse.json({
-            status: "failed",
-            error: message,
-            motionType: job.motionType,
-          });
-        }
-        audioEmbeddedInVideo = true;
+        videoUrl =
+          typeof meta.plateVideoUrl === "string"
+            ? meta.plateVideoUrl
+            : videoUrl;
       }
     }
 

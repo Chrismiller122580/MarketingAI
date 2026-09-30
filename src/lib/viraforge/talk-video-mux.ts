@@ -29,25 +29,28 @@ export async function getAudioDurationSec(buffer: Buffer): Promise<number> {
 async function probeVideoDurationSec(videoPath: string): Promise<number> {
   if (!ffmpegPath) throw new Error("ffmpeg binary not available");
 
-  try {
-    await execFileAsync(ffmpegPath, ["-i", videoPath, "-f", "null", "-"], {
-      maxBuffer: 10 * 1024 * 1024,
-    });
-  } catch (error) {
-    const stderr =
-      error && typeof error === "object" && "stderr" in error
-        ? String((error as { stderr?: string }).stderr ?? "")
-        : "";
-    const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
-    if (match) {
-      const hours = Number(match[1]);
-      const minutes = Number(match[2]);
-      const seconds = Number(match[3]);
-      return hours * 3600 + minutes * 60 + seconds;
-    }
-  }
+  const stderr = await new Promise<string>((resolve, reject) => {
+    execFile(
+      ffmpegPath,
+      ["-i", videoPath, "-f", "null", "-"],
+      { maxBuffer: 10 * 1024 * 1024 },
+      (error, _stdout, errText) => {
+        const text = String(errText ?? "");
+        if (error && !/Duration:\s*\d+:\d+:\d+/.test(text)) {
+          reject(error);
+          return;
+        }
+        resolve(text);
+      },
+    );
+  });
 
-  throw new Error("Could not probe video duration");
+  const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+  if (!match) throw new Error("Could not probe video duration");
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+  return hours * 3600 + minutes * 60 + seconds;
 }
 
 /**
