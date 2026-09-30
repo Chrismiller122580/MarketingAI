@@ -89,8 +89,8 @@ export async function GET(_request: Request, context: RouteContext) {
       typeof meta.lipsyncPredictionId === "string" &&
       meta.lipsyncPredictionId === job.predictionId;
 
-    let audioEmbeddedInVideo = lipsyncReady;
-    if (spoken && job.voiceAudioUrl && !lipsyncReady) {
+    let audioEmbeddedInVideo = false;
+    if (spoken && job.voiceAudioUrl) {
       try {
         videoUrl = await muxSpokenVoice(
           authResult,
@@ -104,10 +104,12 @@ export async function GET(_request: Request, context: RouteContext) {
         const message =
           error instanceof Error ? error.message : "Could not combine the voice";
         console.error("Talk mux failed:", message);
-        videoUrl =
-          typeof meta.plateVideoUrl === "string"
-            ? meta.plateVideoUrl
-            : videoUrl;
+        if (!lipsyncReady) {
+          videoUrl =
+            typeof meta.plateVideoUrl === "string"
+              ? meta.plateVideoUrl
+              : videoUrl;
+        }
       }
     }
 
@@ -134,12 +136,11 @@ export async function GET(_request: Request, context: RouteContext) {
       videoUrl: resolveDisplayMediaUrl(videoUrl),
       motionType: job.motionType,
       audioEmbeddedInVideo,
-      voiceAudioUrl:
-        audioEmbeddedInVideo || spoken
-          ? undefined
-          : job.voiceAudioUrl
-            ? resolveDisplayMediaUrl(job.voiceAudioUrl)
-            : undefined,
+      voiceAudioUrl: audioEmbeddedInVideo
+        ? undefined
+        : job.voiceAudioUrl
+          ? resolveDisplayMediaUrl(job.voiceAudioUrl)
+          : undefined,
       renderId: job.renderId,
     });
   }

@@ -18,12 +18,21 @@ async function fetchMediaBytes(url: string): Promise<Buffer> {
 }
 
 export async function getAudioDurationSec(buffer: Buffer): Promise<number> {
-  const metadata = await parseBuffer(buffer, { mimeType: "audio/mpeg" });
-  const duration = metadata.format.duration;
-  if (!duration || !Number.isFinite(duration)) {
-    throw new Error("Could not read audio duration");
+  for (const mimeType of [undefined, "audio/mpeg", "audio/mp4", "audio/wav"]) {
+    try {
+      const metadata = await parseBuffer(
+        buffer,
+        mimeType ? { mimeType } : undefined,
+      );
+      const duration = metadata.format.duration;
+      if (duration && Number.isFinite(duration) && duration > 0) {
+        return Math.round(duration * 1000) / 1000;
+      }
+    } catch {
+      /* try the next mime */
+    }
   }
-  return Math.round(duration * 1000) / 1000;
+  throw new Error("Could not read audio duration");
 }
 
 async function probeVideoDurationSec(videoPath: string): Promise<number> {
@@ -71,7 +80,6 @@ export async function muxTalkVideoWithVoice(
     fetchMediaBytes(audioUrl),
   ]);
 
-  const audioDurationSec = await getAudioDurationSec(audioBytes);
   const workDir = await mkdtemp(join(tmpdir(), "talk-mux-"));
   const videoPath = join(workDir, "input.mp4");
   const audioPath = join(workDir, "voice.mp3");
@@ -81,10 +89,20 @@ export async function muxTalkVideoWithVoice(
     await writeFile(videoPath, videoBytes);
     await writeFile(audioPath, audioBytes);
 
-    const videoDurationSec = await probeVideoDurationSec(videoPath);
-    const trimSec = Math.min(audioDurationSec, videoDurationSec);
+    let audioDurationSec = 0;
+    let videoDurationSec = 0;
+    let trimSec: number | undefined;
+    try {
+      audioDurationSec = await getAudioDurationSec(audioBytes);
+      videoDurationSec = await probeVideoDurationSec(videoPath);
+      trimSec = Math.min(audioDurationSec, videoDurationSec);
+    } catch {
+      trimSec = undefined;
+    }
 
-    const filter = `[0:v]setpts=PTS-STARTPTS,trim=duration=${trimSec.toFixed(3)},setpts=PTS-STARTPTS[v];[1:a]atrim=duration=${trimSec.toFixed(3)},aresample=async=1:first_pts=0[a]`;
+    const filter = trimSec
+      ? `[0:v]setpts=PTS-STARTPTS,trim=duration=${trimSec.toFixed(3)},setpts=PTS-STARTPTS[v];[1:a]atrim=duration=${trimSec.toFixed(3)},aresample=async=1:first_pts=0[a]`
+      : `[0:v]setpts=PTS-STARTPTS[v];[1:a]aresample=async=1:first_pts=0[a]`;
 
     await execFileAsync(
       ffmpegPath,
@@ -112,8 +130,7 @@ export async function muxTalkVideoWithVoice(
         "aac",
         "-b:a",
         "192k",
-        "-t",
-        trimSec.toFixed(3),
+        ...(trimSec ? ["-t", trimSec.toFixed(3)] : ["-shortest"]),
         "-movflags",
         "+faststart",
         outputPath,
