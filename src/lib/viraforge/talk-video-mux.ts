@@ -28,10 +28,11 @@ export async function getAudioDurationSec(buffer: Buffer): Promise<number> {
 
 async function probeVideoDurationSec(videoPath: string): Promise<number> {
   if (!ffmpegPath) throw new Error("ffmpeg binary not available");
+  const bin = ffmpegPath;
 
   const stderr = await new Promise<string>((resolve, reject) => {
     execFile(
-      ffmpegPath,
+      bin,
       ["-i", videoPath, "-f", "null", "-"],
       { maxBuffer: 10 * 1024 * 1024 },
       (error, _stdout, errText) => {
