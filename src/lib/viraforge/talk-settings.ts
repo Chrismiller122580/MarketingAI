@@ -21,7 +21,7 @@ export const TALK_VOICE_SETTINGS: VoiceSettings = {
 };
 
 export const KLING_SPOKEN_NEGATIVE_PROMPT =
-  "frozen smile, closed mouth, silent, not speaking, profile view, looking away, face far from camera, tiny mouth, distorted face, extra fingers, morphing identity, text overlay, watermark, subtitle, logo, captions";
+  "text, letters, words, captions, subtitles, titles, logos, signs, posters, flyers, cards, menus, flags, watermarks, typography, lower third, UI, frozen smile, closed mouth, silent, profile view, looking away, face far from camera, distorted face, extra fingers, morphing identity";
 
 /** Kling v2.1 only accepts 5s or 10s. Pick the plate that can cover the voice. */
 export function klingDurationForAudio(audioSec?: number): 5 | 10 {

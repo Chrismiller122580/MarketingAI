@@ -241,6 +241,7 @@ export async function startInfluencerMotion(
     prompt,
     startImage: imageUrl,
     duration: 5,
+    negativePrompt: KLING_SPOKEN_NEGATIVE_PROMPT,
   });
 
   if ("error" in result) return result;

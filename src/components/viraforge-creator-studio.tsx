@@ -245,6 +245,7 @@ export function ViraForgeCreatorStudio() {
   const [featureDraft, setFeatureDraft] = useState("");
   const [deletingAvatar, setDeletingAvatar] = useState(false);
   const [selectedSourcePage, setSelectedSourcePage] = useState("/");
+  const [useSiteInfluence, setUseSiteInfluence] = useState(false);
 
   const factFieldConfig = useMemo(
     () => inferProductFactFields(site),
@@ -590,7 +591,9 @@ export function ViraForgeCreatorStudio() {
     }
 
     const talkScript =
-      motionType === "talk" ? (scriptOverride ?? motionScript) : undefined;
+      motionType === "talk" || motionType === "walk-talk"
+        ? (scriptOverride ?? motionScript)
+        : undefined;
 
     if (motionType === "talk") {
       if (!approvedTalkPreview?.renderId || !approvedTalkPreview.scriptHash) {
@@ -607,6 +610,7 @@ export function ViraForgeCreatorStudio() {
     }
 
     setMotionLoading(motionType);
+    setMotionVideo(null);
     setQuoteValidation(null);
 
     try {
@@ -792,46 +796,16 @@ export function ViraForgeCreatorStudio() {
           Object.entries(personaPatch).filter(([, v]) => v !== undefined),
         ),
       });
-
-      if (next.productFacts) {
-        const fieldConfig = next.factFields ?? inferProductFactFields(site);
-        const current = factsForm.getValues();
-        const pf: ProductFactsForm = {
-          ...defaultProductFactsValues,
-          ...current,
-          name: next.productFacts.name ?? current.name,
-          price: next.productFacts.price ?? current.price,
-          features:
-            next.productFacts.features ?? defaultProductFactsValues.features,
-        };
-
-        if (fieldConfig.location.show && next.productFacts.location) {
-          pf.location = next.productFacts.location;
-        }
-        if (fieldConfig.hours.show && next.productFacts.hours) {
-          pf.hours = next.productFacts.hours;
-        }
-        if (fieldConfig.ingredients.show && next.productFacts.ingredients) {
-          pf.ingredients = next.productFacts.ingredients;
-        }
-
-        factsForm.reset(
-          normalizeProductFactsForSite(pf, fieldConfig, { showAllFields: false }),
-        );
-        setFeaturesText(pf.features.join("\n"));
-        if (pf.ingredients?.length) {
-          setIngredientsText(pf.ingredients.join("\n"));
-        }
-      }
     },
-    [personaForm, factsForm, site],
+    [personaForm],
   );
 
   const handleSuggest = useCallback(
-    async (domainOverride?: string) => {
-      const targetDomain = domainOverride ?? site?.domain;
-      if (!targetDomain && !site) {
-        toast.error("Crawl a site on the dashboard first, or open with ?domain=");
+    async (mode: "independent" | "site" = "independent") => {
+      const fromSite = mode === "site";
+      const targetDomain = site?.domain;
+      if (fromSite && !targetDomain && !site) {
+        toast.error("Load a crawled site first — or suggest an independent persona");
         return;
       }
 
@@ -840,20 +814,25 @@ export function ViraForgeCreatorStudio() {
         const res = await fetch("/api/creator-studio/suggest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            domain: targetDomain,
-            site: site ?? undefined,
-            pagePath: selectedSourcePage,
-          }),
+          body: JSON.stringify(
+            fromSite
+              ? {
+                  domain: targetDomain,
+                  site: site ?? undefined,
+                  pagePath: selectedSourcePage,
+                }
+              : { independent: true },
+          ),
         });
         const data = (await res.json()) as AvatarFieldOptions & { error?: string };
         if (!res.ok) throw new Error(data.error ?? "Suggest failed");
 
         applySuggestionToForms(data);
+        setUseSiteInfluence(fromSite && !data.independent);
         toast.success(
-          data.aiEnhanced
-            ? `Site-smart options ready for ${data.domain} (AI-enhanced)`
-            : `Site-smart options ready for ${data.domain}`,
+          fromSite && !data.independent
+            ? `Site options ready for ${data.domain}. Product facts are still optional.`
+            : "Independent persona options ready — no site or facts applied.",
         );
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Could not suggest options");
@@ -863,6 +842,17 @@ export function ViraForgeCreatorStudio() {
     },
     [site, applySuggestionToForms, selectedSourcePage],
   );
+
+  const skipSiteInfluence = useCallback(() => {
+    setUseSiteInfluence(false);
+    setSuggestion((prev) =>
+      prev && !prev.independent
+        ? null
+        : prev,
+    );
+    setSelectedIds({});
+    toast.info("Site influence off. Persona and facts stay as you set them.");
+  }, []);
 
   const pickOption = useCallback(
     (field: AvatarFieldKey, option: FieldOption) => {
@@ -945,10 +935,8 @@ export function ViraForgeCreatorStudio() {
 
   useEffect(() => {
     if (!domainParam || editId) return;
-    void loadSavedSite(domainParam).then(() => {
-      void handleSuggest(domainParam);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for deep link
+    void loadSavedSite(domainParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- preselect site only; never auto-apply
   }, [domainParam, editId]);
 
   const parseFacts = (): ProductFactsForm => {
@@ -1114,17 +1102,13 @@ export function ViraForgeCreatorStudio() {
           persona,
           productFacts: factsData,
           influencerId,
-          siteContext: site
-            ? {
-                domain: site.domain,
-                brandName: site.brand.name,
-                tone: site.brand.tone,
-                tagline: site.brand.tagline,
-              }
-            : suggestion
+          siteContext:
+            useSiteInfluence && site
               ? {
-                  domain: suggestion.domain,
-                  brandName: suggestion.productFacts?.name,
+                  domain: site.domain,
+                  brandName: site.brand.name,
+                  tone: site.brand.tone,
+                  tagline: site.brand.tagline,
                 }
               : undefined,
           suggestionSnapshot: suggestion
@@ -1133,6 +1117,7 @@ export function ViraForgeCreatorStudio() {
                 rationale: suggestion.rationale,
                 recommended: suggestion.recommended,
                 domain: suggestion.domain,
+                independent: Boolean(suggestion.independent) || !useSiteInfluence,
               }
             : undefined,
         }),
@@ -1191,8 +1176,8 @@ export function ViraForgeCreatorStudio() {
             Create New Influencer Avatar
           </h2>
           <p className="text-sm text-muted-foreground">
-            Persona first. Product facts are optional — lock them only if you
-            want scripts and quotes fact-checked.
+            Persona first. Site influence and product facts are optional — skip
+            both unless this avatar should speak for a crawled brand.
           </p>
           {session?.user?.name && (
             <p className="mt-1 text-xs text-muted-foreground">
@@ -1279,23 +1264,22 @@ export function ViraForgeCreatorStudio() {
         </div>
       </div>
 
-      {(site || domainParam || savedSites.length > 0) && (
-        <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 px-4 py-3">
+      <div className="rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 px-4 py-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2 text-sm">
               <Globe className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
               <div>
                 <p className="font-medium text-foreground">
-                  {site
-                    ? `${site.brand.name} · ${site.domain}`
-                    : domainParam
-                      ? `Loading ${domainParam}…`
-                      : "Select a crawled site"}
+                  Site influence is optional
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {suggestion
-                    ? `${suggestion.rationale} Fit score: ${suggestion.fitScore}%`
-                    : "Suggest selectable avatar options from your crawl — religion, class, voice, and more."}
+                  {useSiteInfluence && site
+                    ? `Using ${site.brand.name} · ${site.domain}. Product facts stay off until you lock them.`
+                    : suggestion?.independent
+                      ? suggestion.rationale
+                      : site
+                        ? `${site.brand.name} is available if you want it. Skip to create a person, not a spokesperson.`
+                        : "No crawl needed. Suggest a persona, or fill the tabs yourself."}
                 </p>
               </div>
             </div>
@@ -1309,7 +1293,7 @@ export function ViraForgeCreatorStudio() {
                   }}
                 >
                   <option value="" disabled>
-                    Load client…
+                    Load client site…
                   </option>
                   {savedSites.map((s) => (
                     <option key={s.domain} value={s.domain}>
@@ -1323,18 +1307,47 @@ export function ViraForgeCreatorStudio() {
                 variant="secondary"
                 size="sm"
                 className="w-full sm:w-auto"
-                disabled={suggesting || (!site && !domainParam)}
-                onClick={() => void handleSuggest()}
+                disabled={suggesting}
+                onClick={() => void handleSuggest("independent")}
               >
                 {suggesting ? (
                   <InlineLoading label="Suggesting…" />
                 ) : (
                   <>
                     <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                    Suggest options from site
+                    Suggest a persona
                   </>
                 )}
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+                disabled={suggesting || !site}
+                onClick={() => void handleSuggest("site")}
+              >
+                {suggesting ? (
+                  <InlineLoading label="Suggesting…" />
+                ) : (
+                  <>
+                    <Globe className="mr-1.5 h-3.5 w-3.5" />
+                    Use site suggestions
+                  </>
+                )}
+              </Button>
+              {useSiteInfluence && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={skipSiteInfluence}
+                >
+                  <X className="mr-1.5 h-3.5 w-3.5" />
+                  Don't use the site
+                </Button>
+              )}
               {suggestion && (
                 <Button
                   type="button"
@@ -1357,17 +1370,17 @@ export function ViraForgeCreatorStudio() {
             <div className="mt-4 border-t border-violet-500/15 pt-4">
               <CrawledPagePicker
                 id="avatarSourcePage"
-                label="Source page for avatar & product facts"
-                hint="Pick which crawled page drives avatar voice, quotes, and locked product facts. Filter by page type or search by title and content."
+                label="Optional source page if you use site suggestions"
+                hint="Only used when you click Use site suggestions. Does not lock product facts."
                 pages={site.pages}
                 value={selectedSourcePage}
                 onChange={setSelectedSourcePage}
                 valueMode="path"
                 recommendedPath={recommendSourcePage(site)?.path}
               />
-              {suggestion?.sourcePage && (
+              {suggestion?.sourcePage && useSiteInfluence && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Last suggestion used{" "}
+                  Last site suggestion used{" "}
                   <span className="font-medium text-foreground">
                     {suggestion.sourcePage.path}
                   </span>{" "}
@@ -1377,7 +1390,6 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
         </div>
-      )}
 
       <form onSubmit={handleGenerate} className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="space-y-6 rounded-2xl border border-border bg-card p-6 lg:col-span-7">
@@ -2116,7 +2128,7 @@ export function ViraForgeCreatorStudio() {
               <div>
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <label htmlFor="motionScript" className="text-sm font-medium">
-                    Talking script (fact-locked)
+                    Talking script
                   </label>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -2165,7 +2177,7 @@ export function ViraForgeCreatorStudio() {
                     setMotionScript(e.target.value);
                     setApprovedTalkPreview(null);
                   }}
-                  placeholder="Script for Talk clips — 16–24 words, must match verified product facts"
+                  placeholder="Script for Talk clips — 16–24 words. Product facts only if you locked them."
                 />
                 {talkPreflight && (
                   <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 text-xs">
@@ -2318,6 +2330,7 @@ export function ViraForgeCreatorStudio() {
                     {motionLoading === "talk" ? "" : " — play for synced audio"}
                   </p>
                   <video
+                    key={motionVideo}
                     src={motionVideo}
                     controls
                     playsInline
@@ -2370,7 +2383,7 @@ export function ViraForgeCreatorStudio() {
               {generating ? (
                 <InlineLoading label="Generating portrait…" />
               ) : (
-                "Generate fact-locked influencer portrait"
+                "Generate influencer portrait"
               )}
             </Button>
           )}

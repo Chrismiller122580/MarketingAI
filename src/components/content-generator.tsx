@@ -733,6 +733,8 @@ export function ContentGenerator() {
     setLoading(true);
     setVideoLoading(false);
     setError(null);
+    setPost(null);
+    setSavedPost(null);
     const willRenderFreshMotion =
       !!attachedInfluencer &&
       useInfluencerPortrait &&

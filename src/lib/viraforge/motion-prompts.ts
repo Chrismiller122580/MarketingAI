@@ -22,7 +22,7 @@ export function buildTalkCloseupPrompt(persona: CreatorAvatarForm): string {
     "Clearly talking the whole time: jaw, lips, and cheeks move with each word, small nods, one hand gesture into frame.",
     "Alive and in motion, never a frozen photo. No walking away, no spin.",
     "Maintain consistent face from the reference portrait.",
-    "Soft key light, shallow bokeh, no text, no watermarks, no subtitles.",
+    "Soft key light, shallow bokeh. Empty background. No writing, no signs, no cards, no logos, no captions.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -43,7 +43,7 @@ export function buildWalkTalkPrompt(persona: CreatorAvatarForm): string {
     "They speak the entire time they walk. Jaw and lips move on every word. Not a profile, not a glance away.",
     "Arms swing, hair and clothes shift, the background moves past. Not a still portrait.",
     "Maintain consistent face and body from the reference portrait.",
-    "Natural daylight, cinematic, shallow street bokeh, no text, no watermarks.",
+    "Clean frame only. No writing, no signs, no cards, no logos, no captions anywhere in the shot.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -64,12 +64,12 @@ export function buildMotionPrompt(
   ];
 
   const motion: Record<SilentMotionType, string> = {
-    walk: "They walk several steps toward and past the camera, full arm swing, background sliding by. Clearly moving, not a still photo.",
-    spin: "A full smooth turn in place, hair and clothes moving, camera stays centered.",
-    jump: "A real jump off the ground and a soft landing, body in motion the whole clip.",
-    wave: "They raise a hand and wave at the camera, smiling, upper body moving.",
-    point: "They point toward the camera like they are showing a product, then a small step closer.",
+    walk: "Full-body shot from behind and to the side as they walk away down the street for several steps. Mouth closed. Not talking. No close-up. No graphics.",
+    spin: "They stand in an empty spot and do one full turn in place. Camera stays centered. Not walking down a street. No graphics.",
+    jump: "They crouch and jump straight up, then land. The whole body leaves the ground. Not a walking shot. No graphics.",
+    wave: "They stop, face the camera, and wave with one raised hand. Feet stay planted. Not a walking ad. No graphics.",
+    point: "They point straight at the lens, then take one step closer. Upper body only. Not a street walk. No graphics.",
   };
 
-  return [...base, motion[motionType]].join(" ");
+  return [...base, motion[motionType], "Clean frame. No writing, signs, cards, logos, or captions."].join(" ");
 }
