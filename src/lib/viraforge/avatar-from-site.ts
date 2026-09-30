@@ -55,6 +55,7 @@ export type AvatarFieldOptions = {
   productFacts?: Partial<ProductFactsForm>;
   factFields?: ProductFactFieldsConfig;
   aiEnhanced: boolean;
+  independent?: boolean;
 };
 
 function resolveBusinessType(site: SiteData): BusinessModelType {
