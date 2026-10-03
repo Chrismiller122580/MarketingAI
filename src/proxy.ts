@@ -19,16 +19,12 @@ export default auth((req) => {
     pathname === "/verify-email" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
-    pathname === "/world" ||
-    pathname.startsWith("/world/") ||
     pathname.startsWith("/.well-known/");
   const isPublicApi =
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/og/") ||
     pathname.startsWith("/api/cron/") ||
     pathname.startsWith("/api/media/blob") ||
-    pathname === "/api/world" ||
-    pathname.startsWith("/api/world/") ||
     pathname === "/api/facebook/data-deletion" ||
     pathname === "/api/billing/stripe/webhook" ||
     pathname === "/api/health/db";

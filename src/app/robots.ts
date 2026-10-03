@@ -13,7 +13,6 @@ export default function robots(): MetadataRoute.Robots {
         "/domains",
         "/data-deletion",
         "/verify-email",
-        "/world",
       ],
       disallow: [
         "/dashboard",
@@ -26,6 +25,7 @@ export default function robots(): MetadataRoute.Robots {
         "/campaigns",
         "/creator-studio",
         "/avatar-world",
+        "/world",
         "/analytics",
       ],
     },
