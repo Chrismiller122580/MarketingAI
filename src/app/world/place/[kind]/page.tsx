@@ -5,6 +5,7 @@ import {
   PublicWorldTown,
   type PublicPlaceKind,
 } from "@/components/public-world-town";
+import { requirePageSession } from "@/lib/require-page-session";
 import { listPublicWorldTown } from "@/lib/viraforge/avatar-world";
 
 export const dynamic = "force-dynamic";
@@ -33,10 +34,11 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { kind } = await params;
   const place = asKind(kind);
-  if (!place) return { title: "Place not found" };
+  if (!place) return { title: "Place not found", robots: { index: false, follow: false } };
   return {
     title: `${TITLES[place]} — Avatar World`,
     description: `Look in on ${TITLES[place]} in the living town on crawlspark.ai.`,
+    robots: { index: false, follow: false },
   };
 }
 
@@ -44,6 +46,7 @@ export default async function PublicWorldPlacePage({ params }: PageProps) {
   const { kind } = await params;
   const place = asKind(kind);
   if (!place) notFound();
+  await requirePageSession(`/world/place/${place}`);
   const town = await listPublicWorldTown();
   return <PublicWorldTown town={town} activePlace={place} />;
 }
