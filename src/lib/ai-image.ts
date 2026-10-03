@@ -203,10 +203,11 @@ export async function generateAvatarGroupScene(input: {
     form.append("prompt", prompt);
     form.append("size", "1536x1024");
     form.append("n", "1");
+    const imageField = input.people.length > 1 ? "image[]" : "image";
     input.people.forEach((person, index) => {
       const ext = person.mime.includes("png") ? "png" : "jpg";
       form.append(
-        "image",
+        imageField,
         new Blob([new Uint8Array(person.bytes)], { type: person.mime }),
         `avatar-${index}.${ext}`,
       );
