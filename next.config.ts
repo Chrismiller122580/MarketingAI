@@ -11,6 +11,10 @@ const publicAppUrl =
     : appOrigin;
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["ffmpeg-static"],
+  outputFileTracingIncludes: {
+    "/api/**/*": ["./node_modules/ffmpeg-static/**/*"],
+  },
   env: {
     // Bake canonical URL into client bundle so signOut/signIn don't use raw VERCEL_URL
     ...(publicAppUrl
