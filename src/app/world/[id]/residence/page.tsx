@@ -5,6 +5,8 @@ import {
   type ResidencePerson,
   type ResidenceView,
 } from "@/components/avatar-residence";
+import { getAuthUserId } from "@/lib/auth-helpers";
+import { requirePageSession } from "@/lib/require-page-session";
 import { loadPublicWorldProfile } from "@/lib/viraforge/avatar-world";
 
 export const dynamic = "force-dynamic";
@@ -14,17 +16,25 @@ type PageProps = { params: Promise<{ id: string }> };
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
+  const userId = await getAuthUserId();
+  if (!userId) {
+    return { title: "Residence", robots: { index: false, follow: false } };
+  }
   const { id } = await params;
   const profile = await loadPublicWorldProfile(id);
-  if (!profile) return { title: "Residence not found" };
+  if (!profile) {
+    return { title: "Residence not found", robots: { index: false, follow: false } };
+  }
   return {
     title: `${profile.displayName}'s place`,
     description: `${profile.displayName} lives on ${profile.street || "a street in the town"}.`,
+    robots: { index: false, follow: false },
   };
 }
 
 export default async function PublicResidencePage({ params }: PageProps) {
   const { id } = await params;
+  await requirePageSession(`/world/${id}/residence`);
   const profile = await loadPublicWorldProfile(id);
   if (!profile) notFound();
 
