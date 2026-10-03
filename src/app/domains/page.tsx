@@ -4,20 +4,20 @@ import Link from "next/link";
 import { PublicNav } from "@/components/public-nav";
 
 export default function TrustedDomains() {
-  const lastUpdated = "June 11, 2026";
+  const lastUpdated = "October 3, 2026";
 
   const primaryDomains = [
     "crawlspark.ai",
-    "app.crawlspark.ai",
+    "www.crawlspark.ai",
   ];
 
   const publicPages = [
-    "https://crawlspark.ai",
-    "https://crawlspark.ai/signup",
-    "https://crawlspark.ai/login",
-    "https://crawlspark.ai/privacy",
-    "https://crawlspark.ai/terms",
-    "https://crawlspark.ai/billing",
+    "https://www.crawlspark.ai",
+    "https://www.crawlspark.ai/signup",
+    "https://www.crawlspark.ai/login",
+    "https://www.crawlspark.ai/privacy",
+    "https://www.crawlspark.ai/terms",
+    "https://www.crawlspark.ai/billing",
   ];
 
   const commaSeparated = primaryDomains.join(",");
@@ -97,9 +97,10 @@ export default function TrustedDomains() {
 
           <h2>Additional Notes for Advertisers</h2>
           <ul>
-            <li>The primary marketing site lives at <strong>crawlspark.ai</strong>.</li>
-            <li>The web application experience is demonstrated at <strong>app.crawlspark.ai</strong> (shown in our product screenshots and demo).</li>
-            <li>All sign-up, login, pricing, and legal pages are hosted under the above domains.</li>
+            <li>The marketing site and the web app are the same host: <strong>www.crawlspark.ai</strong>. The apex <strong>crawlspark.ai</strong> redirects there.</li>
+            <li>Sign up, log in, and open the product at <strong>https://www.crawlspark.ai/signup</strong>, <strong>https://www.crawlspark.ai/login</strong>, and <strong>https://www.crawlspark.ai/dashboard</strong>.</li>
+            <li>Pricing and legal pages are hosted on www.crawlspark.ai.</li>
+            <li>app.crawlspark.ai is not an official CrawlSpark domain. Do not send ads or visitors there.</li>
             <li>We do not currently use third-party domains for core marketing or conversion flows.</li>
           </ul>
 
