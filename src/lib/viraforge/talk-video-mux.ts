@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +9,16 @@ import { parseBuffer } from "music-metadata";
 import { loadStoredMediaBytes } from "@/lib/media-url";
 
 const execFileAsync = promisify(execFile);
+
+function resolveFfmpegBin(): string {
+  if (!ffmpegPath) {
+    throw new Error("ffmpeg is not available on this server");
+  }
+  if (!existsSync(ffmpegPath)) {
+    throw new Error(`ffmpeg binary missing at ${ffmpegPath}`);
+  }
+  return ffmpegPath;
+}
 
 async function fetchMediaBytes(url: string): Promise<Buffer> {
   const loaded = await loadStoredMediaBytes(url);
@@ -36,8 +47,7 @@ export async function getAudioDurationSec(buffer: Buffer): Promise<number> {
 }
 
 async function probeVideoDurationSec(videoPath: string): Promise<number> {
-  if (!ffmpegPath) throw new Error("ffmpeg binary not available");
-  const bin = ffmpegPath;
+  const bin = resolveFfmpegBin();
 
   const stderr = await new Promise<string>((resolve, reject) => {
     execFile(
@@ -71,9 +81,7 @@ export async function muxTalkVideoWithVoice(
   videoUrl: string,
   audioUrl: string,
 ): Promise<{ buffer: Buffer; audioDurationSec: number; videoDurationSec: number }> {
-  if (!ffmpegPath) {
-    throw new Error("ffmpeg is not available on this server");
-  }
+  const bin = resolveFfmpegBin();
 
   const [videoBytes, audioBytes] = await Promise.all([
     fetchMediaBytes(videoUrl),
@@ -105,7 +113,7 @@ export async function muxTalkVideoWithVoice(
       : `[0:v]setpts=PTS-STARTPTS[v];[1:a]aresample=async=1:first_pts=0[a]`;
 
     await execFileAsync(
-      ffmpegPath,
+      bin,
       [
         "-y",
         "-i",
