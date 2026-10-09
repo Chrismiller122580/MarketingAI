@@ -9,7 +9,7 @@ import { hasElevenLabs, synthesizeSpeech } from "./elevenlabs";
 import { generateInfluencerScript } from "./influencer-script";
 import { prepareMotionPortrait } from "./influencer-renders";
 import { startInfluencerMotion } from "./influencer-motion";
-import { resolveMotionVoiceId } from "./motion-voice";
+import { voiceIdForAvatar } from "./motion-voice";
 import {
   isSpokenMotion,
   motionScriptScene,
@@ -156,7 +156,10 @@ export async function startContentStudioMotionClip(input: {
     input.influencer.persona,
     spoken ? script : undefined,
     spoken
-      ? resolveMotionVoiceId(input.influencer.assets.voiceId)
+      ? voiceIdForAvatar(
+          input.influencer.persona.gender,
+          input.influencer.assets.voiceId,
+        )
       : undefined,
     undefined,
     spoken ? input.influencer.language : undefined,
@@ -175,7 +178,10 @@ export async function startContentStudioMotionClip(input: {
   ) {
     try {
         const speech = await synthesizeSpeech(script, {
-          voiceId: resolveMotionVoiceId(input.influencer.assets.voiceId),
+          voiceId: voiceIdForAvatar(
+            input.influencer.persona.gender,
+            input.influencer.assets.voiceId,
+          ),
           purpose: "talk",
           languageCode: input.influencer.language,
         });

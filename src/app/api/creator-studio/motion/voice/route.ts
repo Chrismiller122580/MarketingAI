@@ -18,6 +18,8 @@ import {
   analyzeTalkScript,
   hashTalkScript,
 } from "@/lib/viraforge/talk-settings";
+import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
+import { voiceIdForAvatar } from "@/lib/viraforge/motion-voice";
 import { worldFromMemory } from "@/lib/viraforge/avatar-world";
 import { getAudioDurationSec } from "@/lib/viraforge/talk-video-mux";
 
@@ -102,7 +104,11 @@ export async function POST(request: Request) {
     }
 
     const assets = (influencer.assets ?? {}) as { voiceId?: string };
-    const voiceId = assets.voiceId;
+    const persona = parseCreatorAvatar(influencer.persona);
+    const voiceId = voiceIdForAvatar(
+      persona.success ? persona.data.gender : undefined,
+      assets.voiceId,
+    );
     const languageCode = worldFromMemory(influencer.memory).language;
     const speech = await synthesizeSpeechWithMeta(script.trim(), {
       voiceId,

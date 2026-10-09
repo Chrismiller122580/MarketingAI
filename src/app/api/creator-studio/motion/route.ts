@@ -17,7 +17,7 @@ import {
   type PreparedTalkAudio,
 } from "@/lib/viraforge/influencer-motion";
 import { recordCreatorEvent } from "@/lib/viraforge/learning";
-import { resolveMotionVoiceId } from "@/lib/viraforge/motion-voice";
+import { voiceIdForAvatar } from "@/lib/viraforge/motion-voice";
 import { prepareMotionPortrait } from "@/lib/viraforge/influencer-renders";
 import { validateQuoteAgainstFacts } from "@/lib/viraforge/claim-validator";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const motionVoiceId = resolveMotionVoiceId(assets.voiceId);
+    const motionVoiceId = voiceIdForAvatar(persona.data.gender, assets.voiceId);
 
     if (motionType === "talk") {
       const groundedInCrawl =

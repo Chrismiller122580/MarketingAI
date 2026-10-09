@@ -23,6 +23,7 @@ import { assertFreeGenerationsAllowed, consumeGenerations } from "@/lib/quota";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { loadWinningCopyHints } from "@/lib/winning-copy";
 import { hasVoiceProvider } from "@/lib/ai-voice";
+import { voiceIdForAvatar } from "@/lib/viraforge/motion-voice";
 import { loadCrawledCorpus } from "@/lib/crawled-content";
 import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
 import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
@@ -285,7 +286,12 @@ export async function POST(request: Request) {
           `Video rate limit exceeded. Retry in ~${videoRl.retryAfterSeconds}s.`,
         ];
       } else {
-        const influencerVoiceId = influencerContext?.assets.voiceId;
+        const influencerVoiceId = influencerContext
+          ? voiceIdForAvatar(
+              influencerContext.persona.gender,
+              influencerContext.assets.voiceId,
+            )
+          : undefined;
         const voicePromise = hasVoiceProvider()
           ? (async () => {
               const voiceRl = checkRateLimit(userId as string, "voice");
