@@ -29,7 +29,7 @@ type NavItem = {
 const marketingItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: NavIconDashboard },
   { href: "/campaigns", label: "Campaigns", icon: NavIconCampaigns },
-  { href: "/content", label: "Content Studio", icon: NavIconContent },
+  { href: "/content", label: "Posts", icon: NavIconContent },
   { href: "/posts", label: "Post Library", icon: NavIconPosts },
   { href: "/analytics", label: "Analytics", icon: NavIconAnalytics },
   { href: "/billing", label: "Billing", icon: NavIconBilling },
@@ -37,7 +37,7 @@ const marketingItems: NavItem[] = [
 ];
 
 const creatorItems: NavItem[] = [
-  { href: "/creator-studio", label: "Creator Studio", icon: NavIconCreatorStudio },
+  { href: "/creator-studio", label: "Avatars", icon: NavIconCreatorStudio },
 ];
 
 function NavLink({

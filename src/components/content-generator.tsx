@@ -40,12 +40,9 @@ import { recommendSourcePage } from "@/lib/crawled-page-utils";
 import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
 import {
   DEFAULT_PRESENT_MOTION_TYPES,
-  MAX_CONTENT_STUDIO_MOTION_CLIPS,
-  MOTION_ACTIONS,
   parseMotionTypesParam,
-  toggleMotionTypeSelection,
 } from "@/lib/viraforge/motion-actions";
-import { VIDEO_LOOKS, type VideoLookId } from "@/lib/viraforge/video-looks";
+import type { VideoLookId } from "@/lib/viraforge/video-looks";
 import {
   PRESENT_HANDOFF_EVENT,
   clearPresentHandoff,
@@ -143,14 +140,11 @@ export function ContentGenerator() {
   const [useInfluencerPortrait, setUseInfluencerPortrait] = useState(true);
   const [influencerVisualMode, setInfluencerVisualMode] = useState<
     "portrait" | "saved" | "fresh"
-  >("fresh");
+  >("portrait");
   const [selectedMotionTypes, setSelectedMotionTypes] = useState<
     InfluencerMotionType[]
   >(DEFAULT_PRESENT_MOTION_TYPES);
-  const [videoLook, setVideoLook] = useState<VideoLookId>("influencer");
-  const [motionCapabilities, setMotionCapabilities] = useState<
-    Record<InfluencerMotionType, boolean> | null
-  >(null);
+  const videoLook: VideoLookId = "influencer";
   const [studioInfluencers, setStudioInfluencers] = useState<
     AttachedInfluencer[]
   >([]);
@@ -184,17 +178,6 @@ export function ContentGenerator() {
       !willUseInfluencerClips &&
       !aiCaps?.aiImageAvailable) ||
     (isStoryVideo && !willUseInfluencerClips && !aiCaps?.aiVideoAvailable);
-
-  useEffect(() => {
-    fetch("/api/creator-studio/capabilities")
-      .then((res) => (res.ok ? res.json() : null))
-      .then(
-        (data: { motionTypes?: Record<InfluencerMotionType, boolean> } | null) => {
-          if (data?.motionTypes) setMotionCapabilities(data.motionTypes);
-        },
-      )
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     fetch("/api/social/status")
@@ -348,9 +331,9 @@ export function ContentGenerator() {
     setInfluencerVisualMode(
       handoff?.clips.length
         ? "fresh"
-        : match.hasMotionClip && !hasEnterprisePlus
+        : match.hasMotionClip
           ? "saved"
-          : "fresh",
+          : "portrait",
     );
   }, [searchParams, studioInfluencers, hasEnterprisePlus]);
 
@@ -375,7 +358,7 @@ export function ContentGenerator() {
   function detachInfluencer() {
     setAttachedInfluencer(null);
     setUseInfluencerPortrait(true);
-    setInfluencerVisualMode("fresh");
+    setInfluencerVisualMode("portrait");
     setSelectedMotionTypes(DEFAULT_PRESENT_MOTION_TYPES);
     setHandoffBanner(null);
     handoffAppliedRef.current = null;
@@ -386,9 +369,7 @@ export function ContentGenerator() {
   function attachInfluencer(influencer: AttachedInfluencer) {
     setAttachedInfluencer(influencer);
     setUseInfluencerPortrait(true);
-    setInfluencerVisualMode(
-      influencer.hasMotionClip && !hasEnterprisePlus ? "saved" : "fresh",
-    );
+    setInfluencerVisualMode(influencer.hasMotionClip ? "saved" : "portrait");
     setSelectedMotionTypes(DEFAULT_PRESENT_MOTION_TYPES);
     const params = new URLSearchParams(searchParams.toString());
     params.set("influencer", influencer.id);
@@ -660,10 +641,6 @@ export function ContentGenerator() {
 
     await poll();
     pollRef.current = setInterval(poll, 4000);
-  }
-
-  function toggleMotionType(type: InfluencerMotionType) {
-    setSelectedMotionTypes((prev) => toggleMotionTypeSelection(prev, type));
   }
 
   async function pollVideoStatus(
@@ -1040,9 +1017,8 @@ export function ContentGenerator() {
                         {(
                           [
                             { id: "portrait" as const, label: "Still portrait" },
-                            { id: "fresh" as const, label: "Generate fresh clips" },
                             ...(attachedInfluencer.hasMotionClip
-                              ? [{ id: "saved" as const, label: "Use saved clip" }]
+                              ? [{ id: "saved" as const, label: "Saved clip" }]
                               : []),
                           ]
                         ).map((option) => (
@@ -1064,92 +1040,33 @@ export function ContentGenerator() {
                       </div>
 
                       {influencerVisualMode === "fresh" && (
-                        <>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Pick up to {MAX_CONTENT_STUDIO_MOTION_CLIPS} motions — AI
-                            writes matched scripts (16–24 words for Talk), voice, and
-                            lip-sync where needed.
-                          </p>
-                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                            Video look
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {VIDEO_LOOKS.map((look) => (
-                              <button
-                                key={look.id}
-                                type="button"
-                                onClick={() => setVideoLook(look.id)}
-                                title={look.detail}
-                                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                                  videoLook === look.id
-                                    ? "bg-violet-600 text-white"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                                }`}
-                              >
-                                {look.label}
-                              </button>
-                            ))}
-                          </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {VIDEO_LOOKS.find((look) => look.id === videoLook)?.detail}.
-                            Baked into the clip — not a replay of a saved video.
-                          </p>
-                          {selectedMotionTypes.includes("talk") && (
-                            <p className="text-xs text-violet-700 dark:text-violet-300">
-                              Talk clips use slower voice + shorter scripts for
-                              realistic lip-sync. Preview voice in Creator Studio for
-                              manual approval.
-                            </p>
-                          )}
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                            {MOTION_ACTIONS.map((action) => {
-                              const selected = selectedMotionTypes.includes(
-                                action.type,
-                              );
-                              const enabled =
-                                motionCapabilities?.[action.type] ?? true;
-                              return (
-                                <button
-                                  key={action.type}
-                                  type="button"
-                                  disabled={!enabled}
-                                  onClick={() => toggleMotionType(action.type)}
-                                  className={`rounded-lg border px-2.5 py-2 text-left transition ${
-                                    selected
-                                      ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30"
-                                      : enabled
-                                        ? "border-slate-200 bg-white hover:border-violet-300 dark:border-slate-700 dark:bg-slate-900"
-                                        : "cursor-not-allowed border-slate-200/60 opacity-50 dark:border-slate-800"
-                                  }`}
-                                >
-                                  <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                                    {action.label}
-                                    {selected ? " ✓" : ""}
-                                  </p>
-                                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500 dark:text-slate-400">
-                                    {action.description}
-                                  </p>
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {selectedMotionTypes.filter((t) => t === "talk").length >
-                            1 && (
-                            <p className="text-xs text-violet-700 dark:text-violet-300">
-                              Two Talk clips use pitch + CTA scripts from your
-                              caption.
-                            </p>
-                          )}
-                        </>
+                        <p className="text-xs text-violet-700 dark:text-violet-300">
+                          A clip from Avatars is still rendering. This post will
+                          use it when it is ready. New shots are made in Avatars,
+                          not here.
+                        </p>
+                      )}
+
+                      {influencerVisualMode !== "fresh" && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Shoot Walk & talk, looks, and voice in{" "}
+                          <Link
+                            href="/creator-studio"
+                            className="font-medium text-violet-700 underline dark:text-violet-300"
+                          >
+                            Avatars
+                          </Link>
+                          . Posts only attaches a finished clip.
+                        </p>
                       )}
 
                       {influencerVisualMode === "saved" &&
                         attachedInfluencer.motionType &&
-                        attachedInfluencer.motionType !== "talk" && (
+                        attachedInfluencer.motionType !== "talk" &&
+                        attachedInfluencer.motionType !== "walk-talk" && (
                           <p className="text-xs text-amber-700 dark:text-amber-300">
-                            Saved clip is {attachedInfluencer.motionType} — no
-                            synced voiceover. Switch to fresh clips for Walk &
-                            talk or Talk.
+                            Saved clip is {attachedInfluencer.motionType}. Shoot
+                            a Walk & talk clip in Avatars if you want a spoken line.
                           </p>
                         )}
                     </div>

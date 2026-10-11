@@ -17,6 +17,11 @@ import {
 } from "./avatar-option-presets";
 import { nameOptionsFromLocation } from "./avatar-name-generator";
 import {
+  inferAudiencePlace,
+  lookForAudience,
+  type AudiencePlace,
+} from "./audience-place";
+import {
   classifySitePage,
   detectOfferingFocus,
   extractCrawledProductFacts,
@@ -62,7 +67,23 @@ function resolveBusinessType(site: SiteData): BusinessModelType {
   return site.brand.businessModel?.type ?? "other";
 }
 
+function siteCorpus(site: SiteData): string {
+  return [
+    site.domain,
+    site.brand.name,
+    site.brand.tagline,
+    site.brand.topics.join(" "),
+    ...site.pages.slice(0, 8).map(
+      (page) =>
+        `${page.title} ${page.description} ${page.excerpt} ${page.headings.join(" ")}`,
+    ),
+  ].join("\n");
+}
+
 function extractLocation(site: SiteData): string {
+  const place = inferAudiencePlace(siteCorpus(site));
+  if (place) return place.label;
+
   const crawled = extractCrawledProductFacts(site);
   if (crawled.location) return crawled.location;
 
@@ -72,6 +93,10 @@ function extractLocation(site: SiteData): string {
     /(?:located in|based in|serving|visit us at|headquarters in)\s+([A-Z][^\.\n!]{3,60})/i,
   );
   return match?.[1]?.trim() ?? "";
+}
+
+function audienceForSite(site: SiteData): AudiencePlace | null {
+  return inferAudiencePlace(`${extractLocation(site)}\n${siteCorpus(site)}`);
 }
 
 function nameOptions(site: SiteData): FieldOption[] {
@@ -177,11 +202,22 @@ function bodyTypeOptions(type: BusinessModelType): FieldOption[] {
   return dedupeOptions(presets[type] ?? presets.other, 3);
 }
 
-function physicalTraitOptions(gender: string): {
+function physicalTraitOptions(
+  gender: string,
+  place: AudiencePlace | null,
+): {
   height: FieldOption[];
   faceShape: FieldOption[];
   hair: FieldOption[];
 } {
+  const look = lookForAudience(
+    place?.kind ?? null,
+    gender === "male" ? "male" : gender === "nonbinary" ? "nonbinary" : "female",
+    place?.label ?? "",
+  );
+  const regionalHair =
+    look?.hair.map((item) => makeOption(item.label, item.value, "site", "high")) ??
+    [];
   const isMale = gender === "male";
   return {
     height: dedupeOptions(
@@ -208,17 +244,20 @@ function physicalTraitOptions(gender: string): {
       4,
     ),
     hair: dedupeOptions(
-      isMale
-        ? [
-            makeOption("Short textured fade", "Short textured fade"),
-            makeOption("Medium wavy brown", "Medium wavy brown"),
-            makeOption("Clean cropped black", "Clean cropped black"),
-          ]
-        : [
-            makeOption("Long wavy brown", "Long wavy brown"),
-            makeOption("Shoulder-length straight black", "Shoulder-length straight black"),
-            makeOption("Curly medium with highlights", "Curly medium with caramel highlights"),
-          ],
+      [
+        ...regionalHair,
+        ...(isMale
+          ? [
+              makeOption("Short textured fade", "Short textured fade"),
+              makeOption("Medium wavy brown", "Medium wavy brown"),
+              makeOption("Clean cropped black", "Clean cropped black"),
+            ]
+          : [
+              makeOption("Long wavy brown", "Long wavy brown"),
+              makeOption("Shoulder-length straight black", "Shoulder-length straight black"),
+              makeOption("Curly medium with highlights", "Curly medium with caramel highlights"),
+            ]),
+      ],
       3,
     ),
   };
@@ -281,13 +320,33 @@ function ageRangeOptions(ages: FieldOption[]): FieldOption[] {
   );
 }
 
-function personalityOptions(site: SiteData, type: BusinessModelType): FieldOption[] {
+function personalityOptions(
+  site: SiteData,
+  type: BusinessModelType,
+  place: AudiencePlace | null,
+  gender: string,
+): FieldOption[] {
   const tone = site.brand.tone;
   const voiceGuide = site.brand.synthesis?.voiceGuide ?? "";
   const tagline = site.brand.tagline;
+  const look = lookForAudience(
+    place?.kind ?? null,
+    gender === "male" ? "male" : gender === "nonbinary" ? "nonbinary" : "female",
+    place?.label ?? extractLocation(site),
+  );
 
   const fromIndustry = industryPersonality(type);
   const fromSite: FieldOption[] = [];
+  if (look) {
+    fromSite.push(
+      makeOption(
+        place?.kind === "us-south" ? "Southern country voice" : "Local voice",
+        look.personalityVoice,
+        "site",
+        "high",
+      ),
+    );
+  }
 
   if (voiceGuide) {
     fromSite.push(
@@ -295,7 +354,7 @@ function personalityOptions(site: SiteData, type: BusinessModelType): FieldOptio
         `Brand voice • ${tone}`,
         `Personality: ${voiceGuide.slice(0, 120)}. Voice: ${tone}, on-brand and authentic.`,
         "site",
-        "high",
+        look ? "medium" : "high",
       ),
     );
   }
@@ -313,10 +372,30 @@ function personalityOptions(site: SiteData, type: BusinessModelType): FieldOptio
   return dedupeOptions([...fromSite, ...fromIndustry], 4);
 }
 
-function wardrobeOptions(site: SiteData, type: BusinessModelType): FieldOption[] {
+function wardrobeOptions(
+  site: SiteData,
+  type: BusinessModelType,
+  place: AudiencePlace | null,
+  gender: string,
+): FieldOption[] {
   const topics = site.brand.topics.join(" ").toLowerCase();
   const tone = site.brand.tone.toLowerCase();
   const fromSite: FieldOption[] = [];
+  const look = lookForAudience(
+    place?.kind ?? null,
+    gender === "male" ? "male" : gender === "nonbinary" ? "nonbinary" : "female",
+    place?.label ?? "",
+  );
+  if (look) {
+    fromSite.push(
+      makeOption(
+        place?.kind === "us-south" ? "Country casual" : "Local everyday",
+        look.wardrobe,
+        "site",
+        "high",
+      ),
+    );
+  }
 
   if (/fitness|gym|sport|wellness|yoga|crossfit|protein|health/.test(topics)) {
     fromSite.push(
@@ -491,13 +570,24 @@ async function enhanceWithAi(
   "culturalNotes": ["note1"],
   "sampleQuote": ["quote using only brand facts, no invented specs"]
 }
-Keep arrays to 2 items max. Be culturally respectful. No invented product claims.`,
+Keep arrays to 2 items max. The avatar must look and sound local to "location". A US South city such as Chattanooga or anywhere in Tennessee, Georgia, Alabama, or the Carolinas is a country Southern American who speaks English — never a Spanish-speaking Latina and never a Colombian default. A Latin American city stays local to that city. No invented product claims.`,
     JSON.stringify(summary),
     { maxTokens: 500, temperature: 0.5, jsonMode: true },
   );
 
   if (!raw) return null;
+  return applyAiFieldPatches(
+    base,
+    raw,
+    `${base.rationale} AI refined name, voice, and cultural options.`,
+  );
+}
 
+function applyAiFieldPatches(
+  base: AvatarFieldOptions,
+  raw: string,
+  rationale: string,
+): AvatarFieldOptions | null {
   try {
     const parsed = JSON.parse(raw) as Record<string, string[]>;
     const fields = { ...base.fields };
@@ -546,7 +636,7 @@ Keep arrays to 2 items max. Be culturally respectful. No invented product claims
       recommended,
       aiEnhanced: true,
       fitScore: Math.min(100, base.fitScore + 8),
-      rationale: `${base.rationale} AI refined name, voice, and cultural options.`,
+      rationale,
     };
   } catch {
     return null;
@@ -568,8 +658,18 @@ export async function suggestAvatarFromSite(
   const names = nameOptions(site);
   const genders = genderOptions(site);
   const primaryGender = genders[0]?.value ?? "female";
-  const physical = physicalTraitOptions(primaryGender);
+  const place = audienceForSite(site);
+  const physical = physicalTraitOptions(primaryGender, place);
   const ages = ageOptions(type);
+  const look = lookForAudience(
+    place?.kind ?? null,
+    primaryGender === "male"
+      ? "male"
+      : primaryGender === "nonbinary"
+        ? "nonbinary"
+        : "female",
+    place?.label || location,
+  );
 
   const locationOpts = dedupeOptions(
     [
@@ -577,15 +677,19 @@ export async function suggestAvatarFromSite(
         ? [
             makeOption(location, location, "site", "high"),
             makeOption(
-              `${location} + remote`,
-              `${location} + remote digital audience`,
+              `${location} metro`,
+              `${location} and nearby towns`,
               "site",
               "medium",
             ),
           ]
         : []),
-      makeOption("Major metro • US", "New York, NY + nationwide audience"),
-      makeOption("Coastal lifestyle", "Los Angeles, CA + Miami, FL"),
+      ...(place
+        ? []
+        : [
+            makeOption("United States", "United States"),
+            makeOption("Major US city", "A major US city, English speaking"),
+          ]),
     ],
     4,
   );
@@ -600,13 +704,38 @@ export async function suggestAvatarFromSite(
     faceShape: physical.faceShape,
     hair: physical.hair,
     location: locationOpts,
-    neighborhoods: neighborhoodOptions(location, type),
+    neighborhoods: look
+      ? dedupeOptions(
+          [
+            makeOption("Hometown", look.neighborhoods, "site", "high"),
+            ...neighborhoodOptions(location, type),
+          ],
+          4,
+        )
+      : neighborhoodOptions(location, type),
     ageRangeShown: ageRangeOptions(ages),
     religion: religionOptionsFromTone(tone),
     socialClass: industrySocialClass(type),
-    wardrobe: wardrobeOptions(site, type),
-    culturalNotes: culturalNotesFromBrand(location, topics, tone),
-    personalityVoice: personalityOptions(site, type),
+    wardrobe: wardrobeOptions(site, type, place, primaryGender),
+    culturalNotes: look
+      ? dedupeOptions(
+          [
+            makeOption(
+              place?.kind === "us-south"
+                ? primaryGender === "male"
+                  ? "Southern hometown"
+                  : "Country Southern girl"
+                : "Local",
+              look.culturalNotes,
+              "site",
+              "high",
+            ),
+            ...culturalNotesFromBrand(location, topics, tone),
+          ],
+          4,
+        )
+      : culturalNotesFromBrand(location, topics, tone),
+    personalityVoice: personalityOptions(site, type, place, primaryGender),
     sampleQuote: sampleQuoteOptions(site, crawled),
   };
 
@@ -664,6 +793,164 @@ export async function suggestAvatarFromSite(
   return result;
 }
 
+const INDEPENDENT_LOCATIONS = [
+  "New Orleans, Louisiana",
+  "Tokyo, Japan",
+  "Accra, Ghana",
+  "Barcelona, Spain",
+  "Nairobi, Kenya",
+  "Mexico City, Mexico",
+  "Reykjavík, Iceland",
+  "Manila, Philippines",
+  "Helsinki, Finland",
+  "Cape Town, South Africa",
+];
+
+async function enhanceIndependentWithAi(
+  base: AvatarFieldOptions,
+): Promise<AvatarFieldOptions | null> {
+  if (!hasAnyAiKey()) return null;
+
+  const raw = await chatCompletion(
+    `You suggest influencer avatar field options for an independent persona with no brand website and no product. Return JSON only with shape:
+{
+  "displayName": ["name1","name2"],
+  "personalityVoice": ["full personality+voice string"],
+  "culturalNotes": ["note1"],
+  "sampleQuote": ["quote with no product, price, or brand claims"]
+}
+Keep arrays to 2 items max. Be culturally diverse and respectful. Do not invent a product or company.`,
+    JSON.stringify({
+      locations: (base.fields.location ?? []).map((o) => o.value).slice(0, 4),
+      names: (base.fields.displayName ?? []).map((o) => o.value).slice(0, 4),
+    }),
+    { maxTokens: 500, temperature: 0.7, jsonMode: true },
+  );
+
+  if (!raw) return null;
+  return applyAiFieldPatches(
+    base,
+    raw,
+    `${base.rationale} AI refined name, voice, and cultural options.`,
+  );
+}
+
+/** Persona options with no crawled site and no product facts. */
+export async function suggestIndependentAvatar(options?: {
+  useAi?: boolean;
+}): Promise<AvatarFieldOptions> {
+  const salt = Date.now();
+  const genderCycle: CreatorAvatarForm["gender"][] = [
+    "female",
+    "male",
+    "nonbinary",
+  ];
+  const primaryGender = genderCycle[salt % 3] ?? "female";
+  const type: BusinessModelType = "other";
+  const start = salt % INDEPENDENT_LOCATIONS.length;
+  const locations = [0, 1, 2, 3].map(
+    (i) =>
+      INDEPENDENT_LOCATIONS[
+        (start + i * 3) % INDEPENDENT_LOCATIONS.length
+      ] ?? "Barcelona, Spain",
+  );
+  const primaryLocation = locations[0] ?? "Barcelona, Spain";
+
+  const names = nameOptionsFromLocation(primaryLocation, undefined, primaryGender);
+  const genders = dedupeOptions(
+    [
+      makeOption(
+        primaryGender === "nonbinary"
+          ? "Non-binary"
+          : primaryGender === "male"
+            ? "Male"
+            : "Female",
+        primaryGender,
+        "industry",
+        "high",
+      ),
+      makeOption("Female", "female"),
+      makeOption("Male", "male"),
+      makeOption("Non-binary", "nonbinary"),
+    ],
+    3,
+  );
+  const physical = physicalTraitOptions(primaryGender, null);
+  const ages = ageOptions(type);
+  const locationOpts = dedupeOptions(
+    locations.map((loc, i) =>
+      makeOption(loc, loc, "industry", i === 0 ? "high" : "medium"),
+    ),
+    4,
+  );
+
+  const fields: Partial<Record<AvatarFieldKey, FieldOption[]>> = {
+    displayName: names.map((n, i) =>
+      makeOption(n.label, n.value, "industry", i < 2 ? "high" : "medium"),
+    ),
+    handle: dedupeOptions(
+      names.map((n) =>
+        makeOption(`@${slugHandle(n.value)}`, slugHandle(n.value), "industry", "medium"),
+      ),
+      4,
+    ),
+    gender: genders,
+    age: ages,
+    bodyType: bodyTypeOptions(type),
+    height: physical.height,
+    faceShape: physical.faceShape,
+    hair: physical.hair,
+    location: locationOpts,
+    neighborhoods: neighborhoodOptions(primaryLocation, type),
+    ageRangeShown: ageRangeOptions(ages),
+    religion: religionOptionsFromTone("authentic"),
+    socialClass: industrySocialClass(type),
+    wardrobe: dedupeOptions(
+      [...industryWardrobe(type), ...wardrobeQuickPicks()],
+      6,
+    ),
+    culturalNotes: culturalNotesFromBrand(primaryLocation, [], "authentic"),
+    personalityVoice: industryPersonality(type),
+    sampleQuote: dedupeOptions(
+      [
+        makeOption(
+          "Show up for yourself",
+          "Show up for yourself first — consistency beats intensity every time.",
+        ),
+        makeOption(
+          "The work is the point",
+          "The work is the point. The rest is noise.",
+        ),
+        makeOption(
+          "Small days still count",
+          "Small days still count. That's how a life gets built.",
+        ),
+      ],
+      3,
+    ),
+  };
+
+  const recommended = pickRecommended(fields);
+
+  let result: AvatarFieldOptions = {
+    domain: "",
+    fitScore: 70,
+    rationale:
+      "Independent persona — no crawled site and no product facts applied.",
+    fields,
+    recommended,
+    aiEnhanced: false,
+    independent: true,
+  };
+
+  if (options?.useAi !== false) {
+    const enhanced = await enhanceIndependentWithAi(result);
+    if (enhanced) result = { ...enhanced, independent: true };
+  }
+
+  return result;
+}
+
 export function buildAvatarBrief(
   persona: CreatorAvatarForm,
   suggestion?: AvatarFieldOptions,
@@ -675,7 +962,9 @@ export function buildAvatarBrief(
     persona.culturalNotes,
     persona.personalityVoice.slice(0, 160),
   ];
-  if (suggestion?.domain) {
+  if (suggestion?.independent) {
+    lines.unshift("Independent persona (no site, no product facts)");
+  } else if (suggestion?.domain) {
     lines.unshift(`Site: ${suggestion.domain} (fit ${suggestion.fitScore}%)`);
   }
   return lines.filter(Boolean).join("\n");

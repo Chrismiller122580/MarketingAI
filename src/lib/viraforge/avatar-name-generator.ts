@@ -49,16 +49,16 @@ const FIRST: Record<
   },
   "us-south": {
     female: [
-      "Maya",
-      "Chloe",
+      "Savannah",
+      "Emma",
       "Grace",
-      "Harper",
-      "Ellie",
-      "Quinn",
-      "Reese",
+      "Maggie",
+      "Lacey",
+      "Brooke",
+      "Hannah",
       "Claire",
-      "Lila",
-      "Nora",
+      "Amber",
+      "Harper",
     ],
     male: [
       "Evan",
@@ -137,7 +137,7 @@ export function regionFromLocation(location: string): NameRegion {
   }
   if (/miami|florida|hialeah|tampa|orlando/.test(loc)) return "miami";
   if (
-    /texas|austin|nashville|atlanta|dallas|houston|carolina|georgia|tennessee/.test(
+    /chattanooga|knoxville|memphis|nashville|murfreesboro|atlanta|savannah|birmingham|huntsville|charleston|charlotte|raleigh|asheville|louisville|lexington|texas|austin|dallas|houston|carolina|georgia|tennessee|\btn\b|alabama/.test(
       loc,
     )
   ) {

@@ -7,7 +7,10 @@ import {
   requirePaidUserId,
 } from "@/lib/auth-helpers";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { suggestAvatarFromSite } from "@/lib/viraforge/avatar-from-site";
+import {
+  suggestAvatarFromSite,
+  suggestIndependentAvatar,
+} from "@/lib/viraforge/avatar-from-site";
 import type { SiteData } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -31,6 +34,12 @@ export async function POST(request: Request) {
     const sitePayload = body.site as SiteData | undefined;
     const useAi = body.useAi !== false;
     const pagePath = body.pagePath as string | undefined;
+    const independent = body.independent === true || (!domain && !sitePayload);
+
+    if (independent) {
+      const suggestion = await suggestIndependentAvatar({ useAi });
+      return NextResponse.json(suggestion);
+    }
 
     let site = sitePayload;
     if (!site?.pages?.length && domain) {
@@ -47,7 +56,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Crawled site not found. Crawl the domain on the dashboard first.",
+              "Crawled site not found. Crawl the domain on the dashboard first — or skip the site and create an independent avatar.",
           },
           { status: 404 },
         );
@@ -56,10 +65,8 @@ export async function POST(request: Request) {
     }
 
     if (!site?.pages?.length) {
-      return NextResponse.json(
-        { error: "Site data is required. Crawl a domain first." },
-        { status: 400 },
-      );
+      const suggestion = await suggestIndependentAvatar({ useAi });
+      return NextResponse.json(suggestion);
     }
 
     const suggestion = await suggestAvatarFromSite(site, { useAi, pagePath });

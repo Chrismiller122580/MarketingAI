@@ -7,6 +7,7 @@ import {
   type InfluencerAssets,
 } from "./influencer-assets";
 import type { AvatarWorldProfile } from "./avatar-world";
+import { languageForPlace } from "./audience-place";
 
 export type CreatorEventType =
   | "field_edit"
@@ -285,15 +286,6 @@ export async function getCreatorDefaults(
     defaults.bodyType = prefs.avgBodyType;
   }
 
-  if (prefs.lastInfluencerId) {
-    const last = await prisma.influencer.findFirst({
-      where: { id: prefs.lastInfluencerId, userId },
-    });
-    if (last?.persona) {
-      return { ...(last.persona as CreatorAvatarForm), ...defaults };
-    }
-  }
-
   return defaults;
 }
 
@@ -338,7 +330,24 @@ export async function upsertInfluencerWithFacts(
   }
 
   const mergedAssets = mergeInfluencerAssets(existing?.assets, assets ?? {});
-  const memory = mergeInfluencerMemory(existing?.memory, { lastFields: persona });
+  const priorWorld = (
+    existing?.memory && typeof existing.memory === "object"
+      ? (existing.memory as InfluencerMemory).world
+      : undefined
+  );
+  const placeLanguage = languageForPlace(persona.location);
+  const memory = mergeInfluencerMemory(existing?.memory, {
+    lastFields: persona,
+    world: {
+      ...(priorWorld ?? {}),
+      language: placeLanguage,
+      hometown: priorWorld?.hometown || persona.location,
+      currentCity:
+        priorWorld?.currentCity ||
+        persona.location.split("+")[0]?.trim() ||
+        persona.location,
+    } as AvatarWorldProfile,
+  });
 
   const influencer = await prisma.influencer.upsert({
     where: {

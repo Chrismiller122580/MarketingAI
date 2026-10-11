@@ -84,16 +84,10 @@ type CreatorTab =
   | "library"
   | "site-content";
 
-const TABS: { id: CreatorTab; label: string }[] = [
-  { id: "physical", label: "Physical" },
-  { id: "demographics", label: "Location + Age" },
-  { id: "cultural", label: "Culture + Class" },
-  { id: "wardrobe", label: "Wardrobe" },
-  { id: "style", label: "Personality + Voice" },
-  { id: "facts", label: "Product Facts" },
-  { id: "motion", label: "Motion & Voice" },
-  { id: "library", label: "Render Library" },
-  { id: "site-content", label: "Site Content" },
+const STUDIO_MODES: { id: "build" | "shoot" | "use"; label: string; hint: string }[] = [
+  { id: "build", label: "Build", hint: "Look, place, and voice" },
+  { id: "shoot", label: "Shoot", hint: "Motion, look, and clips" },
+  { id: "use", label: "Use", hint: "Site posts" },
 ];
 
 
@@ -274,6 +268,12 @@ export function ViraForgeCreatorStudio() {
   const generating = status === "loading";
   const motionBusy = motionLoading !== null;
   const previewSummary = buildAvatarPreviewSummary(values);
+  const studioMode: "build" | "shoot" | "use" =
+    activeTab === "motion" || activeTab === "library"
+      ? "shoot"
+      : activeTab === "site-content"
+        ? "use"
+        : "build";
 
   const loadInfluencers = useCallback(async () => {
     setHydrating(Boolean(editId));
@@ -505,7 +505,7 @@ export function ViraForgeCreatorStudio() {
   );
 
   useEffect(() => {
-    if (!influencerId || activeTab !== "motion") return;
+    if (!influencerId || studioMode !== "shoot") return;
 
     const approvedHash =
       approvedTalkPreview &&
@@ -522,7 +522,7 @@ export function ViraForgeCreatorStudio() {
   }, [
     motionScript,
     influencerId,
-    activeTab,
+    studioMode,
     approvedTalkPreview,
     talkPreflight?.scriptHash,
     runTalkPreflight,
@@ -794,9 +794,8 @@ export function ViraForgeCreatorStudio() {
       const personaPatch = applyRecommendations(next.recommended, next.fields);
       personaForm.reset({
         ...defaultCreatorAvatarValues,
-        ...personaForm.getValues(),
         ...Object.fromEntries(
-          Object.entries(personaPatch).filter(([, v]) => v !== undefined),
+          Object.entries(personaPatch).filter(([, v]) => v !== undefined && v !== ""),
         ),
       });
     },
@@ -845,6 +844,14 @@ export function ViraForgeCreatorStudio() {
     },
     [site, applySuggestionToForms, selectedSourcePage],
   );
+
+  const autoSuggestedDomain = useRef<string | null>(null);
+  useEffect(() => {
+    if (editId || hydrating || !site?.domain || !site.pages?.length) return;
+    if (autoSuggestedDomain.current === site.domain) return;
+    autoSuggestedDomain.current = site.domain;
+    void handleSuggest("site");
+  }, [editId, hydrating, site?.domain, site?.pages?.length, handleSuggest]);
 
   const skipSiteInfluence = useCallback(() => {
     setUseSiteInfluence(false);
@@ -1401,41 +1408,42 @@ export function ViraForgeCreatorStudio() {
             aria-label="Avatar configuration"
             className="-mx-1 flex gap-2 overflow-x-auto border-b border-border px-1 pb-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
           >
-            {TABS.map((tab) => (
+            {STUDIO_MODES.map((mode) => (
               <button
-                key={tab.id}
+                key={mode.id}
                 type="button"
                 role="tab"
-                aria-selected={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`shrink-0 snap-start rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-10 sm:min-h-0 sm:py-2 ${
-                  activeTab === tab.id
+                aria-selected={studioMode === mode.id}
+                onClick={() =>
+                  setActiveTab(
+                    mode.id === "shoot"
+                      ? "motion"
+                      : mode.id === "use"
+                        ? "site-content"
+                        : "physical",
+                  )
+                }
+                className={`shrink-0 snap-start rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-colors min-h-10 sm:min-h-0 sm:py-2 ${
+                  studioMode === mode.id
                     ? "bg-violet-600 text-white"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                {tab.id === "facts" ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    {factsTabTitle}
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        activeTab === tab.id
-                          ? "bg-white/20 text-white"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {factsAreLocked ? lockedFactCount : "Optional"}
-                    </span>
-                  </span>
-                ) : (
-                  tab.label
-                )}
+                <span className="block">{mode.label}</span>
+                <span
+                  className={`block text-[10px] font-normal ${
+                    studioMode === mode.id ? "text-white/80" : "text-muted-foreground"
+                  }`}
+                >
+                  {mode.hint}
+                </span>
               </button>
             ))}
           </div>
 
-          {activeTab === "physical" && (
+          {studioMode === "build" && (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <h3 className="sm:col-span-2 text-sm font-semibold text-foreground">Look</h3>
               <div className="sm:col-span-2">
                 <AvatarNameGenerator
                   location={values.location || ""}
@@ -1554,8 +1562,9 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
-          {activeTab === "demographics" && (
-            <div className="space-y-4">
+          {studioMode === "build" && (
+            <div className="space-y-4 border-t border-border pt-6">
+              <h3 className="text-sm font-semibold text-foreground">Place</h3>
               {suggestion ? (
                 <>
                   {renderPicker("location", "Primary location", suggestion.fields.location)}
@@ -1609,8 +1618,9 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
-          {activeTab === "cultural" && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {studioMode === "build" && (
+            <div className="grid grid-cols-1 gap-4 border-t border-border pt-6 sm:grid-cols-2">
+              <h3 className="sm:col-span-2 text-sm font-semibold text-foreground">Culture</h3>
               {suggestion ? (
                 <>
                   {renderPicker("religion", "Religion", suggestion.fields.religion)}
@@ -1662,8 +1672,9 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
-          {activeTab === "wardrobe" && (
-            <div className="space-y-4">
+          {studioMode === "build" && (
+            <div className="space-y-4 border-t border-border pt-6">
+              <h3 className="text-sm font-semibold text-foreground">Wardrobe</h3>
               <p className="text-sm text-muted-foreground">
                 Outfit styling is baked into portrait and motion generation. Pick a
                 look, customize details, then regenerate the portrait to apply it.
@@ -1730,8 +1741,9 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
-          {activeTab === "style" && (
-            <div className="space-y-4">
+          {studioMode === "build" && (
+            <div className="space-y-4 border-t border-border pt-6">
+              <h3 className="text-sm font-semibold text-foreground">Voice</h3>
               {suggestion ? (
                 <>
                   {renderPicker(
@@ -1836,15 +1848,21 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
-          {activeTab === "facts" && (
-            <div className="space-y-4">
+          {studioMode === "build" && (
+            <div className="space-y-4 border-t border-border pt-6">
+              <h3 className="text-sm font-semibold text-foreground">
+                {factsTabTitle}
+                <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {factsAreLocked ? `${lockedFactCount} locked` : "Optional"}
+                </span>
+              </h3>
               <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-foreground">
                       {factsAreLocked
                         ? `${lockedFactCount} locked claim${lockedFactCount === 1 ? "" : "s"}`
-                        : "Optional — skip this tab"}
+                        : "Optional"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {factsAreLocked
@@ -2102,7 +2120,7 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
-          {activeTab === "motion" && (
+          {studioMode === "shoot" && activeTab !== "library" && (
             <div className="space-y-5">
               <p className="text-xs text-muted-foreground">
                 Turn the saved portrait into motion clips. Talk and Walk & talk
@@ -2370,7 +2388,7 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
-          {activeTab === "library" && (
+          {studioMode === "shoot" && (
             <InfluencerRenderLibrary
               key={`${influencerId ?? "new"}-${renderLibraryTick}`}
               influencerId={influencerId}
@@ -2378,7 +2396,7 @@ export function ViraForgeCreatorStudio() {
             />
           )}
 
-          {activeTab === "site-content" && (
+          {studioMode === "use" && (
             <InfluencerSiteContentPanel
               influencerId={influencerId}
               hasPortrait={!!previewImage}
@@ -2400,9 +2418,7 @@ export function ViraForgeCreatorStudio() {
             </ul>
           )}
 
-          {activeTab !== "site-content" &&
-            activeTab !== "motion" &&
-            activeTab !== "library" && (
+          {studioMode === "build" && (
             <Button
               type="submit"
               disabled={generating || hydrating}

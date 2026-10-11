@@ -36,24 +36,25 @@ export function parseCreatorAvatar(persona: unknown) {
 }
 
 export const defaultCreatorAvatarValues: CreatorAvatarForm = {
-  displayName: "Maria López",
-  handle: "MariaFitnessBogota",
+  displayName: "Emma Hayes",
+  handle: "EmmaHayes",
   gender: "female",
-  age: 28,
-  bodyType: 65,
+  age: 27,
+  bodyType: 50,
   height: "5'6\"",
-  faceShape: "Heart",
-  hair: "Long wavy black with caramel highlights",
-  location: "Bogotá, Colombia + Cape Coral, Florida",
-  neighborhoods: "Upper-middle class • Zona T & El Retiro",
-  ageRangeShown: "25-32 • Fitness mom vibe",
-  religion: "Catholic (practicing) • Devout but modern",
-  socialClass: "Upper Middle • College educated",
+  faceShape: "Oval",
+  hair: "Long honey-blonde waves, soft and a little undone",
+  location: "United States",
+  neighborhoods: "Hometown neighborhood",
+  ageRangeShown: "25-32 • On-camera energy",
+  religion: "Secular • Inclusive and modern",
+  socialClass: "Middle • Local",
   wardrobe:
-    "Modern athleisure — fitted performance tee, high-waist leggings, clean white trainers; polished fitness-lifestyle look.",
-  culturalNotes: "Colombian + American dual influence • Loves arepas & CrossFit",
+    "Everyday local — well-fitted jeans, simple top, a jacket that fits the town.",
+  culturalNotes:
+    "American English speaker. Match the crawled city's look and language before generating.",
   personalityVoice:
-    "Personality: Warm, confident, slightly sassy, loves family + health. Voice: Soft Colombian accent, energetic, trustworthy.",
+    "Personality: Warm and direct. Voice: American English, no Spanish accent unless the site is actually in a Spanish-speaking city.",
   sampleQuote:
-    "Show up for yourself first — consistency beats intensity every time.",
+    "Show up for the people in your town — that's the whole job.",
 };

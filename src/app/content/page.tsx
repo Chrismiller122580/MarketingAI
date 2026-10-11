@@ -14,8 +14,8 @@ export default function ContentPage() {
         <ContentStrategyPanel />
         <AvatarPresentPanel />
         <p className="px-1 text-center text-xs text-slate-500 dark:text-slate-400">
-          Present writes the influencer package. Content Studio below formats and
-          publishes it — Walk & talk is the default shot, not only close-up.
+          Shoot the clip in Avatars. This page writes the post and publishes a
+          finished clip.
         </p>
         <Suspense>
           <ContentGenerator />

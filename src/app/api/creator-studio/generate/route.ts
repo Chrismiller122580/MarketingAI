@@ -81,11 +81,18 @@ export async function POST(request: Request) {
     const siteContext = body.siteContext as
       | { domain?: string; brandName?: string; tone?: string; tagline?: string }
       | undefined;
+    const suggestionSnapshot = body.suggestionSnapshot as
+      | (Record<string, unknown> & { independent?: boolean; domain?: string })
+      | undefined;
+    const useSite =
+      Boolean(siteContext?.brandName || siteContext?.domain) &&
+      suggestionSnapshot?.independent !== true;
+    const promptSite = useSite ? siteContext : undefined;
 
     const prompt = buildAvatarImagePrompt(parsed.data, {
       personalization,
       productFacts: factsData,
-      site: siteContext,
+      site: promptSite,
     });
 
     const result = await generateImageFromPrompt(prompt, {
@@ -110,10 +117,6 @@ export async function POST(request: Request) {
       factsData,
     );
 
-    const suggestionSnapshot = body.suggestionSnapshot as
-      | Record<string, unknown>
-      | undefined;
-
     const { durableUrl: imageUrl } = await savePortraitRender({
       userId: authResult,
       influencerId: saved.influencerId,
@@ -121,9 +124,9 @@ export async function POST(request: Request) {
       provider: result.provider,
       prompt: result.prompt,
       metadata: suggestionSnapshot
-        ? { suggestionSnapshot, siteDomain: siteContext?.domain }
-        : siteContext?.domain
-          ? { siteDomain: siteContext.domain }
+        ? { suggestionSnapshot, siteDomain: promptSite?.domain }
+        : promptSite?.domain
+          ? { siteDomain: promptSite.domain }
           : undefined,
     });
 

@@ -1,6 +1,7 @@
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
 import { formatFactsForPrompt } from "./claim-validator";
+import { portraitCueForLocation } from "./audience-place";
 
 const BODY_TYPE_LABELS: Record<number, string> = {
   0: "slim",
@@ -50,6 +51,14 @@ export function buildAvatarImagePrompt(
     `Physique: ${bodyTypeLabel(persona.bodyType)}, height ${persona.height}, ${persona.faceShape} face shape.`,
     `Hair: ${persona.hair}.`,
     `Location and cultural context: ${persona.location}. ${persona.culturalNotes}.`,
+    portraitCueForLocation(
+      persona.location,
+      persona.gender === "male"
+        ? "male"
+        : persona.gender === "nonbinary"
+          ? "nonbinary"
+          : "female",
+    ),
     `Social context: ${persona.socialClass}. Religion: ${persona.religion}.`,
     persona.neighborhoods ? `Neighborhood vibe: ${persona.neighborhoods}.` : "",
     `Wardrobe: ${persona.wardrobe}`,

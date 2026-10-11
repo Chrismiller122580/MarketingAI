@@ -1,3 +1,5 @@
+import { inferAudiencePlace, spanishEvidence } from "./audience-place";
+
 export type AvatarLanguage = {
   code: string;
   label: string;
@@ -116,13 +118,14 @@ export function suggestLanguageFromPlace(place: string): string | null {
 /** Best-effort language of a short crawled phrase. English if nothing else matches. */
 export function dominantLanguage(text: string): string {
   const sample = text.toLowerCase();
+  if (inferAudiencePlace(sample)?.language === "en" && spanishEvidence(sample) < 3) {
+    return "en";
+  }
   if (/\b(ang|mga|nang|ito|iyan)\b/.test(sample)) return "tl";
   if (/\b(não|nao|você|voce|obrigado)\b/.test(sample)) return "pt";
   if (/\b(und|nicht|eine|der|die|das)\b/.test(sample)) return "de";
   if (/\b(une|pour|dans|avec|les|des|est)\b/.test(sample)) return "fr";
-  if (/\b(el|la|los|las|que|para|con|una|del|necesitas|confianza)\b/.test(sample)) {
-    return "es";
-  }
+  if (spanishEvidence(sample) >= 2) return "es";
   return "en";
 }
 
@@ -130,12 +133,19 @@ export function suggestLanguageFromSite(input: {
   domain?: string;
   text?: string;
 }): string | null {
+  const text = input.text ?? "";
+  const place = inferAudiencePlace(text);
+  if (place?.language === "en" && spanishEvidence(text) < 3) return null;
+  if (place?.language === "es") return "es";
+
   const host = (input.domain ?? "").toLowerCase().replace(/^www\./, "");
   const tld = host.split(".").pop() ?? "";
-  if (TLD_LANGUAGE[tld]) return TLD_LANGUAGE[tld];
-  const text = input.text ?? "";
+  if (TLD_LANGUAGE[tld] && spanishEvidence(text) >= 1) return TLD_LANGUAGE[tld];
+  if (TLD_LANGUAGE[tld] && text.trim().length < 12) return TLD_LANGUAGE[tld];
   if (text.trim().length < 12) return null;
+  if (spanishEvidence(text) >= 2) return "es";
   for (const [pattern, code] of TEXT_LANGUAGE) {
+    if (code === "es") continue;
     if (pattern.test(text)) return code;
   }
   return null;
