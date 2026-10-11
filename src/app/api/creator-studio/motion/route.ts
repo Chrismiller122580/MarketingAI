@@ -24,6 +24,7 @@ import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
 import { prisma } from "@/lib/db";
 import { worldFromMemory } from "@/lib/viraforge/avatar-world";
+import { normalizeVideoLook, popupLineFromScript } from "@/lib/viraforge/video-looks";
 import { loadStoredMediaBytes } from "@/lib/media-url";
 import { hasReplicate } from "@/lib/replicate-client";
 import {
@@ -41,6 +42,7 @@ const motionSchema = z.object({
   approvedVoiceRenderId: z.string().min(1).optional(),
   approvedScriptHash: z.string().max(32).optional(),
   scriptSource: z.enum(["life", "crawl", "both"]).optional(),
+  videoLook: z.enum(["influencer", "promo", "street", "clean"]).optional(),
 });
 
 async function loadApprovedTalkAudio(
@@ -309,6 +311,8 @@ export async function POST(request: Request) {
           lipsyncStage: started.needsLipsync ? "pending" : "done",
           plateDurationSec: started.plateDurationSec,
           audioDurationSec: started.audioDurationSec,
+          videoLook: normalizeVideoLook(parsed.data.videoLook),
+          popupLine: popupLineFromScript(talkScript),
         },
       });
     } catch (error) {

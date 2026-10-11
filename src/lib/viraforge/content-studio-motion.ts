@@ -16,6 +16,7 @@ import {
   normalizeMotionTypeSelection,
 } from "./motion-actions";
 import { analyzeTalkScript } from "./talk-settings";
+import { normalizeVideoLook, popupLineFromScript, type VideoLookId } from "./video-looks";
 
 export type ContentStudioMotionClipResult = {
   motionType: InfluencerMotionType;
@@ -76,6 +77,7 @@ export async function startContentStudioMotionClip(input: {
   siteDomain: string;
   talkIndex?: number;
   portrait?: Awaited<ReturnType<typeof prepareMotionPortrait>>;
+  videoLook?: VideoLookId;
 }): Promise<ContentStudioMotionClipResult | { error: string }> {
   if (!canGenerateMotionType(input.motionType)) {
     return {
@@ -208,6 +210,8 @@ export async function startContentStudioMotionClip(input: {
       lipsyncStage: started.needsLipsync ? "pending" : "done",
       plateDurationSec: started.plateDurationSec,
       audioDurationSec: started.audioDurationSec,
+      videoLook: normalizeVideoLook(input.videoLook ?? "influencer"),
+      popupLine: popupLineFromScript(script || input.draftText),
     },
   });
 
@@ -227,6 +231,7 @@ export async function startContentStudioMotionClips(input: {
   motionTypes: InfluencerMotionType[];
   draftText: string;
   siteDomain: string;
+  videoLook?: VideoLookId;
 }): Promise<
   | { clips: ContentStudioMotionClipResult[] }
   | { error: string; clips?: ContentStudioMotionClipResult[] }

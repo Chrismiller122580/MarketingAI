@@ -24,6 +24,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { loadWinningCopyHints } from "@/lib/winning-copy";
 import { hasVoiceProvider } from "@/lib/ai-voice";
 import { voiceIdForAvatar } from "@/lib/viraforge/motion-voice";
+import { normalizeVideoLook } from "@/lib/viraforge/video-looks";
 import { loadCrawledCorpus } from "@/lib/crawled-content";
 import { loadInfluencerGenerateContext } from "@/lib/viraforge/influencer-bridge";
 import type { InfluencerMotionType } from "@/lib/viraforge/influencer-assets";
@@ -220,6 +221,7 @@ export async function POST(request: Request) {
         motionTypes,
         draftText: post.text,
         siteDomain: site.domain,
+        videoLook: normalizeVideoLook(body.videoLook ?? "influencer"),
       });
 
       const clips = motionResult.clips ?? [];

@@ -45,6 +45,7 @@ import {
   parseMotionTypesParam,
   toggleMotionTypeSelection,
 } from "@/lib/viraforge/motion-actions";
+import { VIDEO_LOOKS, type VideoLookId } from "@/lib/viraforge/video-looks";
 import {
   PRESENT_HANDOFF_EVENT,
   clearPresentHandoff,
@@ -146,6 +147,7 @@ export function ContentGenerator() {
   const [selectedMotionTypes, setSelectedMotionTypes] = useState<
     InfluencerMotionType[]
   >(DEFAULT_PRESENT_MOTION_TYPES);
+  const [videoLook, setVideoLook] = useState<VideoLookId>("influencer");
   const [motionCapabilities, setMotionCapabilities] = useState<
     Record<InfluencerMotionType, boolean> | null
   >(null);
@@ -785,6 +787,10 @@ export function ContentGenerator() {
             ? influencerVisualMode
             : undefined,
           influencerMotionTypes: attachedInfluencer ? selectedMotionTypes : undefined,
+          videoLook:
+            attachedInfluencer && influencerVisualMode === "fresh"
+              ? videoLook
+              : undefined,
         }),
       });
 
@@ -1063,6 +1069,30 @@ export function ContentGenerator() {
                             Pick up to {MAX_CONTENT_STUDIO_MOTION_CLIPS} motions — AI
                             writes matched scripts (16–24 words for Talk), voice, and
                             lip-sync where needed.
+                          </p>
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                            Video look
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {VIDEO_LOOKS.map((look) => (
+                              <button
+                                key={look.id}
+                                type="button"
+                                onClick={() => setVideoLook(look.id)}
+                                title={look.detail}
+                                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                                  videoLook === look.id
+                                    ? "bg-violet-600 text-white"
+                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                }`}
+                              >
+                                {look.label}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {VIDEO_LOOKS.find((look) => look.id === videoLook)?.detail}.
+                            Baked into the clip — not a replay of a saved video.
                           </p>
                           {selectedMotionTypes.includes("talk") && (
                             <p className="text-xs text-violet-700 dark:text-violet-300">

@@ -13,11 +13,44 @@ import {
   needsSpokenLipsync,
   startSpokenLipsyncStage,
 } from "@/lib/viraforge/spoken-motion-finish";
+import { applyVideoLookToUrl } from "@/lib/viraforge/video-look-apply";
+import {
+  normalizeVideoLook,
+  popupLineFromScript,
+} from "@/lib/viraforge/video-looks";
 
 export const maxDuration = 120;
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ jobId: string }> };
+
+async function styleFinishedClip(
+  userId: string,
+  influencerId: string,
+  renderId: string,
+  videoUrl: string,
+  meta: Record<string, unknown>,
+  script?: string,
+): Promise<string> {
+  const look = normalizeVideoLook(meta.videoLook);
+  if (look === "clean") return videoUrl;
+  const line =
+    typeof meta.popupLine === "string" && meta.popupLine.trim()
+      ? meta.popupLine
+      : popupLineFromScript(script);
+  try {
+    return await applyVideoLookToUrl(
+      videoUrl,
+      look,
+      line,
+      `influencers/${userId}/${influencerId}/look-${renderId}.mp4`,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Video look failed";
+    console.error("Video look failed:", message);
+    return videoUrl;
+  }
+}
 
 export async function GET(_request: Request, context: RouteContext) {
   const authResult = await requireAuthUserId();
@@ -113,6 +146,15 @@ export async function GET(_request: Request, context: RouteContext) {
       }
     }
 
+    videoUrl = await styleFinishedClip(
+      authResult,
+      job.influencerId,
+      job.renderId,
+      videoUrl,
+      meta,
+      job.script,
+    );
+
     if (job.renderId) {
       const render = await finalizeInfluencerRender({
         userId: authResult,
@@ -158,23 +200,31 @@ export async function GET(_request: Request, context: RouteContext) {
           plate,
           job.voiceAudioUrl,
         );
+        const styledUrl = await styleFinishedClip(
+          authResult,
+          job.influencerId,
+          job.renderId,
+          muxedUrl,
+          meta,
+          job.script,
+        );
         const render = await finalizeInfluencerRender({
           userId: authResult,
           influencerId: job.influencerId,
           renderId: job.renderId,
           status: "ready",
-          url: muxedUrl,
+          url: styledUrl,
           voiceUrl: job.voiceAudioUrl,
           activate: true,
         });
         await updateInfluencerMotionJob(job.renderId, {
           status: "ready",
-          videoUrl: render?.url ?? muxedUrl,
+          videoUrl: render?.url ?? styledUrl,
           metadata: { ...meta, lipsyncStage: "done", lipsyncError: prediction.error },
         });
         return NextResponse.json({
           status: "ready",
-          videoUrl: resolveDisplayMediaUrl(render?.url ?? muxedUrl),
+          videoUrl: resolveDisplayMediaUrl(render?.url ?? styledUrl),
           motionType: job.motionType,
           audioEmbeddedInVideo: true,
           renderId: job.renderId,

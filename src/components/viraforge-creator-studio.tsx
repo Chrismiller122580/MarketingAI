@@ -65,6 +65,7 @@ import type {
   InfluencerMotionType,
 } from "@/lib/viraforge/influencer-assets";
 import { MOTION_ACTIONS } from "@/lib/viraforge/motion-actions";
+import { VIDEO_LOOKS, type VideoLookId } from "@/lib/viraforge/video-looks";
 import {
   extractCrawledProductFacts,
   factsTabLabel,
@@ -178,6 +179,7 @@ export function ViraForgeCreatorStudio() {
     defaultCreatorAvatarValues.sampleQuote,
   );
   const [motionVideo, setMotionVideo] = useState<string | null>(null);
+  const [videoLook, setVideoLook] = useState<VideoLookId>("influencer");
   const [voiceAudio, setVoiceAudio] = useState<string | null>(null);
   const voiceAudioRef = useRef<HTMLAudioElement>(null);
   const previewVoiceAudioRef = useRef<HTMLAudioElement>(null);
@@ -621,6 +623,7 @@ export function ViraForgeCreatorStudio() {
           influencerId,
           motionType,
           script: talkScript,
+          videoLook,
           ...(motionType === "talk" && approvedTalkPreview
             ? {
                 approvedVoiceRenderId: approvedTalkPreview.renderId,
@@ -2239,6 +2242,32 @@ export function ViraForgeCreatorStudio() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-medium text-foreground">Video look</p>
+                <div className="flex flex-wrap gap-2">
+                  {VIDEO_LOOKS.map((look) => (
+                    <button
+                      key={look.id}
+                      type="button"
+                      onClick={() => setVideoLook(look.id)}
+                      title={look.detail}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                        videoLook === look.id
+                          ? "border-violet-500 bg-violet-600 text-white"
+                          : "border-border bg-card text-foreground hover:border-violet-500/50"
+                      }`}
+                    >
+                      {look.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  {VIDEO_LOOKS.find((look) => look.id === videoLook)?.detail}. A new
+                  look renders a new shot — emojis, grade, and pop-up are burned into
+                  the file.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
