@@ -1,10 +1,7 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
-import { ContentStrategyPanel } from "@/components/content-strategy-panel";
 import { DomainInput } from "@/components/domain-input";
 import { QuickActions } from "@/components/quick-actions";
-import { StatsCards } from "@/components/stats-cards";
-import { ContentCalendar } from "@/components/content-calendar";
 import { DashboardInfluencers } from "@/components/dashboard-influencers";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { FirstRunChecklist } from "@/components/first-run-checklist";
@@ -22,9 +19,6 @@ export default function DashboardPage() {
         <ThisWeekPack />
         <DashboardInfluencers />
         <QuickActions />
-        <StatsCards />
-        <ContentStrategyPanel />
-        <ContentCalendar />
       </div>
     </AppShell>
   );

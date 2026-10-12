@@ -495,7 +495,7 @@ export function PublicWorldTown({
             {placeKind
               ? selected?.note ||
                 "A place in the town. Neighbors pass through, buy things, and talk."
-              : "Residents work jobs, hang out at the lake, the park, the bar, and the rec hall, and run into each other. Public avatars can be used in Content Studio."}
+              : "Residents work jobs, hang out at the lake, the park, the bar, and the rec hall, and run into each other. Public avatars can be used in Publish."}
           </p>
           <p className="mt-2 text-sm text-zinc-400">{livedLine(town)}</p>
           <div className="mt-5 flex flex-wrap gap-2 text-xs text-zinc-300">

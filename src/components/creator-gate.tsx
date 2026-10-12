@@ -7,7 +7,7 @@ import { ENTERPRISE_PLUS_LABEL } from "@/lib/plans";
 import { LoadingSkeleton } from "./loading-indicator";
 
 export function CreatorUpgradeWall({
-  title = "Creator Studio",
+  title = "Avatars",
 }: {
   title?: string;
 }) {
@@ -20,7 +20,7 @@ export function CreatorUpgradeWall({
         {title} is on {ENTERPRISE_PLUS_LABEL}
       </h1>
       <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
-        Influencer avatars and Present motion clips live here.
+        Influencer avatars and page scripts live here.
         Your marketing workspace — crawl, generate, schedule, and publish — is
         ready on the dashboard now.
       </p>

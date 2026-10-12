@@ -331,7 +331,7 @@ export function InfluencerSiteContentPanel({
             href={`/content?influencer=${encodeURIComponent(influencerId)}&domain=${encodeURIComponent(selectedDomain)}&page=${encodeURIComponent(selectedPage)}&motion=walk-talk`}
           >
             <ArrowUpRight className="mr-2 h-4 w-4" />
-            Open in Content Studio (full pipeline)
+            Open in Publish
           </Link>
         </Button>
       )}

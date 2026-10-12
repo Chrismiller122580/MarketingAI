@@ -33,7 +33,7 @@ export function QuickActions() {
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">
               3
             </span>
-            Generate this week's pack — or a single post in Content Studio
+            Generate this week's pack — or a single post in Publish
           </li>
         </ol>
       </div>
@@ -47,7 +47,7 @@ export function QuickActions() {
         className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition hover:border-amber-200 hover:shadow-md"
       >
         <p className="text-2xl">✦</p>
-        <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Content Studio</p>
+        <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Publish</p>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Social posts with matched images
         </p>
@@ -98,7 +98,7 @@ export function QuickActions() {
           className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-5 shadow-sm transition hover:border-violet-300 hover:shadow-md dark:border-violet-900/50 dark:from-violet-950/30 dark:to-fuchsia-950/20"
         >
           <p className="text-2xl">✧</p>
-          <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Creator Studio</p>
+          <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">Avatars</p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Site-smart avatar from {site.brand.name}
           </p>

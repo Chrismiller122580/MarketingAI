@@ -1297,7 +1297,7 @@ export function AvatarWorldProfile({ influencerId }: { influencerId: string }) {
           </div>
           {videos.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No videos yet. Generate motion in Creator Studio — they all land
+              No videos yet. Generate motion in Avatars — they all land
               here automatically.
             </p>
           ) : (

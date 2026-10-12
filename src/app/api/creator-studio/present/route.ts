@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       (parsed.data.motionTypes as InfluencerMotionType[] | undefined) ??
         DEFAULT_PRESENT_MOTION_TYPES,
     );
-    const renderMotion = talkNow !== false;
+    const renderMotion = talkNow === true;
     let site = parsed.data.site as SiteData | undefined;
 
     const usable = await findUsableInfluencer(authResult, influencerId);
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
       domain: site.domain,
       pagePath: page.path,
       platform: platform as Platform,
-      motionTypes,
+      motionTypes: renderMotion ? motionTypes : [],
     });
     const creatorStudioUrl = `/creator-studio?influencer=${encodeURIComponent(influencerId)}`;
 

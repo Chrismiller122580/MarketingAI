@@ -214,7 +214,7 @@ export function ThisWeekPack() {
                 href="/content"
                 className="text-slate-500 hover:underline dark:text-slate-400"
               >
-                Tweak in Content Studio
+                Tweak in Publish
               </Link>
             </div>
           </div>

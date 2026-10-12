@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
-import { DomainInput } from "@/components/domain-input";
 import { SettingsForm } from "@/components/settings-form";
 import { SocialConnections } from "@/components/social-connections";
 import { BrandInsights } from "@/components/brand-insights";
@@ -11,7 +10,6 @@ export default function SettingsPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-6">
-        {/* Teaser to the dedicated billing page */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -28,7 +26,6 @@ export default function SettingsPage() {
         </div>
 
         <AccountSettings />
-        <DomainInput variant="dashboard" />
         <Suspense>
           <SocialConnections />
         </Suspense>

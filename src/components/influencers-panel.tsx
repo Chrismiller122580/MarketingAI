@@ -135,7 +135,7 @@ export function InfluencersPanel() {
         </div>
       ) : influencers.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No influencers yet. Open Creator Studio to build your first persona.
+          No influencers yet. Open Avatars to build your first persona.
         </p>
       ) : (
         <ul className="grid min-w-0 gap-3 lg:grid-cols-2">

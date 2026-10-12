@@ -876,7 +876,7 @@ export function ContentGenerator() {
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-4">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            AI Content Studio
+            Publish
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {attachedInfluencer
@@ -1074,7 +1074,7 @@ export function ContentGenerator() {
 
                   {useInfluencerPortrait && !attachedInfluencer.portraitUrl && (
                     <p className="text-xs text-amber-700 dark:text-amber-300">
-                      Save a portrait in Creator Studio to enable motion clips.
+                      Save a portrait in Avatars to enable motion clips.
                     </p>
                   )}
                 </div>

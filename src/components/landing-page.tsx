@@ -348,7 +348,7 @@ export function LandingPage() {
                   price: "149",
                   features: [
                     "Everything in Enterprise",
-                    "Creator Studio avatars",
+                    "Avatar videos",
                     "Talk / motion clips",
                     "Fact-locked site content",
                   ],

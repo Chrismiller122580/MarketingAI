@@ -16,15 +16,15 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   },
   "/campaigns": {
     title: "Campaigns",
-    subtitle: "Campaigns built from your site content.",
+    subtitle: "Strategy, calendar, and packs from your site.",
   },
   "/content": {
-    title: "Content Studio",
-    subtitle: "Generate posts, images, and AI video ads from your site.",
+    title: "Publish",
+    subtitle: "Write the post and publish a finished clip.",
   },
   "/creator-studio": {
-    title: "Creator Studio",
-    subtitle: "Design influencer avatars. Site influence and product facts are optional.",
+    title: "Avatars",
+    subtitle: "Build the look, shoot the clip, then send it to Publish.",
   },
   "/avatar-world": {
     title: "Avatar World",
@@ -36,7 +36,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   },
   "/posts": {
     title: "Post Library",
-    subtitle: "Saved posts, campaign packs, and your content calendar.",
+    subtitle: "Saved posts.",
   },
   "/billing": {
     title: "Billing & Payments",

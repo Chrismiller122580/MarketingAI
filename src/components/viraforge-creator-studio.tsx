@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InlineLoading, LoadingSkeleton, Spinner } from "./loading-indicator";
 import { InfluencerSiteContentPanel } from "./influencer-site-content-panel";
+import { AvatarPresentPanel } from "./avatar-present-panel";
 import {
   InfluencerRenderLibrary,
   type SavedRender,
@@ -2122,6 +2123,11 @@ export function ViraForgeCreatorStudio() {
 
           {studioMode === "shoot" && activeTab !== "library" && (
             <div className="space-y-5">
+              <AvatarPresentPanel
+                influencerId={influencerId ?? undefined}
+                onScript={(script) => setMotionScript(script.slice(0, 500))}
+              />
+
               <p className="text-xs text-muted-foreground">
                 Turn the saved portrait into motion clips. Talk and Walk & talk
                 use ElevenLabs voice, a Kling performance plate, then lip-sync.
@@ -2644,7 +2650,7 @@ export function ViraForgeCreatorStudio() {
                     : generating
                       ? "AI is rendering your influencer portrait…"
                       : motionVideo
-                        ? "Motion clip saved — use in Content Studio or keep interacting"
+                        ? "Motion clip saved — use it in Publish or keep shooting"
                         : status === "success"
                           ? "Portrait ready — wave, talk, or pitch from Motion tab"
                           : factsAreLocked

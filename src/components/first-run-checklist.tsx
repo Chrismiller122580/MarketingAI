@@ -136,7 +136,7 @@ export function FirstRunChecklist() {
             Ship your first post
           </h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            {doneCount} of {steps.length} complete. Creator Studio can wait until
+            {doneCount} of {steps.length} complete. Avatars can wait until
             this loop works.
           </p>
         </div>

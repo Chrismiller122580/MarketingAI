@@ -36,7 +36,10 @@ export function writePresentHandoff(payload: PresentHandoff): void {
   if (typeof window === "undefined") return;
   const next: PresentHandoff = {
     ...payload,
-    motionTypes: normalizeMotionTypeSelection(payload.motionTypes),
+    motionTypes:
+      payload.motionTypes.length > 0
+        ? normalizeMotionTypeSelection(payload.motionTypes)
+        : [],
     createdAt: payload.createdAt || new Date().toISOString(),
   };
   sessionStorage.setItem(PRESENT_HANDOFF_KEY, JSON.stringify(next));
@@ -73,6 +76,10 @@ export function readPresentHandoff(): PresentHandoff | null {
         )
       : [];
 
+    const storedMotionTypes = Array.isArray(parsed.motionTypes)
+      ? (parsed.motionTypes as InfluencerMotionType[])
+      : [];
+
     return {
       influencerId: parsed.influencerId,
       displayName:
@@ -87,9 +94,10 @@ export function readPresentHandoff(): PresentHandoff | null {
         : "instagram") as Platform,
       draftText: parsed.draftText,
       script: typeof parsed.script === "string" ? parsed.script : undefined,
-      motionTypes: normalizeMotionTypeSelection(
-        parsed.motionTypes as InfluencerMotionType[] | undefined,
-      ),
+      motionTypes:
+        storedMotionTypes.length > 0
+          ? normalizeMotionTypeSelection(storedMotionTypes)
+          : [],
       clips,
       createdAt,
     };
