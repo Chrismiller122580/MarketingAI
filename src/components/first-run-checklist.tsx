@@ -137,7 +137,10 @@ export function FirstRunChecklist() {
           </h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             {doneCount} of {steps.length} complete. Avatars can wait until
-            this loop works.
+            this loop works.{" "}
+            <Link href="/tutorial" className="font-medium text-amber-700 underline dark:text-amber-400">
+              Read the tutorial
+            </Link>
           </p>
         </div>
         <button

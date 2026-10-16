@@ -164,6 +164,13 @@ export function Sidebar({
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11px] text-slate-400">
           <Link
+            href="/tutorial"
+            className="hover:text-slate-600 dark:hover:text-slate-300"
+            onClick={handleNavClick}
+          >
+            Tutorial
+          </Link>
+          <Link
             href="/domains"
             className="hover:text-slate-600 dark:hover:text-slate-300"
             onClick={handleNavClick}

@@ -46,6 +46,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Settings",
     subtitle: "Configure brand voice, audience, and platforms.",
   },
+  "/tutorial": {
+    title: "Tutorial",
+    subtitle: "Crawl, keep one photo, then make the set.",
+  },
   "/admin": {
     title: "Admin Stats",
     subtitle: "Platform snapshot: users, payments, data.",
