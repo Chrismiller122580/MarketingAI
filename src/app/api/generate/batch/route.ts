@@ -60,6 +60,29 @@ export async function POST(request: Request) {
       winningCopy?.topPlatform,
     );
 
+    const conceptPrompt =
+      typeof body.imageConcept?.prompt === "string"
+        ? body.imageConcept.prompt.trim().slice(0, 1200)
+        : "";
+    const imageConcept = conceptPrompt
+      ? {
+          prompt: conceptPrompt,
+          sampleUrl:
+            typeof body.imageConcept?.sampleUrl === "string"
+              ? body.imageConcept.sampleUrl
+              : undefined,
+          note:
+            typeof body.imageConcept?.note === "string"
+              ? body.imageConcept.note.slice(0, 280)
+              : undefined,
+        }
+      : undefined;
+    const campaignDate =
+      typeof body.campaignDate === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(body.campaignDate)
+        ? body.campaignDate
+        : undefined;
+
     const batchRequest: BatchGenerateRequest = {
       site: body.site,
       settings: {
@@ -69,9 +92,17 @@ export async function POST(request: Request) {
       prompt: body.prompt ?? "",
       platforms,
       maxPosts,
-      preferAiImage: campaignAvatarIds.length > 0 ? false : body.preferAiImage,
+      preferAiImage: imageConcept
+        ? true
+        : campaignAvatarIds.length > 0
+          ? false
+          : body.preferAiImage,
       visualTargeting:
-        campaignAvatarIds.length > 0 ? undefined : body.visualTargeting,
+        imageConcept || campaignAvatarIds.length > 0
+          ? undefined
+          : body.visualTargeting,
+      imageConcept,
+      campaignDate,
       contentAngle: body.contentAngle,
       existingPosts: body.existingPosts,
       varyAngles: body.varyAngles,

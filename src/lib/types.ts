@@ -344,6 +344,13 @@ export type CrawledCorpus = {
   pages: CrawledCorpusPage[];
 };
 
+export type ImageConcept = {
+  /** Prompt that produced the sample the user kept. */
+  prompt: string;
+  sampleUrl?: string;
+  note?: string;
+};
+
 export type GenerateRequest = {
   site: SiteData;
   contentType: ContentType;
@@ -372,6 +379,8 @@ export type GenerateRequest = {
   winningCopy?: WinningCopyHints | null;
   /** Every crawled site/page for this user — posts stay authentic to real pages. */
   crawledCorpus?: CrawledCorpus;
+  /** When set, new photos stay inside this sample instead of inventing a new look. */
+  imageConcept?: ImageConcept;
 };
 
 export type VideoJobStatus = {
@@ -404,6 +413,9 @@ export type BatchGenerateRequest = {
   /** Server-only. Created avatars with a real portrait, rotated across the pack. */
   campaignUserId?: string;
   campaignAvatarIds?: string[];
+  /** Put every post in the pack on this day (YYYY-MM-DD) instead of staggering. */
+  campaignDate?: string;
+  imageConcept?: ImageConcept;
 };
 
 export type PublishRequest = {

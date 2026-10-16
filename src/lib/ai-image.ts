@@ -242,12 +242,23 @@ export async function generateAiImage(
   platform: Platform,
   visualTargeting?: VisualTargeting,
   contentType?: ContentType,
+  lockedPrompt?: string,
 ): Promise<{ url: string; prompt: string; provider: "openai" | "xai" } | null> {
-  const prompt = enrichVisualPrompt(
-    buildImagePrompt(site, page, platform, contentType),
-    visualTargeting,
-    "image",
-  );
+  const prompt = lockedPrompt
+    ? [
+        "Stay inside this locked photographic look. Same kind of person, wardrobe, light, color, and camera. A different moment, not a new campaign.",
+        `Locked look: ${lockedPrompt.slice(0, 900)}`,
+        `This frame is about: ${page.title}.`,
+        page.description ? `Moment: ${page.description.slice(0, 160)}.` : "",
+        "Photorealistic photograph. No text, no watermark, no logo, no cartoon.",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : enrichVisualPrompt(
+        buildImagePrompt(site, page, platform, contentType),
+        visualTargeting,
+        "image",
+      );
   const size = resolveImageSize(platform, contentType);
 
   return generateImageFromPrompt(prompt, { size, platform, contentType });

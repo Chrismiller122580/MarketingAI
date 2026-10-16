@@ -63,6 +63,15 @@ export function CampaignPack() {
   const [contentAngle, setContentAngle] = useState<ContentAngle>("auto");
   const [varyAngles, setVaryAngles] = useState(true);
   const [focusPagePaths, setFocusPagePaths] = useState<string[]>([]);
+  const [conceptNote, setConceptNote] = useState("");
+  const [sample, setSample] = useState<{ url: string; prompt: string } | null>(
+    null,
+  );
+  const [lookLocked, setLookLocked] = useState(false);
+  const [sampleBusy, setSampleBusy] = useState(false);
+  const [sampleDate, setSampleDate] = useState("2027-01-03");
+  const [campaignDate, setCampaignDate] = useState("2027-01-09");
+  const [sampleSaved, setSampleSaved] = useState(false);
 
   const postHistory = libraryPosts.map((p) => ({
     text: p.text,
@@ -123,6 +132,14 @@ export function CampaignPack() {
           varyAngles,
           focusPagePaths:
             focusPagePaths.length > 0 ? focusPagePaths : undefined,
+          imageConcept: lookLocked && sample
+            ? {
+                prompt: sample.prompt,
+                sampleUrl: sample.url,
+                note: conceptNote.trim() || undefined,
+              }
+            : undefined,
+          campaignDate: lookLocked ? campaignDate : undefined,
         }),
       });
 
@@ -159,9 +176,86 @@ export function CampaignPack() {
       setError(err instanceof Error ? err.message : "Campaign generation failed");
     } finally {
       setLoading(false);
-      // ensure progress shows complete
       setLoadingProgress(maxPosts);
     }
+  }
+
+  async function handleSample() {
+    if (!site) return;
+    const page = site.pages[0];
+    if (!page) return;
+    const note = conceptNote.trim();
+    setSampleBusy(true);
+    setError(null);
+    setLookLocked(false);
+    setSampleSaved(false);
+    try {
+      const res = await fetch("/api/image/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          site,
+          platform: settings.defaultPlatforms[0] ?? "instagram",
+          page: {
+            ...page,
+            title: note || page.title,
+            description: [note, prompt.trim(), page.description]
+              .filter(Boolean)
+              .join(" ")
+              .slice(0, 400),
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not make a sample");
+      if (!data.url || !data.prompt) {
+        throw new Error("The sample came back without an image.");
+      }
+      setSample({ url: data.url, prompt: data.prompt });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not make a sample");
+    } finally {
+      setSampleBusy(false);
+    }
+  }
+
+  async function handleKeepLook() {
+    if (!site || !sample) return;
+    setLookLocked(true);
+    if (sampleSaved) return;
+    const text =
+      conceptNote.trim() ||
+      `Sample look for ${site.brand.name}. The rest of the set stays in this photo.`;
+    try {
+      await savePost({
+        text,
+        hashtags: [],
+        cta: "",
+        platform: settings.defaultPlatforms[0] ?? "instagram",
+        contentType: "Social Post",
+        image: {
+          url: sample.url,
+          source: "ai",
+          alt: noteAlt(site.brand.name, conceptNote),
+        },
+        insights: ["Locked image concept. Later posts in this campaign use this look."],
+        sourcePage: site.pages[0]?.path,
+        characterCount: text.length,
+        scheduledFor: sampleDate,
+        publishStatus: "scheduled",
+      });
+      setSampleSaved(true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Look is locked, but the sample post did not save.",
+      );
+    }
+  }
+
+  function noteAlt(brand: string, note: string) {
+    return note.trim() || `${brand} sample look`;
   }
 
   async function handleSavePack() {
@@ -305,6 +399,86 @@ export function CampaignPack() {
               </div>
             )}
 
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Image concept
+              </label>
+              <textarea
+                rows={2}
+                value={conceptNote}
+                onChange={(e) => {
+                  setConceptNote(e.target.value);
+                  setLookLocked(false);
+                }}
+                placeholder="One sentence. Who is in the photo, where, and the light. Example: country southern girl on a front porch, late afternoon."
+                className="w-full resize-none rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                One sample first. Keep it or throw it back. The set does not get new photos until you keep a look.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Sample post
+                </label>
+                <input
+                  type="date"
+                  value={sampleDate}
+                  onChange={(e) => setSampleDate(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Campaign posts
+                </label>
+                <input
+                  type="date"
+                  value={campaignDate}
+                  onChange={(e) => setCampaignDate(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleSample()}
+              disabled={sampleBusy || loading}
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            >
+              {sampleBusy ? "Making one sample…" : sample ? "Throw it back" : "Make one sample"}
+            </button>
+
+            {sample && (
+              <div className="space-y-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                <img
+                  src={sample.url}
+                  alt={conceptNote.trim() || "Sample look"}
+                  className="max-h-80 w-full rounded-lg object-contain bg-slate-100 dark:bg-slate-950"
+                />
+                {lookLocked ? (
+                  <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                    Look locked.
+                    {sampleSaved
+                      ? ` Sample post is scheduled for ${sampleDate}.`
+                      : " The set will use this photo direction."}{" "}
+                    {maxPosts} posts on {campaignDate} stay in this look.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handleKeepLook()}
+                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-black dark:bg-white dark:text-slate-900"
+                  >
+                    Keep this look
+                  </button>
+                )}
+              </div>
+            )}
+
             {error && <p className="text-sm text-rose-600">{error}</p>}
 
             <button
@@ -315,7 +489,9 @@ export function CampaignPack() {
             >
               {loading
                 ? `Generating ${maxPosts} posts…`
-                : `Generate ${maxPosts}-post campaign pack`}
+                : lookLocked
+                  ? `Generate ${maxPosts} posts in this look`
+                  : `Generate ${maxPosts}-post campaign pack`}
             </button>
           </>
         )}

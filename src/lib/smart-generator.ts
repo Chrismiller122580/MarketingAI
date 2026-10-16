@@ -623,20 +623,23 @@ async function resolveImage(
   contentType: ContentType = "Social Post",
   request?: GenerateRequest,
 ): Promise<GeneratedPost["image"]> {
-  const influencerImage = request
-    ? resolveInfluencerMedia(request, page, contentType)
-    : null;
+  const lockedPrompt = request?.imageConcept?.prompt;
+  const influencerImage =
+    request && !lockedPrompt
+      ? resolveInfluencerMedia(request, page, contentType)
+      : null;
   if (influencerImage) return influencerImage;
   const brandedFormat =
     contentType === "Story" ? "story" : contentType === "Reel" ? "reel" : undefined;
 
-  if (preferAi) {
+  if (preferAi || lockedPrompt) {
     const ai = await generateAiImage(
       site,
       page,
       platform,
-      visualTargeting,
+      lockedPrompt ? undefined : visualTargeting,
       contentType,
+      lockedPrompt,
     );
     const alt = `${site.brand.name} — ${page.title}`;
     if (ai) {
@@ -804,6 +807,7 @@ export async function generateSmartPost(
 
   const context = `${page.title} ${page.description} ${prompt}`;
   const preferAi =
+    Boolean(request.imageConcept?.prompt) ||
     isVideoContent ||
     isStory ||
     (request.preferAiImage ?? settings.preferAiImages ?? false);
@@ -1095,10 +1099,16 @@ export async function generateCampaignPack(
       prompt: [itemPrompt, together].filter(Boolean).join(" "),
       sourcePageUrl: page.url,
       settings,
-      preferAiImage: influencer
-        ? false
-        : request.preferAiImage ?? settings?.preferAiImages,
-      visualTargeting: influencer ? undefined : request.visualTargeting,
+      preferAiImage: request.imageConcept?.prompt
+        ? true
+        : influencer
+          ? false
+          : request.preferAiImage ?? settings?.preferAiImages,
+      visualTargeting:
+        (request.imageConcept?.prompt || influencer)
+          ? undefined
+          : request.visualTargeting,
+      imageConcept: request.imageConcept,
       contentAngle,
       existingPosts: history,
       winningCopy: request.winningCopy,
@@ -1110,7 +1120,7 @@ export async function generateCampaignPack(
       influencerVisualMode: "portrait",
     });
 
-    if (loaded.length > 0) {
+    if (!request.imageConcept?.prompt && loaded.length > 0) {
       const people: { name: string; bytes: Buffer; mime: string }[] = [];
       for (const member of loaded) {
         if (!member.assets.portraitUrl) continue;
@@ -1170,12 +1180,17 @@ export async function generateCampaignPack(
         id: `${Date.now()}-${index}`,
         influencerId: influencer?.id ?? post.influencerId,
         createdAt: new Date().toISOString(),
-        scheduledFor: request.spreadDaily
-          ? calendarDatePlus(item.dayOffset)
-          : scheduled.toISOString().split("T")[0],
+        scheduledFor: request.campaignDate
+          ? request.campaignDate
+          : request.spreadDaily
+            ? calendarDatePlus(item.dayOffset)
+            : scheduled.toISOString().split("T")[0],
         publishStatus: "scheduled",
         insights: [
           `Campaign: ${plan.theme} (${plan.source === "ai" ? "AI-planned" : "smart calendar"}).`,
+          request.imageConcept?.prompt
+            ? "Image look locked to the sample you kept."
+            : "",
           names.length > 0
             ? `Avatar World: ${names.join(", ")} together at ${hangout.name}.`
             : "",
