@@ -102,6 +102,7 @@ const SCRIPT_PRESETS: {
   { scene: "pitch", label: "Pitch product" },
   { scene: "quote", label: "Signature line" },
   { scene: "cta", label: "Call to action" },
+  { scene: "tiktok", label: "TikTok hook" },
 ];
 
 const BODY_TYPE_HINTS: Record<number, string> = {
@@ -162,6 +163,10 @@ export function ViraForgeCreatorStudio() {
   const [error, setError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [influencerId, setInfluencerId] = useState<string | null>(editId);
+  const [savedAvatars, setSavedAvatars] = useState<
+    { id: string; name: string; handle: string; hasPortrait: boolean }[]
+  >([]);
+  const [clipFormat, setClipFormat] = useState<"tiktok" | null>(null);
   const [featuresText, setFeaturesText] = useState(
     defaultProductFactsValues.features.join("\n"),
   );
@@ -289,6 +294,15 @@ export function ViraForgeCreatorStudio() {
         }>;
         defaults?: Partial<CreatorAvatarForm>;
       };
+
+      setSavedAvatars(
+        (data.influencers ?? []).map((item) => ({
+          id: item.id,
+          name: item.persona.displayName,
+          handle: item.persona.handle,
+          hasPortrait: Boolean(item.assets?.portraitUrl),
+        })),
+      );
 
       if (editId && data.influencers) {
         const match = data.influencers.find((i) => i.id === editId);
@@ -581,6 +595,7 @@ export function ViraForgeCreatorStudio() {
   const handleMotion = async (
     motionType: InfluencerMotionType,
     scriptOverride?: string,
+    format?: "tiktok",
   ) => {
     if (!previewImage) {
       toast.error("Generate a portrait before motion clips");
@@ -615,6 +630,7 @@ export function ViraForgeCreatorStudio() {
     setMotionLoading(motionType);
     setMotionVideo(null);
     setQuoteValidation(null);
+    setClipFormat(format === "tiktok" ? "tiktok" : null);
 
     try {
       const res = await fetch("/api/creator-studio/motion", {
@@ -624,7 +640,8 @@ export function ViraForgeCreatorStudio() {
           influencerId,
           motionType,
           script: talkScript,
-          videoLook,
+          videoLook: format === "tiktok" ? "influencer" : videoLook,
+          ...(format === "tiktok" ? { format: "tiktok" } : {}),
           ...(motionType === "talk" && approvedTalkPreview
             ? {
                 approvedVoiceRenderId: approvedTalkPreview.renderId,
@@ -655,6 +672,44 @@ export function ViraForgeCreatorStudio() {
       setMotionLoading(null);
       toast.error(err instanceof Error ? err.message : "Motion failed");
     }
+  };
+
+  const handleTikTok = async () => {
+    if (!previewImage) {
+      toast.error("Generate a portrait for this avatar first");
+      setActiveTab("physical");
+      return;
+    }
+    if (!influencerId) {
+      toast.error("Save the avatar first, then make the TikTok");
+      return;
+    }
+
+    setVideoLook("influencer");
+    let script = motionScript.trim();
+    if (!script) {
+      setScriptGenerating(true);
+      try {
+        const res = await fetch("/api/creator-studio/motion/script", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ influencerId, scene: "tiktok" }),
+        });
+        const data = (await res.json()) as { error?: string; script?: string };
+        if (!res.ok || !data.script) {
+          throw new Error(data.error ?? "Could not write a TikTok line");
+        }
+        script = data.script;
+        setMotionScript(script);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Could not write a TikTok line");
+        setScriptGenerating(false);
+        return;
+      }
+      setScriptGenerating(false);
+    }
+
+    await handleMotion("walk-talk", script, "tiktok");
   };
 
   const handleGenerateScript = async (
@@ -2134,6 +2189,56 @@ export function ViraForgeCreatorStudio() {
                 Walk, spin, and jump use Kling image-to-video.
               </p>
 
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
+                <p className="text-sm font-semibold text-foreground">TikTok</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  A vertical 9:16 clip of the avatar you pick. They walk and talk
+                  the line below. If the line is empty, a hook is written first.
+                </p>
+                {savedAvatars.length > 0 && (
+                  <label className="mt-3 block text-xs font-medium text-foreground">
+                    Avatar
+                    <select
+                      className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      value={influencerId ?? ""}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        if (!id || id === influencerId) return;
+                        setActiveTab("motion");
+                        router.replace(
+                          `/creator-studio?influencer=${encodeURIComponent(id)}`,
+                        );
+                      }}
+                    >
+                      {!influencerId && <option value="">Select an avatar</option>}
+                      {savedAvatars.map((avatar) => (
+                        <option key={avatar.id} value={avatar.id}>
+                          {avatar.name} (@{avatar.handle})
+                          {avatar.hasPortrait ? "" : " — needs portrait"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <Button
+                  type="button"
+                  className="mt-3 w-full bg-slate-900 hover:bg-black dark:bg-white dark:text-slate-900"
+                  disabled={
+                    !previewImage ||
+                    !influencerId ||
+                    motionBusy ||
+                    scriptGenerating
+                  }
+                  onClick={() => void handleTikTok()}
+                >
+                  {scriptGenerating
+                    ? "Writing the TikTok line…"
+                    : motionLoading === "walk-talk" && clipFormat === "tiktok"
+                      ? "Making the TikTok…"
+                      : "Make TikTok"}
+                </Button>
+              </div>
+
               {!previewImage && (
                 <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
                   Generate a portrait first — motion builds from that still image.
@@ -2379,7 +2484,9 @@ export function ViraForgeCreatorStudio() {
               {motionVideo && (
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="mb-2 text-xs font-medium text-foreground">
-                    Latest motion clip
+                    {clipFormat === "tiktok"
+                      ? "TikTok — 9:16, this avatar"
+                      : "Latest motion clip"}
                     {motionLoading === "talk" ? "" : " — play for synced audio"}
                   </p>
                   <video
@@ -2389,6 +2496,28 @@ export function ViraForgeCreatorStudio() {
                     playsInline
                     className="mx-auto max-h-80 w-full rounded-lg bg-black object-contain"
                   />
+                  {clipFormat === "tiktok" && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(motionScript.trim());
+                          toast.success("TikTok caption copied");
+                        }}
+                      >
+                        Copy caption
+                      </Button>
+                      {motionVideo.startsWith("http") && (
+                        <Button asChild size="sm" variant="outline">
+                          <a href={motionVideo} download>
+                            Download
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

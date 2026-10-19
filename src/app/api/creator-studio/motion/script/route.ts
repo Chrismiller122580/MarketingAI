@@ -14,7 +14,7 @@ import { createInfluencerRender } from "@/lib/viraforge/influencer-renders";
 
 const scriptSchema = z.object({
   influencerId: z.string().min(1),
-  scene: z.enum(["intro", "pitch", "quote", "cta", "greet"]),
+  scene: z.enum(["intro", "pitch", "quote", "cta", "greet", "tiktok"]),
   siteDomain: z.string().max(200).optional(),
   draftText: z.string().max(2000).optional(),
 });

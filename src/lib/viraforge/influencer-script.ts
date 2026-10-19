@@ -17,7 +17,8 @@ export type InfluencerScriptScene =
   | "pitch"
   | "quote"
   | "cta"
-  | "greet";
+  | "greet"
+  | "tiktok";
 
 const SCENE_HINTS: Record<InfluencerScriptScene, string> = {
   intro: "Introduce yourself briefly. Who you are and your vibe — one breath.",
@@ -25,6 +26,8 @@ const SCENE_HINTS: Record<InfluencerScriptScene, string> = {
   quote: "Deliver a punchy line in the influencer's signature voice — conversational, not salesy.",
   cta: "Short call-to-action pointing people to learn more. Warm and authentic.",
   greet: "Friendly greeting — wave hello to new followers.",
+  tiktok:
+    "TikTok hook. First three words stop the scroll. Then one concrete line about the page or product. Spoken to the camera. No hashtags, no 'link in bio', no stage directions.",
 };
 
 const TALK_SCENES = new Set<InfluencerScriptScene>([
@@ -33,6 +36,7 @@ const TALK_SCENES = new Set<InfluencerScriptScene>([
   "quote",
   "cta",
   "greet",
+  "tiktok",
 ]);
 
 export async function generateInfluencerScript(input: {

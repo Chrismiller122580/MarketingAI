@@ -34,17 +34,29 @@ async function startKlingPlate(input: {
   startImage: string;
   duration: number;
   negativePrompt?: string;
+  aspectRatio?: "9:16" | "16:9" | "1:1";
 }): Promise<{ predictionId: string } | { error: string }> {
   let lastError = "Kling motion is unavailable right now.";
   for (const model of KLING_MODELS) {
-    const result = await createModelPrediction(model, {
+    const base = {
       prompt: input.prompt,
       start_image: input.startImage,
       duration: input.duration,
       ...(input.negativePrompt
         ? { negative_prompt: input.negativePrompt }
         : {}),
-    });
+    };
+    let result = await createModelPrediction(
+      model,
+      input.aspectRatio ? { ...base, aspect_ratio: input.aspectRatio } : base,
+    );
+    if (
+      "error" in result &&
+      input.aspectRatio &&
+      /aspect/i.test(result.error)
+    ) {
+      result = await createModelPrediction(model, base);
+    }
     if (!("error" in result)) return result;
     lastError = result.error;
     if (!klingRetired(result.error)) return result;
@@ -115,6 +127,7 @@ export async function startInfluencerMotion(
   voiceId?: string,
   preparedTalk?: PreparedTalkAudio,
   languageCode?: string,
+  options?: { aspectRatio?: "9:16" | "16:9" | "1:1" },
 ): Promise<MotionStartResult> {
   let imageUrl: string;
   try {
@@ -171,15 +184,20 @@ export async function startInfluencerMotion(
     }
 
     const plateDurationSec = klingDurationForAudio(audioDurationSec);
+    const frame =
+      options?.aspectRatio === "9:16"
+        ? " Vertical 9:16 phone video. Face fills the frame the way a TikTok does. No letterboxing. No captions."
+        : "";
     const klingPrompt =
-      motionType === "talk"
+      (motionType === "talk"
         ? buildTalkCloseupPrompt(persona)
-        : buildWalkTalkPrompt(persona);
+        : buildWalkTalkPrompt(persona)) + frame;
     const klingResult = await startKlingPlate({
       prompt: klingPrompt,
       startImage: imageUrl,
       duration: plateDurationSec,
       negativePrompt: KLING_SPOKEN_NEGATIVE_PROMPT,
+      aspectRatio: options?.aspectRatio,
     });
 
     if (!("error" in klingResult)) {
@@ -236,12 +254,17 @@ export async function startInfluencerMotion(
     return { error: lastError };
   }
 
-  const prompt = buildMotionPrompt(persona, motionType);
+  const prompt =
+    buildMotionPrompt(persona, motionType) +
+    (options?.aspectRatio === "9:16"
+      ? " Vertical 9:16 phone video. Subject fills the frame."
+      : "");
   const result = await startKlingPlate({
     prompt,
     startImage: imageUrl,
     duration: 5,
     negativePrompt: KLING_SPOKEN_NEGATIVE_PROMPT,
+    aspectRatio: options?.aspectRatio,
   });
 
   if ("error" in result) return result;

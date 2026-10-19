@@ -43,6 +43,7 @@ const motionSchema = z.object({
   approvedScriptHash: z.string().max(32).optional(),
   scriptSource: z.enum(["life", "crawl", "both"]).optional(),
   videoLook: z.enum(["influencer", "promo", "street", "clean"]).optional(),
+  format: z.enum(["tiktok"]).optional(),
 });
 
 async function loadApprovedTalkAudio(
@@ -286,6 +287,7 @@ export async function POST(request: Request) {
       spoken ? motionVoiceId : undefined,
       preparedTalk,
       spoken ? languageCode : undefined,
+      parsed.data.format === "tiktok" ? { aspectRatio: "9:16" } : undefined,
     );
 
     if ("error" in started) {

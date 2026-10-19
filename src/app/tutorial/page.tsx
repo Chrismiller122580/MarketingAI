@@ -40,7 +40,7 @@ const steps = [
   {
     n: "6",
     title: "Shoot in Avatars. Publish does not",
-    body: "Shoot is where the clip is made. Present a crawled page writes the caption and drops the spoken line into the script. It does not render. Shoot the clip there, then open Publish and attach the finished video.",
+    body: "Shoot is where the clip is made. Pick a saved avatar and tap Make TikTok for a vertical 9:16 video of that person talking. Present a crawled page writes the caption and does not render. Publish only attaches a clip that is already finished.",
     href: "/creator-studio",
     action: "Open Avatars",
   },
