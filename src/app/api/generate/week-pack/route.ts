@@ -14,7 +14,6 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { loadWinningCopyHints } from "@/lib/winning-copy";
 import { loadCrawledCorpus } from "@/lib/crawled-content";
-import { listCampaignAvatarIds } from "@/lib/viraforge/influencer-bridge";
 import {
   WEEK_PACK_PROMPT,
   WEEK_PACK_SIZE,
@@ -76,7 +75,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const [promptPreferences, winningCopy, existingRows, crawledCorpus, campaignAvatarIds] =
+    const [promptPreferences, winningCopy, existingRows, crawledCorpus] =
       await Promise.all([
         getPromptPreferences(userId),
         loadWinningCopyHints(userId),
@@ -86,7 +85,6 @@ export async function POST(request: Request) {
           take: 80,
         }),
         loadCrawledCorpus(userId, site),
-        listCampaignAvatarIds(userId),
       ]);
 
     const existingPosts = existingRows.map((row) => {
@@ -122,8 +120,6 @@ export async function POST(request: Request) {
       winningCopy,
       spreadDaily: true,
       crawledCorpus,
-      campaignUserId: userId,
-      campaignAvatarIds,
     };
 
     const result = await generateCampaignPack(batchRequest);

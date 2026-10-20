@@ -58,7 +58,23 @@ export function ThisWeekPack() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ site, settings }),
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: {
+        error?: string;
+        posts?: SavedPost[];
+        plan?: { theme?: string };
+        learnedFromWins?: boolean;
+        remaining?: number | null;
+      } = {};
+      try {
+        data = raw ? (JSON.parse(raw) as typeof data) : {};
+      } catch {
+        throw new Error(
+          res.status === 504 || /timed out|an error occurred/i.test(raw)
+            ? "This week's pack took too long and was stopped. Try again."
+            : "Could not generate this week's pack. Try again.",
+        );
+      }
       if (!res.ok) {
         throw new Error(
           data.error ?? "Could not generate this week's pack. Try again.",
