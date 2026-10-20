@@ -153,10 +153,13 @@ export function ViraForgeCreatorStudio() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("influencer");
+  const openShoot = searchParams.get("shoot") === "1";
   const domainParam = searchParams.get("domain");
   const { site, loadSavedSite, savedSites } = useSite();
 
-  const [activeTab, setActiveTab] = useState<CreatorTab>("physical");
+  const [activeTab, setActiveTab] = useState<CreatorTab>(
+    openShoot ? "motion" : "physical",
+  );
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle",
   );
@@ -2178,22 +2181,11 @@ export function ViraForgeCreatorStudio() {
 
           {studioMode === "shoot" && activeTab !== "library" && (
             <div className="space-y-5">
-              <AvatarPresentPanel
-                influencerId={influencerId ?? undefined}
-                onScript={(script) => setMotionScript(script.slice(0, 500))}
-              />
-
-              <p className="text-xs text-muted-foreground">
-                Turn the saved portrait into motion clips. Talk and Walk & talk
-                use ElevenLabs voice, a Kling performance plate, then lip-sync.
-                Walk, spin, and jump use Kling image-to-video.
-              </p>
-
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
                 <p className="text-sm font-semibold text-foreground">TikTok</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  A vertical 9:16 clip of the avatar you pick. They walk and talk
-                  the line below. If the line is empty, a hook is written first.
+                  A vertical 9:16 clip of this avatar. They walk and talk the
+                  line below. If the line is empty, a hook is written first.
                 </p>
                 {savedAvatars.length > 0 && (
                   <label className="mt-3 block text-xs font-medium text-foreground">
@@ -2206,7 +2198,7 @@ export function ViraForgeCreatorStudio() {
                         if (!id || id === influencerId) return;
                         setActiveTab("motion");
                         router.replace(
-                          `/creator-studio?influencer=${encodeURIComponent(id)}`,
+                          `/creator-studio?influencer=${encodeURIComponent(id)}&shoot=1`,
                         );
                       }}
                     >
@@ -2222,7 +2214,7 @@ export function ViraForgeCreatorStudio() {
                 )}
                 <Button
                   type="button"
-                  className="mt-3 w-full bg-slate-900 hover:bg-black dark:bg-white dark:text-slate-900"
+                  className="mt-3 w-full bg-slate-900 text-white hover:bg-black dark:bg-white dark:text-slate-900"
                   disabled={
                     !previewImage ||
                     !influencerId ||
@@ -2238,6 +2230,17 @@ export function ViraForgeCreatorStudio() {
                       : "Make TikTok"}
                 </Button>
               </div>
+
+              <AvatarPresentPanel
+                influencerId={influencerId ?? undefined}
+                onScript={(script) => setMotionScript(script.slice(0, 500))}
+              />
+
+              <p className="text-xs text-muted-foreground">
+                Turn the saved portrait into motion clips. Talk and Walk & talk
+                use ElevenLabs voice, a Kling performance plate, then lip-sync.
+                Walk, spin, and jump use Kling image-to-video.
+              </p>
 
               {!previewImage && (
                 <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">

@@ -179,6 +179,15 @@ export function InfluencersPanel() {
                   </p>
                 </div>
               </div>
+              <Button
+                asChild
+                size="sm"
+                className="w-full bg-slate-900 text-white hover:bg-black dark:bg-white dark:text-slate-900"
+              >
+                <Link href={`/creator-studio?influencer=${inf.id}&shoot=1`}>
+                  TikTok
+                </Link>
+              </Button>
               <div className={`grid w-full min-w-0 gap-1.5 ${isAdmin ? "grid-cols-3" : "grid-cols-2"}`}>
                 {isAdmin && (
                   <Button asChild variant="outline" size="sm" className="min-w-0 shrink">
