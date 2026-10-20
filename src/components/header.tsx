@@ -14,6 +14,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
     title: "Dashboard",
     subtitle: "Welcome back. Here's your marketing overview.",
   },
+  "/create": {
+    title: "Create",
+    subtitle: "Pick an image or a video. Then only that screen.",
+  },
   "/campaigns": {
     title: "Campaigns",
     subtitle: "Strategy, calendar, and packs from your site.",

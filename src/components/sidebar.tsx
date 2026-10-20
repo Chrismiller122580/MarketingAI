@@ -28,6 +28,7 @@ type NavItem = {
 
 const marketingItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: NavIconDashboard },
+  { href: "/create", label: "Create", icon: NavIconCampaigns },
   { href: "/campaigns", label: "Campaigns", icon: NavIconCampaigns },
   { href: "/content", label: "Publish", icon: NavIconContent },
   { href: "/posts", label: "Post Library", icon: NavIconPosts },

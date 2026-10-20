@@ -184,7 +184,7 @@ export function InfluencersPanel() {
                 size="sm"
                 className="w-full bg-slate-900 text-white hover:bg-black dark:bg-white dark:text-slate-900"
               >
-                <Link href={`/creator-studio?influencer=${inf.id}&shoot=1`}>
+                <Link href={`/creator-studio?influencer=${inf.id}&shoot=1&focus=video`}>
                   TikTok
                 </Link>
               </Button>

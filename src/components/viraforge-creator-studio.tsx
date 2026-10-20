@@ -154,11 +154,12 @@ export function ViraForgeCreatorStudio() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("influencer");
   const openShoot = searchParams.get("shoot") === "1";
+  const videoOnly = searchParams.get("focus") === "video";
   const domainParam = searchParams.get("domain");
   const { site, loadSavedSite, savedSites } = useSite();
 
   const [activeTab, setActiveTab] = useState<CreatorTab>(
-    openShoot ? "motion" : "physical",
+    openShoot || videoOnly ? "motion" : "physical",
   );
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle",
@@ -1231,7 +1232,7 @@ export function ViraForgeCreatorStudio() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-28 sm:pb-20">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between ${videoOnly ? "hidden" : ""}`}>
         <div>
           <div className="mb-2 flex items-center gap-2">
             <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">
@@ -1333,7 +1334,7 @@ export function ViraForgeCreatorStudio() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 px-4 py-3">
+      <div className={`rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 px-4 py-3 ${videoOnly ? "hidden" : ""}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2 text-sm">
               <Globe className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
@@ -1460,12 +1461,35 @@ export function ViraForgeCreatorStudio() {
           )}
         </div>
 
+      {videoOnly && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            Video
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-foreground">
+            Make a TikTok
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pick the avatar and make the clip. This screen does not write a page script.
+          </p>
+          <p className="mt-2 text-sm">
+            <Link href="/create" className="font-medium text-amber-700 hover:underline dark:text-amber-400">
+              Back
+            </Link>
+            <span className="text-muted-foreground"> · </span>
+            <Link href="/campaigns" className="font-medium text-amber-700 hover:underline dark:text-amber-400">
+              Make an image instead
+            </Link>
+          </p>
+        </div>
+      )}
+
       <form onSubmit={handleGenerate} className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="space-y-6 rounded-2xl border border-border bg-card p-6 lg:col-span-7">
           <div
             role="tablist"
             aria-label="Avatar configuration"
-            className="-mx-1 flex gap-2 overflow-x-auto border-b border-border px-1 pb-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
+            className={`-mx-1 flex gap-2 overflow-x-auto border-b border-border px-1 pb-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 ${videoOnly ? "hidden" : ""}`}
           >
             {STUDIO_MODES.map((mode) => (
               <button
@@ -2198,7 +2222,7 @@ export function ViraForgeCreatorStudio() {
                         if (!id || id === influencerId) return;
                         setActiveTab("motion");
                         router.replace(
-                          `/creator-studio?influencer=${encodeURIComponent(id)}&shoot=1`,
+                          `/creator-studio?influencer=${encodeURIComponent(id)}&shoot=1${videoOnly ? "&focus=video" : ""}`,
                         );
                       }}
                     >
@@ -2231,16 +2255,13 @@ export function ViraForgeCreatorStudio() {
                 </Button>
               </div>
 
-              <AvatarPresentPanel
-                influencerId={influencerId ?? undefined}
-                onScript={(script) => setMotionScript(script.slice(0, 500))}
-              />
-
-              <p className="text-xs text-muted-foreground">
-                Turn the saved portrait into motion clips. Talk and Walk & talk
-                use ElevenLabs voice, a Kling performance plate, then lip-sync.
-                Walk, spin, and jump use Kling image-to-video.
-              </p>
+              {!videoOnly && (
+                <p className="text-xs text-muted-foreground">
+                  Turn the saved portrait into motion clips. Talk and Walk & talk
+                  use ElevenLabs voice, a Kling performance plate, then lip-sync.
+                  Walk, spin, and jump use Kling image-to-video.
+                </p>
+              )}
 
               {!previewImage && (
                 <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
@@ -2376,6 +2397,8 @@ export function ViraForgeCreatorStudio() {
                 </div>
               </div>
 
+              {!videoOnly && (
+              <>
               <div>
                 <p className="mb-2 text-xs font-medium text-foreground">Video look</p>
                 <div className="flex flex-wrap gap-2">
@@ -2460,6 +2483,8 @@ export function ViraForgeCreatorStudio() {
                   );
                 })}
               </div>
+              </>
+              )}
 
               {approvedTalkPreview && (
                 <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200">
@@ -2526,7 +2551,7 @@ export function ViraForgeCreatorStudio() {
             </div>
           )}
 
-          {studioMode === "shoot" && (
+          {studioMode === "shoot" && !videoOnly && (
             <InfluencerRenderLibrary
               key={`${influencerId ?? "new"}-${renderLibraryTick}`}
               influencerId={influencerId}
@@ -2535,12 +2560,18 @@ export function ViraForgeCreatorStudio() {
           )}
 
           {studioMode === "use" && (
-            <InfluencerSiteContentPanel
-              influencerId={influencerId}
-              hasPortrait={!!previewImage}
-              onAvatarSpeak={handleAvatarSpeak}
-              voiceAvailable={!!capabilities?.voiceAvailable}
-            />
+            <>
+              <AvatarPresentPanel
+                influencerId={influencerId ?? undefined}
+                onScript={(script) => setMotionScript(script.slice(0, 500))}
+              />
+              <InfluencerSiteContentPanel
+                influencerId={influencerId}
+                hasPortrait={!!previewImage}
+                onAvatarSpeak={handleAvatarSpeak}
+                voiceAvailable={!!capabilities?.voiceAvailable}
+              />
+            </>
           )}
 
           {error && (

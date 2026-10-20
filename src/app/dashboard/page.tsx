@@ -5,6 +5,7 @@ import { QuickActions } from "@/components/quick-actions";
 import { DashboardInfluencers } from "@/components/dashboard-influencers";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { FirstRunChecklist } from "@/components/first-run-checklist";
+import { CreateChooser } from "@/components/create-chooser";
 import { ThisWeekPack } from "@/components/this-week-pack";
 
 export default function DashboardPage() {
@@ -15,6 +16,7 @@ export default function DashboardPage() {
           <EmailVerificationBanner />
         </Suspense>
         <FirstRunChecklist />
+        <CreateChooser />
         <DomainInput variant="dashboard" />
         <ThisWeekPack />
         <DashboardInfluencers />

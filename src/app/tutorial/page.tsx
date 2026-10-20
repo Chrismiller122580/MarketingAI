@@ -11,10 +11,10 @@ const steps = [
   },
   {
     n: "2",
-    title: "One page, one job",
-    body: "Home is the site and this week's pack. Campaigns is strategy, the calendar, and the photo set. Publish only writes and ships a clip you already shot. Post Library is saved posts. Avatars builds the person and shoots the video.",
-    href: "/campaigns",
-    action: "Open Campaigns",
+    title: "Start at Create",
+    body: "Create asks one question: an image, or a video. An image goes to Campaigns for one sample photo. A video goes to a TikTok screen for one avatar. Avatars is only for building the person.",
+    href: "/create",
+    action: "Open Create",
   },
   {
     n: "3",
