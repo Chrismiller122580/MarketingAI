@@ -16,7 +16,11 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   },
   "/create": {
     title: "Create",
-    subtitle: "Pick an image or a video. Then only that screen.",
+    subtitle: "Pick an image, a video, or a conversation.",
+  },
+  "/chat": {
+    title: "Chat",
+    subtitle: "Two avatars talk to each other.",
   },
   "/campaigns": {
     title: "Campaigns",

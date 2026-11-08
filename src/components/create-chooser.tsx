@@ -13,6 +13,12 @@ const choices = [
     title: "One TikTok",
     body: "Pick a saved avatar and make a vertical clip of that person talking. No page script on this screen.",
   },
+  {
+    href: "/chat",
+    kicker: "Chat",
+    title: "Two avatars talking",
+    body: "Pick two saved avatars. They talk in their own voices. Not a post, and not a video.",
+  },
 ] as const;
 
 export function CreateChooser() {
@@ -26,7 +32,7 @@ export function CreateChooser() {
           What do you want to make?
         </h2>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         {choices.map((choice) => (
           <Link
             key={choice.href}
