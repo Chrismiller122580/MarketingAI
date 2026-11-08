@@ -39,6 +39,8 @@ const marketingItems: NavItem[] = [
 
 const creatorItems: NavItem[] = [
   { href: "/creator-studio", label: "Avatars", icon: NavIconCreatorStudio },
+  { href: "/town", label: "Town", icon: NavIconWorld },
+  { href: "/chat", label: "Chat", icon: NavIconContent },
 ];
 
 function NavLink({

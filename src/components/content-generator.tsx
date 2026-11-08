@@ -69,13 +69,11 @@ const VisualPostEditor = dynamic(
 
 const contentTypes: ContentType[] = [
   "Social Post",
-  "Reel",
   "Story",
   "Email Copy",
   "Ad Headline",
   "Blog Intro",
   "Product Description",
-  "Video Ad",
 ];
 
 type AiCapabilities = {
@@ -892,10 +890,8 @@ export function ContentGenerator() {
         <div className="space-y-4 p-6">
           {!site && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-              Enter a domain above to analyze your site. Then choose{" "}
-              <strong>Reel</strong> or <strong>Story</strong> for Instagram
-              vertical formats, or <strong>Video Ad</strong> for short AI video
-              ads (5–10 seconds).
+              Enter a domain in Settings if this post should follow a crawled page.
+              A talking video is Make TikTok, not a post type here.
             </div>
           )}
 

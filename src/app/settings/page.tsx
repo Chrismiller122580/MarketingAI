@@ -1,15 +1,20 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { SettingsForm } from "@/components/settings-form";
 import { SocialConnections } from "@/components/social-connections";
 import { BrandInsights } from "@/components/brand-insights";
 import { AccountSettings } from "@/components/account-settings";
-import Link from "next/link";
+import { DomainInput } from "@/components/domain-input";
 
 export default function SettingsPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-6">
+        <div id="site">
+          <DomainInput variant="dashboard" />
+        </div>
+
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>

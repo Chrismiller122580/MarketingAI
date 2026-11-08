@@ -244,6 +244,15 @@ export function CampaignPack() {
         scheduledFor: sampleDate,
         publishStatus: "scheduled",
       });
+      void fetch("/api/avatars/kept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: text.slice(0, 500),
+          source: "sample",
+          fromLife: false,
+        }),
+      });
       setSampleSaved(true);
     } catch (err) {
       setError(

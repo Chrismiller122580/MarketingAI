@@ -4,7 +4,7 @@ import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
-import { buildPersonalizationContext, type InfluencerMemory } from "@/lib/viraforge/learning";
+import { buildPersonalizationContext, recordCreatorEvent, type InfluencerMemory } from "@/lib/viraforge/learning";
 import {
   formatWorldLifeForContent,
   hydrateWorldProfile,
@@ -93,6 +93,24 @@ export async function POST(request: Request) {
       worldLife,
       language: world.language,
     });
+
+    const opening =
+      result.script.split(/(?<=[.!?])\s/)[0]?.slice(0, 220) ||
+      result.script.slice(0, 220);
+    try {
+      await recordCreatorEvent(
+        authResult,
+        "line_tried",
+        {
+          text: opening,
+          source: scene,
+          fromLife: Boolean(world.learnedNotes[0] || world.sharedLore[0]),
+        },
+        influencerId,
+      );
+    } catch {
+      // The line still returns if the note does not save.
+    }
 
     const { id: renderId } = await createInfluencerRender({
       userId: authResult,

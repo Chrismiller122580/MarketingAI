@@ -4,10 +4,10 @@ import { AppShell } from "@/components/app-shell";
 const steps = [
   {
     n: "1",
-    title: "Crawl the site on Home",
-    body: "Home is the only place with the big crawl card. Enter the domain once. The small box in the header switches sites from any page after that.",
-    href: "/dashboard",
-    action: "Open Home",
+    title: "Add a site in Settings",
+    body: "Home only asks what you want to make. Crawl the domain under Settings when a post should follow a real page.",
+    href: "/settings#site",
+    action: "Add a site",
   },
   {
     n: "2",

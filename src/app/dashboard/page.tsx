@@ -1,12 +1,9 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { DomainInput } from "@/components/domain-input";
-import { QuickActions } from "@/components/quick-actions";
 import { DashboardInfluencers } from "@/components/dashboard-influencers";
 import { EmailVerificationBanner } from "@/components/email-verification-banner";
-import { FirstRunChecklist } from "@/components/first-run-checklist";
 import { CreateChooser } from "@/components/create-chooser";
-import { ThisWeekPack } from "@/components/this-week-pack";
 
 export default function DashboardPage() {
   return (
@@ -15,12 +12,18 @@ export default function DashboardPage() {
         <Suspense>
           <EmailVerificationBanner />
         </Suspense>
-        <FirstRunChecklist />
         <CreateChooser />
-        <DomainInput variant="dashboard" />
-        <ThisWeekPack />
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          <Link href="/settings#site" className="font-medium text-amber-700 hover:underline dark:text-amber-400">
+            Add a site
+          </Link>
+          <span> if a post should follow a crawled page. </span>
+          <Link href="/town" className="font-medium text-amber-700 hover:underline dark:text-amber-400">
+            The town
+          </Link>
+          <span> is where the avatars live the day.</span>
+        </p>
         <DashboardInfluencers />
-        <QuickActions />
       </div>
     </AppShell>
   );

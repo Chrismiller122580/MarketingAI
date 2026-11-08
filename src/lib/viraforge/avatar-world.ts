@@ -2194,6 +2194,33 @@ export const INFLUENCER_CRAFT = `What makes a real person worth following:
 - Sound like your own mood and catchphrase. If the line could be anyone, it fails.
 - A product, if one is true, is the last line. Never invent a price, spec, or benefit. Never say this life is a simulation, a world, or a brand exercise.`;
 
+export function summarizeAvatarLife(input: {
+  displayName: string;
+  persona: unknown;
+  memory: unknown;
+}): { lane: string; people: string; lastLived: string; nextLine: string } {
+  const parsed = parseCreatorAvatar(input.persona);
+  const persona = parsed.success ? parsed.data : defaultCreatorAvatarValues;
+  const world = hydrateWorldProfile(
+    persona,
+    (input.memory ?? {}) as InfluencerMemory,
+  );
+  const place = world.currentCity || persona.location;
+  const lane =
+    [world.occupation, place].filter(Boolean).join(" · ") || "No lane yet";
+  const names = world.relationships
+    .slice(0, 3)
+    .map((rel) => rel.displayName)
+    .filter(Boolean);
+  const people = names.length > 0 ? names.join(", ") : "No one in the cast yet";
+  const last = (world.learnedNotes[0] || world.sharedLore[0] || "").trim();
+  const lastLived = last || "Nothing lived yet. Start a conversation.";
+  const nextLine = last
+    ? `${input.displayName} would open on this: ${last.slice(0, 160)}`
+    : `${input.displayName} has no day to open on yet.`;
+  return { lane, people, lastLived, nextLine };
+}
+
 export function formatWorldLifeForContent(
   world: AvatarWorldProfile,
   opts?: { street?: string; recent?: string[] },

@@ -27,7 +27,9 @@ export type CreatorEventType =
   | "world_chat"
   | "world_wage"
   | "world_listing"
-  | "world_sale";
+  | "world_sale"
+  | "line_tried"
+  | "line_kept";
 
 export type InfluencerMemory = {
   styleAdjustments?: Record<string, string | number>;

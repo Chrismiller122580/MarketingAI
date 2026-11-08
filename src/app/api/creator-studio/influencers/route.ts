@@ -9,6 +9,7 @@ import {
 import {
   listPublicWorldAvatars,
   worldFromMemory,
+  summarizeAvatarLife,
 } from "@/lib/viraforge/avatar-world";
 
 export async function GET() {
@@ -38,6 +39,11 @@ export async function GET() {
     influencers: rows.map((row) => ({
       ...row,
       assets: resolveInfluencerAssets((row.assets ?? {}) as InfluencerAssets),
+      life: summarizeAvatarLife({
+        displayName: row.displayName,
+        persona: row.persona,
+        memory: row.memory,
+      }),
       owned: true,
       fromWorld: false,
       publicUse: worldFromMemory(row.memory).isPublic,

@@ -11,8 +11,8 @@ import { MenuButton } from "./menu-button";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
-    title: "Dashboard",
-    subtitle: "Welcome back. Here's your marketing overview.",
+    title: "Home",
+    subtitle: "Pick an image, a video, or a conversation.",
   },
   "/create": {
     title: "Create",
@@ -21,6 +21,10 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/chat": {
     title: "Chat",
     subtitle: "Two avatars talk to each other.",
+  },
+  "/town": {
+    title: "Town",
+    subtitle: "One day in the life they will talk about.",
   },
   "/campaigns": {
     title: "Campaigns",

@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Camera,
-  Database,
   Globe,
   Hand,
   Mic,
@@ -247,6 +246,7 @@ export function ViraForgeCreatorStudio() {
   >({});
   const [suggesting, setSuggesting] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
+  const [showSiteTools, setShowSiteTools] = useState(false);
   const [showAllFactFields, setShowAllFactFields] = useState(false);
   const [featureDraft, setFeatureDraft] = useState("");
   const [deletingAvatar, setDeletingAvatar] = useState(false);
@@ -1238,9 +1238,6 @@ export function ViraForgeCreatorStudio() {
             <span className="text-sm font-semibold text-violet-600 dark:text-violet-400">
               ViraForge
             </span>
-            <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600 dark:text-emerald-400">
-              LEARNING BETA
-            </span>
           </div>
           <h2 className="text-2xl font-bold text-foreground">
             Create New Influencer Avatar
@@ -1255,47 +1252,6 @@ export function ViraForgeCreatorStudio() {
               {influencerId ? ` · Editing @${values.handle}` : ""}
             </p>
           )}
-          <div className="mt-3 flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <Database className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
-            {influencerId ? (
-              <p>
-                <span className="font-medium text-foreground">
-                  Saved in PostgreSQL
-                </span>{" "}
-                — table{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
-                  Influencer
-                </code>
-                , id{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
-                  {influencerId}
-                </code>
-                .{" "}
-                <Link
-                  href="/dashboard"
-                  className="font-medium text-violet-600 hover:underline dark:text-violet-400"
-                >
-                  View all on dashboard
-                </Link>
-              </p>
-            ) : (
-              <p>
-                Not saved yet. Records are written to PostgreSQL (
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
-                  Influencer
-                </code>
-                ,{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
-                  ProductFacts
-                </code>
-                ,{" "}
-                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
-                  CreatorLearningEvent
-                </code>
-                ) when you save or generate.
-              </p>
-            )}
-          </div>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
           <Button
@@ -1334,7 +1290,17 @@ export function ViraForgeCreatorStudio() {
         </div>
       </div>
 
-      <div className={`rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 px-4 py-3 ${videoOnly ? "hidden" : ""}`}>
+      {!videoOnly && (
+        <button
+          type="button"
+          className="text-sm font-medium text-violet-600 hover:underline dark:text-violet-400"
+          onClick={() => setShowSiteTools((open) => !open)}
+        >
+          {showSiteTools ? "Hide the crawled site" : "Use a crawled site"}
+        </button>
+      )}
+
+      <div className={`rounded-xl border border-dashed border-violet-500/30 bg-violet-500/5 px-4 py-3 ${videoOnly || !showSiteTools ? "hidden" : ""}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2 text-sm">
               <Globe className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
@@ -2531,8 +2497,21 @@ export function ViraForgeCreatorStudio() {
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          void navigator.clipboard.writeText(motionScript.trim());
+                          const line = motionScript.trim();
+                          void navigator.clipboard.writeText(line);
                           toast.success("TikTok caption copied");
+                          if (line && influencerId) {
+                            void fetch("/api/avatars/kept", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                text: line.slice(0, 500),
+                                source: "tiktok",
+                                influencerId,
+                                fromLife: true,
+                              }),
+                            });
+                          }
                         }}
                       >
                         Copy caption

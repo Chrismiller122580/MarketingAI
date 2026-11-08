@@ -15,6 +15,12 @@ type InfluencerRow = {
   updatedAt: string;
   assets?: { portraitUrl?: string; videoUrl?: string } | null;
   productFacts?: { name: string } | null;
+  life?: {
+    lane: string;
+    people: string;
+    lastLived: string;
+    nextLine: string;
+  };
 };
 
 function InfluencerSkeleton() {
@@ -177,6 +183,26 @@ export function InfluencersPanel() {
                     {inf.productFacts?.name ?? "No product linked"} · Updated{" "}
                     {new Date(inf.updatedAt).toLocaleDateString()}
                   </p>
+                  {inf.life && (
+                    <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                      <p>
+                        <span className="font-medium text-foreground">Lane. </span>
+                        {inf.life.lane}
+                      </p>
+                      <p>
+                        <span className="font-medium text-foreground">People. </span>
+                        {inf.life.people}
+                      </p>
+                      <p className="line-clamp-2">
+                        <span className="font-medium text-foreground">Last lived. </span>
+                        {inf.life.lastLived}
+                      </p>
+                      <p className="line-clamp-3">
+                        <span className="font-medium text-foreground">Next line. </span>
+                        {inf.life.nextLine}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <Button
