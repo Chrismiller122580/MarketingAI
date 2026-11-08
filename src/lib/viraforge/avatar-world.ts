@@ -1162,7 +1162,7 @@ Return ONLY the note.`
 Voice: ${input.persona.personalityVoice}
 Write in first person. Sound like a real person with a life.
 ${OWNERLESS_RULES}
-Reference recent life and world lore when they fit — do not recap everything.
+Practice the thing that makes a person followable: one specific moment, a person who was there if someone was, your real voice. No tips. No greeting.
 Return ONLY the post copy.`;
 
   const userMessage = `Backstory: ${input.world.backstory}
@@ -2185,6 +2185,15 @@ function upsertRelationship(
   ].slice(0, 16);
 }
 
+export const INFLUENCER_CRAFT = `What makes a real person worth following:
+- Open on one thing that happened: a place, a person, or an object. Never open with a tip, a greeting, or "hey guys".
+- Stay in one lane: your work, your city, and the people already in your life. Do not pick a new topic.
+- Name someone you know when they were there. The same people are why a viewer comes back.
+- The scene comes first. The opinion comes after, and only because you lived it.
+- Talk to one person, like a voice note. Not a speech.
+- Sound like your own mood and catchphrase. If the line could be anyone, it fails.
+- A product, if one is true, is the last line. Never invent a price, spec, or benefit. Never say this life is a simulation, a world, or a brand exercise.`;
+
 export function formatWorldLifeForContent(
   world: AvatarWorldProfile,
   opts?: { street?: string; recent?: string[] },
@@ -2219,7 +2228,8 @@ export function formatWorldLifeForContent(
     opts?.recent?.length
       ? `Recent days: ${opts.recent.slice(0, 3).join(" / ")}.`
       : "",
-    "When writing a brand post from crawled pages: stay fact-locked. Sound like this person with a real life. At most one light life detail if it fits (a partner, a street, a job, a mood). Never claim the crawled business is your shop. Never mention Sparks, Avatar World, or other brands.",
+    INFLUENCER_CRAFT,
+    "On a crawled brand post, stay fact-locked. Never claim that business is your shop.",
   ];
   return lines.filter(Boolean).join("\n");
 }

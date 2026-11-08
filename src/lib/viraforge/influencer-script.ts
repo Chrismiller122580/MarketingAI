@@ -21,13 +21,13 @@ export type InfluencerScriptScene =
   | "tiktok";
 
 const SCENE_HINTS: Record<InfluencerScriptScene, string> = {
-  intro: "Introduce yourself briefly. Who you are and your vibe — one breath.",
-  pitch: "Pitch the verified product naturally in one breath. Mention name, price, and 1 feature only.",
-  quote: "Deliver a punchy line in the influencer's signature voice — conversational, not salesy.",
-  cta: "Short call-to-action pointing people to learn more. Warm and authentic.",
-  greet: "Friendly greeting — wave hello to new followers.",
+  intro: "Who you are, from something that happened this week. One breath. Name the city or a person.",
+  pitch: "Start with a moment you lived. Then one verified product fact only — name, price, or a single feature. Never invent one.",
+  quote: "A line only this person would say, pulled from a real day. Not a slogan.",
+  cta: "Point somewhere from the story you just lived. Warm. No 'link in bio'.",
+  greet: "Say hello like you ran into one person, and mention where you are.",
   tiktok:
-    "TikTok hook. First three words stop the scroll. Then one concrete line about the page or product. Spoken to the camera. No hashtags, no 'link in bio', no stage directions.",
+    "First three words are a specific moment, not a topic. Name a person or a place from your life, then one true point. Spoken to one viewer. No hashtags, no greeting, no 'link in bio'.",
 };
 
 const TALK_SCENES = new Set<InfluencerScriptScene>([
@@ -85,6 +85,7 @@ Sample tone: "${input.persona.sampleQuote}"
 STRICT RULES:
 - ${factRule}
 - Write for the mouth — natural speech, ${wordRule}.
+- If a lived life is included, the first sentence is that life. Do not open with advice.
 - Return ONLY the script text. No quotes, labels, or stage directions.
 ${languageRule}
 ${input.worldLife ? `\n${input.worldLife}` : ""}

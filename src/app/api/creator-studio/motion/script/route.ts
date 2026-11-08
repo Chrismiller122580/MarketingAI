@@ -4,7 +4,12 @@ import { isAuthError, requireAuthUserId } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { parseCreatorAvatar } from "@/lib/schemas/creator-avatar-schema";
 import { factsFromRecord } from "@/lib/schemas/product-facts-schema";
-import { buildPersonalizationContext } from "@/lib/viraforge/learning";
+import { buildPersonalizationContext, type InfluencerMemory } from "@/lib/viraforge/learning";
+import {
+  formatWorldLifeForContent,
+  hydrateWorldProfile,
+  listInfluencerWorldEvents,
+} from "@/lib/viraforge/avatar-world";
 import {
   generateInfluencerScript,
   type InfluencerScriptScene,
@@ -69,6 +74,14 @@ export async function POST(request: Request) {
       authResult,
       influencerId,
     );
+    const world = hydrateWorldProfile(
+      persona.data,
+      (influencer.memory ?? {}) as InfluencerMemory,
+    );
+    const events = await listInfluencerWorldEvents(authResult, influencerId, 6);
+    const worldLife = formatWorldLifeForContent(world, {
+      recent: events.map((event) => event.title),
+    });
 
     const result = await generateInfluencerScript({
       persona: persona.data,
@@ -77,6 +90,8 @@ export async function POST(request: Request) {
       siteDomain,
       draftText,
       personalization: personalization || undefined,
+      worldLife,
+      language: world.language,
     });
 
     const { id: renderId } = await createInfluencerRender({

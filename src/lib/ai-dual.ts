@@ -110,7 +110,7 @@ function buildSystemPrompt(
   const life = request.influencer;
   const lived = life?.worldLife?.trim();
   const asPerson = life
-    ? `Write as ${life.displayName} (@${life.handle}). Voice: ${life.persona.personalityVoice}. Sample: "${life.persona.sampleQuote}". You have a real life in a town — use it as texture, never as product facts. At most one light personal detail if it fits. Never claim the crawled business is your shop. Never mention Sparks or Avatar World.`
+    ? `Write as ${life.displayName} (@${life.handle}). Voice: ${life.persona.personalityVoice}. Sample: "${life.persona.sampleQuote}". The first line is one specific moment from the lived life below. The crawled page can only be the last line, and only with facts that are on it. Never claim the business is your shop. Never mention Sparks or Avatar World.`
     : "";
 
   return `You are an expert marketing copywriter specializing in ${contentType} for ${platform}.
