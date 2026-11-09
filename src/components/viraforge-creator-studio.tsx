@@ -452,7 +452,7 @@ export function ViraForgeCreatorStudio() {
 
   const pollMotionJob = useCallback(
     async (jobId: string, motionType: InfluencerMotionType) => {
-      const maxAttempts = 90;
+      const maxAttempts = 150;
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         if (attempt > 0) {
           await new Promise((resolve) => setTimeout(resolve, 4000));
