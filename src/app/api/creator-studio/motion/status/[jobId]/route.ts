@@ -122,6 +122,16 @@ export async function GET(_request: Request, context: RouteContext) {
       typeof meta.lipsyncPredictionId === "string" &&
       meta.lipsyncPredictionId === job.predictionId;
 
+    // The mouth pass is still starting, or this poll is looking at the
+    // walking plate. Do not ship that plate with the voice pasted on.
+    if (meta.lipsyncStage === "running" && !lipsyncReady) {
+      return NextResponse.json({
+        status: "processing",
+        stage: "voice",
+        motionType: job.motionType,
+      });
+    }
+
     let audioEmbeddedInVideo = false;
     if (spoken && job.voiceAudioUrl && !lipsyncReady) {
       try {

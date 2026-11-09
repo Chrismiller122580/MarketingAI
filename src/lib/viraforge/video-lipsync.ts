@@ -70,25 +70,13 @@ export async function startVideoLipsync(
   let video: string;
   let audio: string;
   try {
-    const wav = await voiceWavDataUrl(audioUrl);
-    [video, audio] = await Promise.all([
-      ensureReplicateInputUrl(videoUrl, "walk-plate"),
-      ensureReplicateInputUrl(wav ?? audioUrl, "voice"),
-    ]);
+    video = await ensureReplicateInputUrl(videoUrl, "walk-plate");
+    audio = await ensureReplicateInputUrl(audioUrl, "voice");
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Could not prepare lipsync media";
     return { error: message };
   }
-
-  const syncResult = await createModelPrediction("sync/lipsync-2", {
-    video,
-    audio,
-    sync_mode: pickSyncMode(),
-    temperature: 0.35,
-    active_speaker: false,
-  });
-  if (!("error" in syncResult)) return syncResult;
 
   const klingResult = await createModelPrediction("kwaivgi/kling-lip-sync", {
     video_url: video,
@@ -96,7 +84,24 @@ export async function startVideoLipsync(
   });
   if (!("error" in klingResult)) return klingResult;
 
+  let syncAudio = audio;
+  try {
+    const wav = await voiceWavDataUrl(audioUrl);
+    if (wav) syncAudio = await ensureReplicateInputUrl(wav, "voice");
+  } catch {
+    syncAudio = audio;
+  }
+
+  const syncResult = await createModelPrediction("sync/lipsync-2", {
+    video,
+    audio: syncAudio,
+    sync_mode: pickSyncMode(),
+    temperature: 0.35,
+    active_speaker: false,
+  });
+  if (!("error" in syncResult)) return syncResult;
+
   return {
-    error: `Lip-sync unavailable (${LIPSYNC_MODELS.join(", ")}): ${syncResult.error}; ${klingResult.error}`,
+    error: `Lip-sync unavailable (${LIPSYNC_MODELS.join(", ")}): ${klingResult.error}; ${syncResult.error}`,
   };
 }

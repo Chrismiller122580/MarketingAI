@@ -33,14 +33,13 @@ export function buildWalkTalkPrompt(persona: CreatorAvatarForm): string {
   const hood = persona.neighborhoods?.trim();
 
   return [
-    `Photorealistic ${subject}, age ${persona.age}, walking through ${city}.`,
-    hood ? `Neighborhood streets and landmarks that feel like ${hood}.` : "",
+    `Photorealistic ${subject}, age ${persona.age}, standing on a street in ${city}.`,
+    hood ? `The street behind them feels like ${hood}.` : "",
     `Wardrobe: ${persona.wardrobe}`,
-    "They take two or three steps toward the camera, then stop.",
-    "After the stop, the face fills the frame and stays locked on the lens for the rest of the line.",
-    "Both eyes visible. Mouth easy to read. They finish the sentence standing still.",
-    "Jaw and lips move on every word. Not a posed smile. Not a profile, not a glance away.",
-    "Arms swing, hair and clothes shift, the background moves past. Not a still portrait.",
+    "Locked close-up for the entire clip. Head and shoulders only. The face fills most of the frame.",
+    "The camera does not zoom out. The legs are never shown. They do not walk away.",
+    "Eyes stay on the lens. The mouth is working the whole time, forming words, not holding a smile.",
+    "A little sway is fine. The background can move slightly. The face stays large and front-on.",
     "Maintain consistent face and body from the reference portrait.",
   ]
     .filter(Boolean)
