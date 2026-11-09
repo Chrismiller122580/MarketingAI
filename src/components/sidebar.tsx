@@ -95,7 +95,7 @@ export function Sidebar({
       className={`
         fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900
         transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-64 lg:translate-x-0
-        ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        ${mobileOpen ? "translate-x-0" : "pointer-events-none -translate-x-full lg:pointer-events-auto lg:translate-x-0"}
       `}
     >
       <div className="flex h-14 items-center justify-between gap-2 border-b border-slate-200 px-4 dark:border-slate-800 md:px-5">

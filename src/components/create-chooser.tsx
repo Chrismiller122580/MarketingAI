@@ -37,7 +37,7 @@ export function CreateChooser() {
           <Link
             key={choice.href}
             href={choice.href}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-400 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-500"
+            className="relative z-10 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-amber-400 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-amber-500"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
               {choice.kicker}

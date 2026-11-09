@@ -152,18 +152,11 @@ export function InfluencersPanel() {
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-md bg-muted">
-                  {inf.assets?.videoUrl ? (
-                    <video
-                      src={inf.assets.videoUrl}
-                      muted
-                      playsInline
-                      className="h-full w-full object-cover object-top"
-                    />
-                  ) : inf.assets?.portraitUrl ? (
+                  {inf.assets?.portraitUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={inf.assets.portraitUrl}
-                      alt={`Portrait of ${inf.displayName}`}
+                      alt=""
                       className="h-full w-full object-cover object-top"
                     />
                   ) : (
