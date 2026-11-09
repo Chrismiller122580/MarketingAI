@@ -313,7 +313,10 @@ export async function POST(request: Request) {
           lipsyncStage: started.needsLipsync ? "pending" : "done",
           plateDurationSec: started.plateDurationSec,
           audioDurationSec: started.audioDurationSec,
-          videoLook: normalizeVideoLook(parsed.data.videoLook),
+          videoLook:
+            parsed.data.format === "tiktok"
+              ? "clean"
+              : normalizeVideoLook(parsed.data.videoLook),
           popupLine: popupLineFromScript(talkScript),
         },
       });

@@ -44,6 +44,7 @@ export async function startSpokenLipsyncStage(
     audioDurationSec: metaNumber(meta, "audioDurationSec"),
   });
   if ("error" in lipsync) {
+    console.error("Lip-sync did not start:", lipsync.error);
     await updateInfluencerMotionJob(job.renderId, {
       metadata: {
         ...motionMeta(locked),

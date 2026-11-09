@@ -186,7 +186,7 @@ export async function startInfluencerMotion(
     const plateDurationSec = KLING_LONG_DURATION_SEC;
     const frame =
       options?.aspectRatio === "9:16"
-        ? " Vertical 9:16 phone video. Face fills the frame the way a TikTok does. No letterboxing. No captions."
+        ? " Vertical 9:16 phone video. Face fills the frame. No letterboxing."
         : "";
     const klingPrompt =
       (motionType === "talk"

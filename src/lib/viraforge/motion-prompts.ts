@@ -17,12 +17,11 @@ export function buildTalkCloseupPrompt(persona: CreatorAvatarForm): string {
   return [
     `Photorealistic ${subject}, age ${persona.age}, talking to camera in a studio close-up.`,
     `Wardrobe: ${persona.wardrobe}`,
-    `Mood: ${persona.personalityVoice.slice(0, 120)}.`,
     "Tight head-and-shoulders framing, eyes on lens, natural blinks.",
-    "Clearly talking the whole time: jaw, lips, and cheeks move with each word, small nods, one hand gesture into frame.",
+    "Mouth is speaking, not a posed smile. Lips form words. Teeth are not locked in a grin.",
     "Alive and in motion, never a frozen photo. No walking away, no spin.",
     "Maintain consistent face from the reference portrait.",
-    "Soft key light, shallow bokeh. Empty background. No writing, no signs, no cards, no logos, no captions.",
+    "Soft key light, shallow bokeh. Empty background.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -37,14 +36,12 @@ export function buildWalkTalkPrompt(persona: CreatorAvatarForm): string {
     `Photorealistic ${subject}, age ${persona.age}, walking through ${city}.`,
     hood ? `Neighborhood streets and landmarks that feel like ${hood}.` : "",
     `Wardrobe: ${persona.wardrobe}`,
-    `Mood: ${persona.personalityVoice.slice(0, 120)}.`,
     "They take two or three steps toward the camera, then stop.",
     "After the stop, the face fills the frame and stays locked on the lens for the rest of the line.",
     "Both eyes visible. Mouth easy to read. They finish the sentence standing still.",
-    "Jaw and lips move on every word. Not a profile, not a glance away.",
+    "Jaw and lips move on every word. Not a posed smile. Not a profile, not a glance away.",
     "Arms swing, hair and clothes shift, the background moves past. Not a still portrait.",
     "Maintain consistent face and body from the reference portrait.",
-    "Clean frame only. No writing, no signs, no cards, no logos, no captions anywhere in the shot.",
   ]
     .filter(Boolean)
     .join(" ");

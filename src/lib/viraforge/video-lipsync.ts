@@ -1,5 +1,12 @@
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
+import ffmpegPath from "ffmpeg-static";
 import { createModelPrediction } from "@/lib/replicate-client";
-import { ensureReplicateInputUrl } from "@/lib/media-url";
+import { ensureReplicateInputUrl, loadStoredMediaBytes } from "@/lib/media-url";
 
 const LIPSYNC_MODELS = ["kwaivgi/kling-lip-sync", "sync/lipsync-2"] as const;
 
@@ -15,6 +22,41 @@ function pickSyncMode(): string {
   return "remap";
 }
 
+const execFileAsync = promisify(execFile);
+
+async function voiceWavDataUrl(audioUrl: string): Promise<string | null> {
+  if (!ffmpegPath || !existsSync(ffmpegPath)) return null;
+  const loaded = await loadStoredMediaBytes(audioUrl);
+  if (!loaded.bytes.length) return null;
+  const workDir = await mkdtemp(join(tmpdir(), "lipsync-wav-"));
+  const inputPath = join(workDir, "voice.bin");
+  const outputPath = join(workDir, "voice.wav");
+  try {
+    await writeFile(inputPath, loaded.bytes);
+    await execFileAsync(ffmpegPath, [
+      "-y",
+      "-i",
+      inputPath,
+      "-ac",
+      "1",
+      "-ar",
+      "44100",
+      outputPath,
+    ]);
+    const wav = await readFile(outputPath);
+    if (!wav.length) return null;
+    return `data:audio/wav;base64,${wav.toString("base64")}`;
+  } catch (error) {
+    console.error(
+      "Could not convert voice to wav",
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+}
+
 /**
  * Re-lip a plate to the voice.
  * Sync remap keeps the whole sentence and moves the mouth across it.
@@ -28,9 +70,10 @@ export async function startVideoLipsync(
   let video: string;
   let audio: string;
   try {
+    const wav = await voiceWavDataUrl(audioUrl);
     [video, audio] = await Promise.all([
       ensureReplicateInputUrl(videoUrl, "walk-plate"),
-      ensureReplicateInputUrl(audioUrl, "voice"),
+      ensureReplicateInputUrl(wav ?? audioUrl, "voice"),
     ]);
   } catch (error) {
     const message =
