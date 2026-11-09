@@ -99,18 +99,30 @@ export async function muxTalkVideoWithVoice(
 
     let audioDurationSec = 0;
     let videoDurationSec = 0;
-    let trimSec: number | undefined;
+    let padSec = 0;
+    let videoTrim: number | undefined;
     try {
       audioDurationSec = await getAudioDurationSec(audioBytes);
       videoDurationSec = await probeVideoDurationSec(videoPath);
-      trimSec = Math.min(audioDurationSec, videoDurationSec);
+      if (audioDurationSec > videoDurationSec + 0.05) {
+        padSec = audioDurationSec - videoDurationSec;
+      } else if (videoDurationSec > audioDurationSec + 0.05) {
+        videoTrim = audioDurationSec;
+      }
     } catch {
-      trimSec = undefined;
+      padSec = 0;
+      videoTrim = undefined;
     }
 
-    const filter = trimSec
-      ? `[0:v]setpts=PTS-STARTPTS,trim=duration=${trimSec.toFixed(3)},setpts=PTS-STARTPTS[v];[1:a]atrim=duration=${trimSec.toFixed(3)},aresample=async=1:first_pts=0[a]`
-      : `[0:v]setpts=PTS-STARTPTS[v];[1:a]aresample=async=1:first_pts=0[a]`;
+    const videoFilter = padSec
+      ? `[0:v]setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${padSec.toFixed(3)}[v]`
+      : videoTrim
+        ? `[0:v]setpts=PTS-STARTPTS,trim=duration=${videoTrim.toFixed(3)},setpts=PTS-STARTPTS[v]`
+        : `[0:v]setpts=PTS-STARTPTS[v]`;
+    const audioFilter = audioDurationSec
+      ? `[1:a]atrim=duration=${audioDurationSec.toFixed(3)},asetpts=PTS-STARTPTS[a]`
+      : `[1:a]asetpts=PTS-STARTPTS[a]`;
+    const filter = `${videoFilter};${audioFilter}`;
 
     await execFileAsync(
       bin,
@@ -138,7 +150,7 @@ export async function muxTalkVideoWithVoice(
         "aac",
         "-b:a",
         "192k",
-        ...(trimSec ? ["-t", trimSec.toFixed(3)] : ["-shortest"]),
+        ...(audioDurationSec ? ["-t", audioDurationSec.toFixed(3)] : ["-shortest"]),
         "-movflags",
         "+faststart",
         outputPath,

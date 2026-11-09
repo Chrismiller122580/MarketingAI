@@ -9,19 +9,21 @@ export type VideoLipsyncOptions = {
   audioDurationSec?: number;
 };
 
-function pickSyncMode(_options?: VideoLipsyncOptions): string {
-  // End the clip with the voice. Looping the walk repeats a mouth that does not match.
-  return "cut_off";
+function pickSyncMode(): string {
+  // Slow or speed the picture so the mouth covers the whole voice.
+  // cut_off was dropping the end of the sentence when the plate was shorter.
+  return "remap";
 }
 
 /**
- * Re-lip a Kling (or other) plate to approved voice audio.
- * Prefers Kling lip-sync on Kling footage, then Sync Labs lipsync-2.
+ * Re-lip a plate to the voice.
+ * Sync remap keeps the whole sentence and moves the mouth across it.
+ * Kling lip-sync is the backup.
  */
 export async function startVideoLipsync(
   videoUrl: string,
   audioUrl: string,
-  options?: VideoLipsyncOptions,
+  _options?: VideoLipsyncOptions,
 ): Promise<{ predictionId: string } | { error: string }> {
   let video: string;
   let audio: string;
@@ -36,22 +38,22 @@ export async function startVideoLipsync(
     return { error: message };
   }
 
+  const syncResult = await createModelPrediction("sync/lipsync-2", {
+    video,
+    audio,
+    sync_mode: pickSyncMode(),
+    temperature: 0.35,
+    active_speaker: false,
+  });
+  if (!("error" in syncResult)) return syncResult;
+
   const klingResult = await createModelPrediction("kwaivgi/kling-lip-sync", {
     video_url: video,
     audio_file: audio,
   });
   if (!("error" in klingResult)) return klingResult;
 
-  const syncResult = await createModelPrediction("sync/lipsync-2", {
-    video,
-    audio,
-    sync_mode: pickSyncMode(options),
-    temperature: 0.5,
-    active_speaker: false,
-  });
-  if (!("error" in syncResult)) return syncResult;
-
   return {
-    error: `Lip-sync unavailable (${LIPSYNC_MODELS.join(", ")}): ${klingResult.error}; ${syncResult.error}`,
+    error: `Lip-sync unavailable (${LIPSYNC_MODELS.join(", ")}): ${syncResult.error}; ${klingResult.error}`,
   };
 }

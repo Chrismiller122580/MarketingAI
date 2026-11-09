@@ -8,8 +8,8 @@ import { synthesizeSpeech } from "./elevenlabs";
 import type { InfluencerMotionType } from "./influencer-assets";
 import { buildMotionPrompt, buildTalkCloseupPrompt, buildWalkTalkPrompt } from "./motion-prompts";
 import {
+  KLING_LONG_DURATION_SEC,
   KLING_SPOKEN_NEGATIVE_PROMPT,
-  klingDurationForAudio,
   sadtalkerInputFor,
 } from "./talk-settings";
 import type { PreparedMotionPortrait } from "./influencer-renders";
@@ -183,7 +183,7 @@ export async function startInfluencerMotion(
       }
     }
 
-    const plateDurationSec = klingDurationForAudio(audioDurationSec);
+    const plateDurationSec = KLING_LONG_DURATION_SEC;
     const frame =
       options?.aspectRatio === "9:16"
         ? " Vertical 9:16 phone video. Face fills the frame the way a TikTok does. No letterboxing. No captions."
