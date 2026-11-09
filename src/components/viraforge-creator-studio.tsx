@@ -147,6 +147,36 @@ async function postLearn(
   });
 }
 
+function clipFileName(name?: string, handle?: string): string {
+  const base = (name || handle || "avatar")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return `${base || "avatar"}-TikTok.mp4`;
+}
+
+function clipDownloadHref(url: string, filename: string): string {
+  try {
+    const parsed = new URL(url, "https://crawlspark.ai");
+    const fromQuery = parsed.searchParams.get("pathname");
+    const fromBlob = /blob\.vercel-storage\.com/i.test(parsed.hostname)
+      ? parsed.pathname.replace(/^\/+/, "")
+      : "";
+    const pathname = fromQuery || fromBlob;
+    if (!pathname) return url;
+    const params = new URLSearchParams({
+      pathname,
+      download: "1",
+      filename,
+    });
+    return `/api/media/blob?${params.toString()}`;
+  } catch {
+    return url;
+  }
+}
+
 export function ViraForgeCreatorStudio() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -2515,13 +2545,20 @@ export function ViraForgeCreatorStudio() {
                       >
                         Copy caption
                       </Button>
-                      {motionVideo.startsWith("http") && (
+                      {motionVideo.startsWith("http") ||
+                      motionVideo.startsWith("/api/media/blob") ? (
                         <Button asChild size="sm" variant="outline">
-                          <a href={motionVideo} download>
+                          <a
+                            href={clipDownloadHref(
+                              motionVideo,
+                              clipFileName(values.displayName, values.handle),
+                            )}
+                            download={clipFileName(values.displayName, values.handle)}
+                          >
                             Download
                           </a>
                         </Button>
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>
