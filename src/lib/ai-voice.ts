@@ -78,6 +78,29 @@ export function estimateMp3DurationSec(buffer: Buffer): number {
   return Math.round(duration * 10) / 10;
 }
 
+function voiceErrorMessage(error: unknown): string {
+  if (error && typeof error === "object") {
+    const body = (error as { body?: { detail?: { message?: string } | string } }).body;
+    const detail = body?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail.trim().slice(0, 180);
+    if (detail && typeof detail === "object" && detail.message?.trim()) {
+      return detail.message.trim().slice(0, 180);
+    }
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim().slice(0, 180);
+  }
+  return "Voice synthesis failed. Try again in a moment.";
+}
+
+function talkSettingsFor(modelId: string): VoiceSettings {
+  const turbo = modelId.includes("turbo") || modelId.includes("flash");
+  if (turbo) {
+    return { speed: 0.92, stability: 0.5, similarityBoost: 0.75 };
+  }
+  return TALK_VOICE_SETTINGS;
+}
+
 export async function synthesizeSpeech(
   text: string,
   options?: SpeechSynthesisOptions,
@@ -85,29 +108,57 @@ export async function synthesizeSpeech(
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   if (!apiKey || !text.trim()) return null;
 
-  const voiceSettings =
-    options?.voiceSettings ??
-    (options?.purpose === "talk" ? TALK_VOICE_SETTINGS : undefined);
   const spoken = options?.languageCode
     ? speechModelForLanguage(options.languageCode)
     : null;
+  const primaryModel = options?.modelId ?? spoken?.modelId ?? DEFAULT_MODEL_ID;
+  const primaryVoice = options?.voiceId ?? getDefaultVoiceId();
+  const client = new ElevenLabsClient({ apiKey });
+
+  const convert = async (input: {
+    voiceId: string;
+    modelId: string;
+    languageCode?: string;
+    voiceSettings?: VoiceSettings;
+  }) => {
+    const audioStream = await client.textToSpeech.convert(input.voiceId, {
+      text: text.trim(),
+      modelId: input.modelId,
+      outputFormat: DEFAULT_OUTPUT_FORMAT,
+      ...(input.languageCode ? { languageCode: input.languageCode } : {}),
+      ...(input.voiceSettings ? { voiceSettings: input.voiceSettings } : {}),
+    });
+    return streamToBuffer(audioStream);
+  };
 
   try {
-    const client = new ElevenLabsClient({ apiKey });
-    const audioStream = await client.textToSpeech.convert(
-      options?.voiceId ?? getDefaultVoiceId(),
-      {
-        text: text.trim(),
-        modelId: options?.modelId ?? spoken?.modelId ?? DEFAULT_MODEL_ID,
-        outputFormat: DEFAULT_OUTPUT_FORMAT,
-        ...(spoken?.languageCode ? { languageCode: spoken.languageCode } : {}),
-        ...(voiceSettings ? { voiceSettings } : {}),
-      },
-    );
-
-    return await streamToBuffer(audioStream);
-  } catch {
-    return null;
+    return await convert({
+      voiceId: primaryVoice,
+      modelId: primaryModel,
+      languageCode: spoken?.languageCode,
+      voiceSettings:
+        options?.voiceSettings ??
+        (options?.purpose === "talk" ? talkSettingsFor(primaryModel) : undefined),
+    });
+  } catch (error) {
+    console.error("ElevenLabs primary voice failed", voiceErrorMessage(error));
+    try {
+      return await convert({
+        voiceId: getDefaultVoiceId(),
+        modelId: DEFAULT_MODEL_ID,
+        voiceSettings:
+          options?.purpose === "talk"
+            ? { stability: 0.5, similarityBoost: 0.75 }
+            : undefined,
+      });
+    } catch (fallback) {
+      console.error("ElevenLabs fallback voice failed", voiceErrorMessage(fallback));
+      const message = voiceErrorMessage(error);
+      if (/quota|credit/i.test(message)) {
+        throw new Error("Voice credits are used up. Try again after they refresh.");
+      }
+      throw new Error(message);
+    }
   }
 }
 
