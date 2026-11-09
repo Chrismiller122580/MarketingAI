@@ -1,6 +1,5 @@
 import type { CreatorAvatarForm } from "@/lib/schemas/creator-avatar-schema";
 import type { ProductFactsForm } from "@/lib/schemas/product-facts-schema";
-import { formatFactsForPrompt } from "./claim-validator";
 import { portraitCueForLocation } from "./audience-place";
 
 const BODY_TYPE_LABELS: Record<number, string> = {
@@ -62,15 +61,8 @@ export function buildAvatarImagePrompt(
     `Social context: ${persona.socialClass}. Religion: ${persona.religion}.`,
     persona.neighborhoods ? `Neighborhood vibe: ${persona.neighborhoods}.` : "",
     `Wardrobe: ${persona.wardrobe}`,
-    `Expression and mood: ${persona.personalityVoice.slice(0, 200)}.`,
-    options?.personalization ?? "",
-    options?.site?.brandName
-      ? `Brand alignment: spokesperson for ${options.site.brandName}${options.site.domain ? ` (${options.site.domain})` : ""}. Tone: ${options.site.tone ?? "on-brand"}.`
-      : "",
-    options?.site?.tagline ? `Brand message: ${options.site.tagline}.` : "",
-    options?.productFacts ? formatFactsForPrompt(options.productFacts) : "",
-    "Professional influencer headshot, natural lighting, shallow depth of field, 85mm lens look.",
-    "Photorealistic, consistent facial features, no text overlays, no watermarks, no logos.",
+    "Expression: calm, mouth relaxed, about to speak. Not a wide toothy smile.",
+    "A plain photograph of the person on a real street. No words, no signs, no menus, no cards, no logos, no captions, no stickers anywhere in the frame.",
   ]
     .filter(Boolean)
     .join(" ");

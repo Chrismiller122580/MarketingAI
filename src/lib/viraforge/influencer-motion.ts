@@ -95,6 +95,36 @@ async function klingReadyPortrait(
   }
 }
 
+async function cropPortraitForSpeech(
+  portrait: PreparedMotionPortrait,
+): Promise<PreparedMotionPortrait> {
+  try {
+    const sharp = (await import("sharp")).default;
+    const meta = await sharp(portrait.bytes).metadata();
+    const width = meta.width ?? 0;
+    const height = meta.height ?? 0;
+    if (width < 200 || height < 200) return portrait;
+    // The saved portrait has the slogan on the right and a card at the bottom.
+    // Keep the face and drop those graphics before the video is made.
+    const left = Math.round(width * 0.06);
+    const top = Math.round(height * 0.02);
+    const cropWidth = Math.max(64, Math.round(width * 0.6));
+    const cropHeight = Math.max(64, Math.round(height * 0.7));
+    const bytes = await sharp(portrait.bytes)
+      .extract({
+        left,
+        top,
+        width: Math.min(cropWidth, width - left),
+        height: Math.min(cropHeight, height - top),
+      })
+      .jpeg({ quality: 92 })
+      .toBuffer();
+    return { ...portrait, bytes, format: { mime: "image/jpeg", ext: "jpg" } };
+  } catch {
+    return portrait;
+  }
+}
+
 async function uploadPortraitToReplicate(
   portrait: PreparedMotionPortrait,
 ): Promise<string> {
@@ -131,7 +161,11 @@ export async function startInfluencerMotion(
 ): Promise<MotionStartResult> {
   let imageUrl: string;
   try {
-    imageUrl = await uploadPortraitToReplicate(portrait);
+    const source =
+      motionType === "talk" || motionType === "walk-talk"
+        ? await cropPortraitForSpeech(portrait)
+        : portrait;
+    imageUrl = await uploadPortraitToReplicate(source);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Portrait upload failed";
