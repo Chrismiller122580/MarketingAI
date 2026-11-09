@@ -132,8 +132,10 @@ export async function GET(_request: Request, context: RouteContext) {
       });
     }
 
+    const audioDriven = meta.audioDriven === true;
+
     let audioEmbeddedInVideo = false;
-    if (spoken && job.voiceAudioUrl && !lipsyncReady) {
+    if (spoken && job.voiceAudioUrl && !lipsyncReady && !audioDriven) {
       try {
         videoUrl = await muxSpokenVoice(
           authResult,
@@ -152,7 +154,7 @@ export async function GET(_request: Request, context: RouteContext) {
             ? meta.plateVideoUrl
             : videoUrl;
       }
-    } else if (lipsyncReady) {
+    } else if (lipsyncReady || audioDriven) {
       audioEmbeddedInVideo = true;
     }
 

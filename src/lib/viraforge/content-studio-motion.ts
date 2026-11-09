@@ -208,6 +208,7 @@ export async function startContentStudioMotionClip(input: {
     script,
     metadata: {
       lipsyncStage: started.needsLipsync ? "pending" : "done",
+      audioDriven: started.audioDriven === true,
       plateDurationSec: started.plateDurationSec,
       audioDurationSec: started.audioDurationSec,
       videoLook: normalizeVideoLook(input.videoLook ?? "influencer"),

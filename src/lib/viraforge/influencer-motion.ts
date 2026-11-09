@@ -70,6 +70,7 @@ export type MotionStartResult =
       voiceAudioUrl?: string;
       voiceId?: string;
       needsLipsync?: boolean;
+      audioDriven?: boolean;
       plateDurationSec?: number;
       audioDurationSec?: number;
     }
@@ -123,6 +124,43 @@ async function cropPortraitForSpeech(
   } catch {
     return portrait;
   }
+}
+
+function talkFrames(seconds?: number): number {
+  const length = !seconds || seconds < 1 ? 8 : Math.min(10, seconds + 0.4);
+  const raw = Math.round(length * 25);
+  let snapped = Math.round((raw - 1) / 4) * 4 + 1;
+  if (snapped < 81) snapped = 81;
+  if (snapped > 241) snapped = 241;
+  return snapped;
+}
+
+async function startAudioDrivenTalk(input: {
+  imageUrl: string;
+  audioUrl: string;
+  seconds?: number;
+}): Promise<{ predictionId: string } | { error: string }> {
+  let audio = input.audioUrl;
+  try {
+    audio = await ensureReplicateInputUrl(input.audioUrl, "voice");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Voice upload failed";
+    return { error: message };
+  }
+
+  return createModelPrediction("codehappynice/infinitetalk", {
+    image: input.imageUrl,
+    audio,
+    prompt:
+      "Close-up of this person speaking the audio to the camera. The face stays large. The mouth shapes every word. Natural blinks. No zoom out.",
+    negative_prompt:
+      "subtitles, captions, text, letters, logos, frozen smile, closed mouth, blurry face, extra fingers",
+    num_frames: talkFrames(input.seconds),
+    audio_guide_scale: 5,
+    text_guide_scale: 4,
+    resolution: "480",
+    sampling_steps: 30,
+  });
 }
 
 async function uploadPortraitToReplicate(
@@ -215,6 +253,25 @@ export async function startInfluencerMotion(
           error instanceof Error ? error.message : "Voice upload failed";
         return { error: `Could not prepare voiceover for motion: ${message}` };
       }
+    }
+
+    if (voiceAudioUrl) {
+      const driven = await startAudioDrivenTalk({
+        imageUrl,
+        audioUrl: audioDataUrl ?? voiceAudioUrl,
+        seconds: audioDurationSec,
+      });
+      if (!("error" in driven)) {
+        return {
+          predictionId: driven.predictionId,
+          voiceAudioUrl,
+          voiceId: usedVoiceId,
+          needsLipsync: false,
+          audioDriven: true,
+          audioDurationSec,
+        };
+      }
+      console.error("Audio-driven talk failed, using the older plate:", driven.error);
     }
 
     const plateDurationSec = KLING_LONG_DURATION_SEC;

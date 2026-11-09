@@ -311,6 +311,7 @@ export async function POST(request: Request) {
         script: spoken ? talkScript : undefined,
         metadata: {
           lipsyncStage: started.needsLipsync ? "pending" : "done",
+          audioDriven: started.audioDriven === true,
           plateDurationSec: started.plateDurationSec,
           audioDurationSec: started.audioDurationSec,
           videoLook:
