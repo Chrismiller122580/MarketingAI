@@ -13,11 +13,11 @@ export const KLING_SHORT_DURATION_SEC = 5;
 export const KLING_LONG_DURATION_SEC = 10;
 
 export const TALK_VOICE_SETTINGS: VoiceSettings = {
-  speed: 0.9,
-  stability: 0.48,
-  similarityBoost: 0.8,
-  style: 0.32,
-  useSpeakerBoost: true,
+  speed: 1,
+  stability: 0.42,
+  similarityBoost: 0.68,
+  style: 0.08,
+  useSpeakerBoost: false,
 };
 
 export const KLING_SPOKEN_NEGATIVE_PROMPT =

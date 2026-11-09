@@ -182,7 +182,7 @@ export function ViraForgeCreatorStudio() {
     defaultCreatorAvatarValues.sampleQuote,
   );
   const [motionVideo, setMotionVideo] = useState<string | null>(null);
-  const [videoLook, setVideoLook] = useState<VideoLookId>("influencer");
+  const [videoLook, setVideoLook] = useState<VideoLookId>("clean");
   const [voiceAudio, setVoiceAudio] = useState<string | null>(null);
   const voiceAudioRef = useRef<HTMLAudioElement>(null);
   const previewVoiceAudioRef = useRef<HTMLAudioElement>(null);
@@ -644,7 +644,7 @@ export function ViraForgeCreatorStudio() {
           influencerId,
           motionType,
           script: talkScript,
-          videoLook: format === "tiktok" ? "influencer" : videoLook,
+          videoLook,
           ...(format === "tiktok" ? { format: "tiktok" } : {}),
           ...(motionType === "talk" && approvedTalkPreview
             ? {
@@ -689,7 +689,6 @@ export function ViraForgeCreatorStudio() {
       return;
     }
 
-    setVideoLook("influencer");
     let script = motionScript.trim();
     if (!script) {
       setScriptGenerating(true);

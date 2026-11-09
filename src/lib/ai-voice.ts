@@ -96,7 +96,7 @@ function voiceErrorMessage(error: unknown): string {
 function talkSettingsFor(modelId: string): VoiceSettings {
   const turbo = modelId.includes("turbo") || modelId.includes("flash");
   if (turbo) {
-    return { speed: 0.92, stability: 0.5, similarityBoost: 0.75 };
+    return { speed: 1, stability: 0.42, similarityBoost: 0.68 };
   }
   return TALK_VOICE_SETTINGS;
 }

@@ -27,7 +27,7 @@ const SCENE_HINTS: Record<InfluencerScriptScene, string> = {
   cta: "Point somewhere from the story you just lived. Warm. No 'link in bio'.",
   greet: "Say hello like you ran into one person, and mention where you are.",
   tiktok:
-    "First three words are a specific moment, not a topic. Name a person or a place from your life, then one true point. Spoken to one viewer. No hashtags, no greeting, no 'link in bio'.",
+    "One or two short sentences, 16 to 22 words, in one language only. Open on a moment they lived and name one person or one place. No website, no FAQ, no menu, no product page, no second language, no hashtags.",
 };
 
 const TALK_SCENES = new Set<InfluencerScriptScene>([
@@ -38,6 +38,45 @@ const TALK_SCENES = new Set<InfluencerScriptScene>([
   "greet",
   "tiktok",
 ]);
+
+const TIKTOK_MAX_WORDS = 22;
+const PAGE_NOISE =
+  /preguntas frecuentes|\bfaq\b|link in bio|https?:|\bmenu\b|compradores|unirse a/i;
+
+function spokenClauses(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+|,\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function clauseLanguage(text: string): "es" | "en" | "other" {
+  const spanish =
+    /\b(el|la|los|las|que|para|con|una|por|del|hoy|estoy|fui)\b/i.test(text);
+  const english =
+    /\b(the|and|with|that|this|from|at|my|we|watching|skipped)\b/i.test(text);
+  if (spanish && !english) return "es";
+  if (english && !spanish) return "en";
+  return "other";
+}
+
+/** One language, no crawled page, short enough for a 10-second walk. */
+export function keepSpokenLine(
+  script: string,
+  language: string,
+  maxWords: number,
+): string {
+  const wanted = language === "es" ? "es" : language === "en" ? "en" : null;
+  const clean = spokenClauses(script).filter((part) => !PAGE_NOISE.test(part));
+  const matched = wanted
+    ? clean.filter((part) => clauseLanguage(part) === wanted)
+    : clean;
+  const kept = (matched.length > 0 ? matched : clean).join(" ");
+  const words = kept.split(/\s+/).filter(Boolean).slice(0, maxWords);
+  if (words.length === 0) return "";
+  const line = words.join(" ");
+  return /[.!?]$/.test(line) ? line : `${line}.`;
+}
 
 export async function generateInfluencerScript(input: {
   persona: CreatorAvatarForm;
@@ -61,22 +100,24 @@ export async function generateInfluencerScript(input: {
     );
   }
 
-  const factsBlock = formatFactsForPrompt(input.facts);
+  const isTikTok = input.scene === "tiktok";
+  const factsBlock = isTikTok ? "" : formatFactsForPrompt(input.facts);
   const sceneHint = SCENE_HINTS[input.scene];
-  const maxWords = input.maxWords ?? TALK_TARGET_MAX_WORDS;
+  const maxWords = input.maxWords ?? (isTikTok ? TIKTOK_MAX_WORDS : TALK_TARGET_MAX_WORDS);
   const isTalkScene = TALK_SCENES.has(input.scene);
-  const wordRule = isTalkScene
-    ? `${TALK_TARGET_MIN_WORDS}–${maxWords} words max, conversational pace, one breath (~8–10 seconds spoken)`
-    : "40–90 words max";
-  const factRule = hasLockedProductFacts(input.facts)
-    ? "ONLY mention verified product facts below. Never invent specs, prices, benefits, or health claims."
-    : "No product facts are locked. Do not invent prices, specs, ingredients, or health claims. Keep the copy general.";
+  const wordRule = isTikTok
+    ? `16–${TIKTOK_MAX_WORDS} words, one language, one breath, about 8 seconds`
+    : isTalkScene
+      ? `${TALK_TARGET_MIN_WORDS}–${maxWords} words max, conversational pace, one breath (~8–10 seconds spoken)`
+      : "40–90 words max";
+  const factRule = isTikTok
+    ? "This is not an ad. Do not mention a website, a page, a FAQ, a menu, or a product."
+    : hasLockedProductFacts(input.facts)
+      ? "ONLY mention verified product facts below. Never invent specs, prices, benefits, or health claims."
+      : "No product facts are locked. Do not invent prices, specs, ingredients, or health claims. Keep the copy general.";
 
   const language = normalizeAvatarLanguage(input.language ?? "en");
-  const languageRule =
-    language === "en"
-      ? ""
-      : `- Write the entire script in ${avatarLanguageLabel(language)}. Keep personal names and product names as they are.`;
+  const languageRule = `- Write the entire script in ${avatarLanguageLabel(language)}. Do not switch language. Keep personal names as they are.`;
 
   const systemPrompt = `You write short spoken scripts for ${input.persona.displayName} (@${input.persona.handle}).
 Voice: ${input.persona.personalityVoice}
@@ -91,7 +132,10 @@ ${languageRule}
 ${input.worldLife ? `\n${input.worldLife}` : ""}
 ${input.personalization ? `\n${input.personalization}` : ""}`;
 
-  const userMessage = `${factsBlock}
+  const userMessage = isTikTok
+    ? `Scene: tiktok — ${sceneHint}
+Speak only about the lived day above. One language. Stop after the moment.`
+    : `${factsBlock}
 
 Scene: ${input.scene} — ${sceneHint}
 ${input.siteDomain ? `Website to reference: ${input.siteDomain}` : ""}
@@ -109,10 +153,15 @@ ${input.draftText ? `Adapt this draft post into spoken script:\n${input.draftTex
   }
 
   const validation = validateQuoteAgainstFacts(script, input.facts);
-  const trimmed = script.slice(0, 500);
-  const words = trimmed.split(/\s+/).filter(Boolean);
+  const spoken = isTikTok
+    ? keepSpokenLine(script, language, maxWords)
+    : script.slice(0, 500);
+  const words = spoken.split(/\s+/).filter(Boolean);
   const capped =
-    words.length > maxWords ? words.slice(0, maxWords).join(" ") : trimmed;
+    words.length > maxWords ? `${words.slice(0, maxWords).join(" ")}.` : spoken;
+  if (!capped.trim()) {
+    throw new Error("AI returned an empty script");
+  }
   const analysis = analyzeTalkScript(capped);
 
   return {
